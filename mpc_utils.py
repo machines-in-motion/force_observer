@@ -64,13 +64,18 @@ def display_ball(p_des, RADIUS=.05, COLOR=[1.,1.,1.,1.]):
 
     return ballId
 
+
 # Load contact surface in PyBullet for contact experiments
-def display_contact_surface(M, robotId=1, radius=.25, length=0.0, with_collision=False, TILT=[0., 0., 0.]):
+def display_contact_surface(M, robotId=1, radius=.25, length=0.0, bullet_endeff_ids=[], TILT=[0., 0., 0.]):
     '''
     Creates contact surface object in PyBullet as a flat cylinder 
-      M       : contact placement (with z_LOCAL coinciding with cylinder axis)
-      robotId : id of the robot 
+      M              : contact placement expressed in simulator WORLD frame
+      robotId        : id of the robot in simulator
+      radius         : radius of cylinder
+      length         : length of cylinder
+      TILT           : RPY tilt of the surface
     '''
+    print("Creating PyBullet contact surface...")
     # Tilt contact surface (default 0)
     TILT_rotation = pin.utils.rpyToMatrix(TILT[0], TILT[1], TILT[2])
     M.rotation = TILT_rotation.dot(M.rotation)
@@ -83,25 +88,27 @@ def display_contact_surface(M, robotId=1, radius=.25, length=0.0, with_collision
                                         visualFramePosition=quat[:3],
                                         visualFrameOrientation=quat[3:])
     # With collision
-    if(with_collision):
+    if(len(bullet_endeff_ids)!=0):
       collisionShapeId = p.createCollisionShape(shapeType=p.GEOM_CYLINDER,
                                                 radius=radius,
                                                 height=length,
                                                 collisionFramePosition=quat[:3],
                                                 collisionFrameOrientation=quat[3:])
       contactId = p.createMultiBody(baseMass=0.,
-                                        baseInertialFramePosition=[0.,0.,0.],
-                                        baseCollisionShapeIndex=collisionShapeId,
-                                        baseVisualShapeIndex=visualShapeId,
-                                        basePosition=[0.,0.,0.],
-                                        useMaximalCoordinates=True)
+                                    baseInertialFramePosition=[0.,0.,0.],
+                                    baseCollisionShapeIndex=collisionShapeId,
+                                    baseVisualShapeIndex=visualShapeId,
+                                    basePosition=[0.,0.,0.],
+                                    useMaximalCoordinates=False)
                     
-      # Desactivate collisions for all links except end-effector of robot
-      # TODO: do not hard-code the PyBullet EE id
+      # Desactivate collisions for all links
       for i in range(p.getNumJoints(robotId)):
-        p.setCollisionFilterPair(contactId, robotId, -1, i, 0)
-      p.setCollisionFilterPair(contactId, robotId, -1, 8, 1)
-
+            p.setCollisionFilterPair(contactId, robotId, -1, i, 1) # 0
+            print("Set collision pair ("+str(contactId)+","+str(robotId)+"."+str(i)+") to True")
+    #   # activate collisions only for EE ids
+    #   for ee_id in bullet_endeff_ids:
+    #         p.setCollisionFilterPair(contactId, robotId, -1, ee_id, 1)
+    #         logger.info("Set collision pair ("+str(contactId)+","+str(robotId)+"."+str(ee_id)+") to True")
       return contactId
     # Without collisions
     else:
@@ -109,8 +116,58 @@ def display_contact_surface(M, robotId=1, radius=.25, length=0.0, with_collision
                         baseInertialFramePosition=[0.,0.,0.],
                         baseVisualShapeIndex=visualShapeId,
                         basePosition=[0.,0.,0.],
-                        useMaximalCoordinates=True)
+                        useMaximalCoordinates=False)
       return contactId
+
+
+
+# # Load contact surface in PyBullet for contact experiments
+# def display_contact_surface(M, robotId=1, radius=.25, length=0.0, with_collision=False, TILT=[0., 0., 0.]):
+#     '''
+#     Creates contact surface object in PyBullet as a flat cylinder 
+#       M       : contact placement (with z_LOCAL coinciding with cylinder axis)
+#       robotId : id of the robot 
+#     '''
+#     # Tilt contact surface (default 0)
+#     TILT_rotation = pin.utils.rpyToMatrix(TILT[0], TILT[1], TILT[2])
+#     M.rotation = TILT_rotation.dot(M.rotation)
+#     # Get quaternion
+#     quat = pin.SE3ToXYZQUAT(M)
+#     visualShapeId = p.createVisualShape(shapeType=p.GEOM_CYLINDER,
+#                                         radius=radius,
+#                                         length=length,
+#                                         rgbaColor=[.1, .8, .1, .5],
+#                                         visualFramePosition=quat[:3],
+#                                         visualFrameOrientation=quat[3:])
+#     # With collision
+#     if(with_collision):
+#       collisionShapeId = p.createCollisionShape(shapeType=p.GEOM_CYLINDER,
+#                                                 radius=radius,
+#                                                 height=length,
+#                                                 collisionFramePosition=quat[:3],
+#                                                 collisionFrameOrientation=quat[3:])
+#       contactId = p.createMultiBody(baseMass=0.,
+#                                         baseInertialFramePosition=[0.,0.,0.],
+#                                         baseCollisionShapeIndex=collisionShapeId,
+#                                         baseVisualShapeIndex=visualShapeId,
+#                                         basePosition=[0.,0.,0.],
+#                                         useMaximalCoordinates=True)
+                    
+#       # Desactivate collisions for all links except end-effector of robot
+#       # TODO: do not hard-code the PyBullet EE id
+#       for i in range(p.getNumJoints(robotId)):
+#         p.setCollisionFilterPair(contactId, robotId, -1, i, 0)
+#       p.setCollisionFilterPair(contactId, robotId, -1, 8, 1)
+
+#       return contactId
+#     # Without collisions
+#     else:
+#       contactId = p.createMultiBody(baseMass=0.,
+#                         baseInertialFramePosition=[0.,0.,0.],
+#                         baseVisualShapeIndex=visualShapeId,
+#                         basePosition=[0.,0.,0.],
+#                         useMaximalCoordinates=True)
+#       return contactId
 
 
 
