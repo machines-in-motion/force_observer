@@ -87,10 +87,10 @@ class Estimator():
 
         t1 = time.time()
         self.qp.solve()
-        print("time ", time.time() - t1)
-        print("iter ", self.qp.results.info.iter)
-        print("primal ", self.qp.results.info.pri_res)
-        print("dual ", self.qp.results.info.dua_res)
+        # print("time ", time.time() - t1)
+        # print("iter ", self.qp.results.info.iter)
+        # print("primal ", self.qp.results.info.pri_res)
+        # print("dual ", self.qp.results.info.dua_res)
 
 
 
