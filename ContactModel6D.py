@@ -62,14 +62,15 @@ class DAMRigidContact6D(crocoddyl.DifferentialActionModelAbstract):
         new_tau = data.multibody.actuation.tau #+ data.multibody.contacts.Jc[:self.nc].T @ self.delta_f
 
         pin.forwardDynamics(self.pinocchio, data.pinocchio,
-                                            u, #new_tau
+                                            u,
                                             data.multibody.contacts.Jc[:self.nc],
                                             data.multibody.contacts.a0[:self.nc],
                                             0.)
         data.xout = data.pinocchio.ddq
         self.contacts.updateAcceleration(data.multibody.contacts, data.pinocchio.ddq)
-        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c - self.delta_f)
+        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c - self.delta_f) # just for the cost computation !!!
         self.costs.calc(data.costs, x, u)
+        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) # for dynamics! 
         data.cost = data.costs.cost
         # pin.updateGlobalPlacements(self.pinocchio, data.pinocchio)
         return data.xout, data.cost
@@ -91,7 +92,9 @@ class DAMRigidContact6D(crocoddyl.DifferentialActionModelAbstract):
         self.actuation.calcDiff(data.multibody.actuation, x, u)
 
         # This line makes unittest pass for somehow...
-        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
+        # self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
+        # data.pinocchio.tau -= data.multibody.contacts.Jc[:self.nc].T @ self.delta_f
+        # dnew_tau_dx =   
 
         pin.computeRNEADerivatives(self.pinocchio, data.pinocchio, q, v, data.xout, data.multibody.contacts.fext)
         data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc[:self.nc])
