@@ -62,7 +62,7 @@ class DAMRigidContact6D(crocoddyl.DifferentialActionModelAbstract):
         new_tau = data.multibody.actuation.tau #+ data.multibody.contacts.Jc[:self.nc].T @ self.delta_f
 
         pin.forwardDynamics(self.pinocchio, data.pinocchio,
-                                            u,
+                                            u, #new_tau
                                             data.multibody.contacts.Jc[:self.nc],
                                             data.multibody.contacts.a0[:self.nc],
                                             0.)
@@ -89,6 +89,9 @@ class DAMRigidContact6D(crocoddyl.DifferentialActionModelAbstract):
         v = x[self.state.nq:]
         # Actuation calcDiff
         self.actuation.calcDiff(data.multibody.actuation, x, u)
+
+        # This line makes unittest pass for somehow...
+        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
 
         pin.computeRNEADerivatives(self.pinocchio, data.pinocchio, q, v, data.xout, data.multibody.contacts.fext)
         data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc[:self.nc])
