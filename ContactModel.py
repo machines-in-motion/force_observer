@@ -8,9 +8,9 @@ np.random.seed(1)
 import crocoddyl
 import pinocchio as pin
 
-class DAMRigidContact6D(crocoddyl.DifferentialActionModelAbstract):
+class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
     '''
-    Computes the forward dynamics under rigid contact model 6D + force estimate
+    Computes the forward dynamics under rigid contact model + force estimate
     '''
     def __init__(self, stateMultibody, actuationModel, contactModelSum, costModelSum, frameId, delta_f):
         # super(DAMSoftContactDynamics, self).__init__(stateMultibody, actuationModel.nu, costModelSum.nr)
@@ -28,14 +28,16 @@ class DAMRigidContact6D(crocoddyl.DifferentialActionModelAbstract):
         self.jMf = self.pinocchio.frames[self.frameId].placement
 
 
-        self.nc = 6
+        self.nc = contactModelSum.nc
         self.nv = 7
+        
+        assert(len(self.delta_f) == self.nc)
 
     def createData(self):
         '''
             The data is created with a custom data class
         '''
-        data = DADRigidContact6D(self)
+        data = DADRigidContact(self)
         return data
 
     def calc(self, data, x, u=None):
@@ -59,18 +61,20 @@ class DAMRigidContact6D(crocoddyl.DifferentialActionModelAbstract):
         self.contacts.calc(data.multibody.contacts, x)
 
         # Add delta_f
-        new_tau = data.multibody.actuation.tau #+ data.multibody.contacts.Jc[:self.nc].T @ self.delta_f
+        new_tau = data.multibody.actuation.tau + data.multibody.contacts.Jc[:self.nc].T @ self.delta_f[:self.nc]
 
         pin.forwardDynamics(self.pinocchio, data.pinocchio,
-                                            u,
+                                            new_tau, #u,
                                             data.multibody.contacts.Jc[:self.nc],
                                             data.multibody.contacts.a0[:self.nc],
                                             0.)
         data.xout = data.pinocchio.ddq
         self.contacts.updateAcceleration(data.multibody.contacts, data.pinocchio.ddq)
-        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c - self.delta_f) # just for the cost computation !!!
+        # Here we compute the cost without delta f
+        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c)# - self.delta_f) 
         self.costs.calc(data.costs, x, u)
-        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) # for dynamics! 
+        # Here we add again delta_f to the computed force for dynamics
+        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)
         data.cost = data.costs.cost
         # pin.updateGlobalPlacements(self.pinocchio, data.pinocchio)
         return data.xout, data.cost
@@ -91,21 +95,11 @@ class DAMRigidContact6D(crocoddyl.DifferentialActionModelAbstract):
         # Actuation calcDiff
         self.actuation.calcDiff(data.multibody.actuation, x, u)
 
-        # This line makes unittest pass for somehow...
-        # self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
-        # data.pinocchio.tau -= data.multibody.contacts.Jc[:self.nc].T @ self.delta_f
-        # dnew_tau_dx =   
-
         pin.computeRNEADerivatives(self.pinocchio, data.pinocchio, q, v, data.xout, data.multibody.contacts.fext)
         data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc[:self.nc])
 
         self.actuation.calcDiff(data.multibody.actuation, x, u)
         self.contacts.calcDiff(data.multibody.contacts, x)
-
-        # a_partial_dtau = data.Kinv.topLeftCorner(self.nv, self.nv)
-        # a_partial_da = data.Kinv.topRightCorner(self.nv, self.nc)
-        # f_partial_dtau = data.Kinv.bottomLeftCorner(self.nc, self.nv)
-        # f_partial_da = data.Kinv.bottomRightCorner(self.nc, self.nc)
 
         a_partial_dtau = data.Kinv[:self.nv, :self.nv]
         a_partial_da = data.Kinv[:self.nv, -self.nc:]
@@ -136,7 +130,7 @@ class DAMRigidContact6D(crocoddyl.DifferentialActionModelAbstract):
         data.Luu = data.costs.Luu
 
 
-class DADRigidContact6D(crocoddyl.DifferentialActionDataAbstract):
+class DADRigidContact(crocoddyl.DifferentialActionDataAbstract):
     '''
     Creates a data class with differential and augmented matrices from IAM (initialized with stateVector)
     '''

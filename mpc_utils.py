@@ -121,56 +121,6 @@ def display_contact_surface(M, robotId=1, radius=.25, length=0.0, bullet_endeff_
 
 
 
-# # Load contact surface in PyBullet for contact experiments
-# def display_contact_surface(M, robotId=1, radius=.25, length=0.0, with_collision=False, TILT=[0., 0., 0.]):
-#     '''
-#     Creates contact surface object in PyBullet as a flat cylinder 
-#       M       : contact placement (with z_LOCAL coinciding with cylinder axis)
-#       robotId : id of the robot 
-#     '''
-#     # Tilt contact surface (default 0)
-#     TILT_rotation = pin.utils.rpyToMatrix(TILT[0], TILT[1], TILT[2])
-#     M.rotation = TILT_rotation.dot(M.rotation)
-#     # Get quaternion
-#     quat = pin.SE3ToXYZQUAT(M)
-#     visualShapeId = p.createVisualShape(shapeType=p.GEOM_CYLINDER,
-#                                         radius=radius,
-#                                         length=length,
-#                                         rgbaColor=[.1, .8, .1, .5],
-#                                         visualFramePosition=quat[:3],
-#                                         visualFrameOrientation=quat[3:])
-#     # With collision
-#     if(with_collision):
-#       collisionShapeId = p.createCollisionShape(shapeType=p.GEOM_CYLINDER,
-#                                                 radius=radius,
-#                                                 height=length,
-#                                                 collisionFramePosition=quat[:3],
-#                                                 collisionFrameOrientation=quat[3:])
-#       contactId = p.createMultiBody(baseMass=0.,
-#                                         baseInertialFramePosition=[0.,0.,0.],
-#                                         baseCollisionShapeIndex=collisionShapeId,
-#                                         baseVisualShapeIndex=visualShapeId,
-#                                         basePosition=[0.,0.,0.],
-#                                         useMaximalCoordinates=True)
-                    
-#       # Desactivate collisions for all links except end-effector of robot
-#       # TODO: do not hard-code the PyBullet EE id
-#       for i in range(p.getNumJoints(robotId)):
-#         p.setCollisionFilterPair(contactId, robotId, -1, i, 0)
-#       p.setCollisionFilterPair(contactId, robotId, -1, 8, 1)
-
-#       return contactId
-#     # Without collisions
-#     else:
-#       contactId = p.createMultiBody(baseMass=0.,
-#                         baseInertialFramePosition=[0.,0.,0.],
-#                         baseVisualShapeIndex=visualShapeId,
-#                         basePosition=[0.,0.,0.],
-#                         useMaximalCoordinates=True)
-#       return contactId
-
-
-
 # Initialize simulation data for MPC simulation
 def init_sim_data(sim_params, ocp_params, x0):
     '''

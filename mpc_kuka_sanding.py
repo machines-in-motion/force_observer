@@ -13,7 +13,7 @@ from bullet_utils.env import BulletEnvWithGround
 from robot_properties_kuka.iiwaWrapper import IiwaRobot
 import pybullet as p
 import pinocchio as pin
-from ContactModel6D import DAMRigidContact6D
+from ContactModel import DAMRigidContact
 
 from estimator import Estimator
 
@@ -143,7 +143,7 @@ for i in range(T):
     # Create DAM 
     delta_f = np.zeros(6)
     delta_f[2] = -0
-    # dam = DAMRigidContact6D(state, 
+    # dam = DAMRigidContact(state, 
     #                         actuation, 
     #                         crocoddyl.ContactModelMultiple(state, actuation.nu), 
     #                         crocoddyl.CostModelSum(state, nu=actuation.nu), 
@@ -183,7 +183,7 @@ for i in range(T):
     runningModels[i].differential.costs.addCost("translation", frameTranslationCost, 10.)
     
 # Terminal DAM
-# dam_t = DAMRigidContact6D(state, 
+# dam_t = DAMRigidContact(state, 
 #                           actuation, 
 #                           crocoddyl.ContactModelMultiple(state, actuation.nu), 
 #                           crocoddyl.CostModelSum(state, nu=actuation.nu),
@@ -410,8 +410,8 @@ for i in range(sim_data['N_sim']):
             target_velocity[:,2]  = 0.
 
         # ########################## UPDATE MODEL
-        # running_DAM = DAMRigidContact6D(state, actuation, contactModel, runningCostModel, contact_frame_id, df_prior)
-        # # terminal_DAM = DAMRigidContact6D(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
+        # running_DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, df_prior)
+        # # terminal_DAM = DAMRigidContact(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
         # terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
 
         # dt = 1e-2

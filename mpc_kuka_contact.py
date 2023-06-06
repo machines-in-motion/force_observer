@@ -13,7 +13,7 @@ from bullet_utils.env import BulletEnvWithGround
 from robot_properties_kuka.iiwaWrapper import IiwaRobot
 import pybullet as p
 import pinocchio as pin
-from ContactModel6D import DAMRigidContact6D
+from ContactModel import DAMRigidContact
 
 from estimator import Estimator
 
@@ -43,7 +43,7 @@ contact_frame_id = robot_simulator.pin_robot.model.getFrameId("contact")
 contact_frame_placement = robot_simulator.pin_robot.data.oMf[contact_frame_id]
 offset = 0.03348 
 contact_frame_placement.translation = contact_frame_placement.act(np.array([0., 0., offset]))
-mpc_utils.display_contact_surface(contact_frame_placement, with_collision=True, TILT=[0., 0., 0.])
+mpc_utils.display_contact_surface(contact_frame_placement, bullet_endeff_ids=robot_simulator.bullet_endeff_ids) #, with_collision=True, TILT=[0., 0., 0.])
 
 # # # # # # # # # # # # # # #
 ###  SETUP CROCODDYL OCP  ###
@@ -83,8 +83,8 @@ terminalCostModel.addCost("stateReg", xRegCost, 1e-2)
 # terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
 delta_f = np.zeros(6)
 delta_f[2] = -0
-running_DAM = DAMRigidContact6D(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
-# terminal_DAM = DAMRigidContact6D(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
+running_DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
+# terminal_DAM = DAMRigidContact(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
 terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
 
 
@@ -172,8 +172,8 @@ for i in range(sim_data['N_sim']):
 
 
         ########################## UPDATE MODEL
-        running_DAM = DAMRigidContact6D(state, actuation, contactModel, runningCostModel, contact_frame_id, df_prior)
-        # terminal_DAM = DAMRigidContact6D(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
+        running_DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, df_prior)
+        # terminal_DAM = DAMRigidContact(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
         terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
 
         dt = 1e-2

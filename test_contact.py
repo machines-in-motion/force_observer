@@ -5,7 +5,7 @@ from numpy.linalg import norm
 from numpy.random import rand 
 np.set_printoptions(precision=4, linewidth=180)
 import crocoddyl
-from ContactModel6D import DAMRigidContact6D
+from ContactModel import DAMRigidContact
 
 np.random.seed(10)
 
@@ -27,6 +27,8 @@ x = np.concatenate([q, v])
 gains = np.zeros(2)
 nq = model.nq
 nv = model.nv
+nc = 6 #6
+
 
 # Numerical difference function
 def numdiff(f,x0,h=1e-6):
@@ -53,26 +55,29 @@ terminalCostModel = crocoddyl.CostModelSum(state)
 # Contact model 
 contactModel = crocoddyl.ContactModelMultiple(state, actuation.nu)
 # Create 3D contact on the en-effector frame
-contact_position = robot.data.oMf[contact_frame_id].copy()
+# contact_position = robot.data.oMf[contact_frame_id].copy()
 baumgarte_gains  = np.array([0., 50.])
-contact6d = crocoddyl.ContactModel6D(state, contact_frame_id, contact_position, baumgarte_gains) 
+if(nc == 3):
+    contactItem = crocoddyl.ContactModel3D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, baumgarte_gains) 
+else:
+    contactItem = crocoddyl.ContactModel6D(state, contact_frame_id, robot.data.oMf[contact_frame_id], baumgarte_gains) 
 # Populate contact model with contacts
-contactModel.addContact("contact", contact6d, active=True)
+contactModel.addContact("contact", contactItem, active=True)
 # Create cost terms 
 uResidual = crocoddyl.ResidualModelContactControlGrav(state)
 uRegCost = crocoddyl.CostModelResidual(state, uResidual)
 xResidual = crocoddyl.ResidualModelState(state, x)
 xRegCost = crocoddyl.CostModelResidual(state, xResidual)
 desired_wrench = np.array([0., 0., -100., 0., 0., 0.])
-frameForceResidual = crocoddyl.ResidualModelContactForce(state, contact_frame_id, pin.Force(desired_wrench), 6, actuation.nu)
+frameForceResidual = crocoddyl.ResidualModelContactForce(state, contact_frame_id, pin.Force(desired_wrench), nc, actuation.nu)
 contactForceCost = crocoddyl.CostModelResidual(state, frameForceResidual)
 runningCostModel.addCost("stateReg", xRegCost, 1e-2)
 runningCostModel.addCost("ctrlRegGrav", uRegCost, 1e-4)
 runningCostModel.addCost("force", contactForceCost, 10.)
 terminalCostModel.addCost("stateReg", xRegCost, 1e-2)
 # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
-delta_f = 100*np.random.rand(6) # delta_f[2] = -0
-DAM = DAMRigidContact6D(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
+delta_f = 100*np.random.rand(nc) # delta_f[2] = -0
+DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
 DAD = DAM.createData()
 jMf = robot.model.frames[contact_frame_id].placement
 
@@ -84,7 +89,7 @@ def df_dam(dam, dad, q, v, u):
     x = np.concatenate([q,v])
     dam.calc(dad, x, u)
     cd = dad.multibody.contacts.contacts['contact']
-    return jMf.actInv(cd.f).vector
+    return jMf.actInv(cd.f).vector[:nc]
 def tau_dam(dam, dad, q, v, u):
     pin.rnea(dam.pinocchio, dad.pinocchio, q, v, dad.xout, dad.multibody.contacts.fext)
     return dad.pinocchio.tau 
