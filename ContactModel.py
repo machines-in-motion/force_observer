@@ -3,7 +3,7 @@ DAM contact 6d with delta_f
 '''
 import numpy as np
 np.set_printoptions(precision=6, linewidth=180, suppress=True)
-np.random.seed(1)
+# np.random.seed(1)
 
 import crocoddyl
 import pinocchio as pin
@@ -13,7 +13,6 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
     Computes the forward dynamics under rigid contact model + force estimate
     '''
     def __init__(self, stateMultibody, actuationModel, contactModelSum, costModelSum, frameId, delta_f):
-        # super(DAMSoftContactDynamics, self).__init__(stateMultibody, actuationModel.nu, costModelSum.nr)
         crocoddyl.DifferentialActionModelAbstract.__init__(self, stateMultibody, actuationModel.nu, costModelSum.nr)
         self.frameId = frameId
         self.with_armature = False
@@ -29,9 +28,16 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
 
 
         self.nc = contactModelSum.nc
-        self.nv = 7
-        
-        assert(len(self.delta_f) == self.nc)
+        self.nv = self.pinocchio.nv
+        self.nq = self.pinocchio.nq
+        self.nx = self.nv + self.nq
+        self.ndx = stateMultibody.ndx
+
+        if(self.nc == 1):
+            self.J3d = np.zeros((3, self.pinocchio.nv))
+            assert(len(self.delta_f) == 3)
+        else:
+            assert(len(self.delta_f) == self.nc)
 
     def createData(self):
         '''
@@ -53,28 +59,38 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
 
 
         if u is None:
-            print("hey")
             u = np.zeros(self.nu)
 
         # Actuation calc
         self.actuation.calc(data.multibody.actuation, x, u)
         self.contacts.calc(data.multibody.contacts, x)
 
-        # Add delta_f
-        new_tau = data.multibody.actuation.tau + data.multibody.contacts.Jc[:self.nc].T @ self.delta_f[:self.nc]
-
-        pin.forwardDynamics(self.pinocchio, data.pinocchio,
-                                            new_tau, #u,
-                                            data.multibody.contacts.Jc[:self.nc],
-                                            data.multibody.contacts.a0[:self.nc],
-                                            0.)
+        # Add delta_f in torque space
+        if(self.nc == 1):
+            self.J3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)[:3]
+            new_tau = data.multibody.actuation.tau + self.J3d.T @ self.delta_f # Need 3D jac 
+            pin.forwardDynamics(self.pinocchio, data.pinocchio,
+                                                new_tau, #u,
+                                                data.multibody.contacts.Jc.reshape((1, self.nv)), # 1D
+                                                data.multibody.contacts.a0, # 1D
+                                                0.)
+        else:
+            new_tau = data.multibody.actuation.tau + data.multibody.contacts.Jc[:self.nc].T @ self.delta_f[:self.nc] 
+            pin.forwardDynamics(self.pinocchio, data.pinocchio,
+                                                new_tau, #u,
+                                                data.multibody.contacts.Jc[:self.nc], 
+                                                data.multibody.contacts.a0[:self.nc], 
+                                                0.)
         data.xout = data.pinocchio.ddq
-        self.contacts.updateAcceleration(data.multibody.contacts, data.pinocchio.ddq)
+        self.contacts.updateAcceleration(data.multibody.contacts, data.pinocchio.ddq) 
         # Here we compute the cost without delta f
-        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c)# - self.delta_f) 
+        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c)# - self.delta_f)  # 1D with lambda_c
         self.costs.calc(data.costs, x, u)
         # Here we add again delta_f to the computed force for dynamics
-        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)
+        if(self.nc == 1):
+            data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([self.delta_f, np.zeros(3)])))
+        else:
+            self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)    # 3D with (0,0,lambda_c) + delta_f
         data.cost = data.costs.cost
         # pin.updateGlobalPlacements(self.pinocchio, data.pinocchio)
         return data.xout, data.cost
@@ -95,28 +111,35 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         # Actuation calcDiff
         self.actuation.calcDiff(data.multibody.actuation, x, u)
 
-        pin.computeRNEADerivatives(self.pinocchio, data.pinocchio, q, v, data.xout, data.multibody.contacts.fext)
-        data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc[:self.nc])
+        pin.computeRNEADerivatives(self.pinocchio, data.pinocchio, q, v, data.xout, data.multibody.contacts.fext) # 3D derivative with fext including delta_f
+        if(self.nc == 1):
+            data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc.reshape((1, self.nv))) # Kinv has nc=1 
+        else:
+            data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc[:self.nc])  
 
         self.actuation.calcDiff(data.multibody.actuation, x, u)
-        self.contacts.calcDiff(data.multibody.contacts, x)
+        self.contacts.calcDiff(data.multibody.contacts, x) 
 
         a_partial_dtau = data.Kinv[:self.nv, :self.nv]
         a_partial_da = data.Kinv[:self.nv, -self.nc:]
         f_partial_dtau = data.Kinv[-self.nc:, :self.nv]
         f_partial_da = data.Kinv[-self.nc:, -self.nc:]
 
-        data.Fx[:,:self.nv]  = -a_partial_dtau @ data.pinocchio.dtau_dq ##
+        data.Fx[:,:self.nv]  = -a_partial_dtau @ data.pinocchio.dtau_dq 
         data.Fx[:,-self.nv:] = -a_partial_dtau @ data.pinocchio.dtau_dv
-        # import pdb; pdb.set_trace()
-        data.Fx -= a_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
+        if(self.nc == 1):
+            data.Fx -= a_partial_da @ data.multibody.contacts.da0_dx.reshape((1,self.ndx)) # 1D
+        else:
+            data.Fx -= a_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
         data.Fx += a_partial_dtau @ data.multibody.actuation.dtau_dx
-        # import pdb; pdb.set_trace()
         data.Fu = a_partial_dtau @ data.multibody.actuation.dtau_du
 
-        data.df_dx[:self.nc, :self.nv] = f_partial_dtau @ data.pinocchio.dtau_dq ##
+        data.df_dx[:self.nc, :self.nv] = f_partial_dtau @ data.pinocchio.dtau_dq 
         data.df_dx[:self.nc, -self.nv:] = f_partial_dtau @ data.pinocchio.dtau_dv
-        data.df_dx[:self.nc,:] += f_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
+        if(self.nc == 1):
+            data.df_dx[:self.nc,:] += f_partial_da @ data.multibody.contacts.da0_dx.reshape((1,self.ndx)) 
+        else:
+            data.df_dx[:self.nc,:] += f_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
         data.df_dx[:self.nc,:] -= f_partial_dtau @ data.multibody.actuation.dtau_dx
         data.df_du[:self.nc,:] = -f_partial_dtau @ data.multibody.actuation.dtau_du
         # self.contacts.updateAccelerationDiff(data.multibody.contacts, data.Fx[-self.nv:])
