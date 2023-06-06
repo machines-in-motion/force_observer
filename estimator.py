@@ -20,25 +20,32 @@ class Estimator():
     '''
     Computes the forward dynamics under rigid contact model 6D + force estimate
     '''
-    def __init__(self, baumgarte_gains):
-        self.R = 1e-2 * np.eye(6)
-        self.Q = 1e-2 * np.eye(7)
-        self.P = 1e-0 * np.eye(6)
+    def __init__(self, pin_robot, nc, frameId, baumgarte_gains):
 
-        n = 19
-        n_eq = 7 + 6
+        self.pin_robot = pin_robot
+        self.nc = nc
+        if(self.nc == 1):
+            self.nc_delta_f = 3
+        else:
+            self.nc_delta_f = self.nc
+        self.nv = self.pin_robot.model.nv
+
+        self.R = 1e-2 * np.eye(self.nc)
+        self.Q = 1e-2 * np.eye(self.nv)
+        self.P = 1e-0 * np.eye(self.nc_delta_f)
+
+        self.n_tot = self.nv + self.nc + self.nc_delta_f 
+        n_eq = self.nv + self.nc
         n_in = 0
 
-        self.qp = proxsuite.proxqp.dense.QP(n, n_eq, n_in)
+        self.qp = proxsuite.proxqp.dense.QP(self.n_tot, n_eq, n_in)
 
+        self.contact_frame_id = frameId
 
-        self.H = np.zeros((19, 19))
-        self.H[:7, :7]  = self.Q
-        self.H[7:13, 7:13]  = self.R 
-        self.H[13:, 13:]  = self.P 
-
-
-        self.n = n
+        self.H = np.zeros((self.n_tot, self.n_tot))
+        self.H[:self.nv, :self.nv]  = self.Q
+        self.H[self.nv:self.nv+self.nc, self.nv:self.nv+self.nc]  = self.R 
+        self.H[-self.nc_delta_f:, -self.nc_delta_f:]  = self.P 
 
         self.C = None
         self.u = None
@@ -48,36 +55,35 @@ class Estimator():
 
         assert self.baumgarte_gains[0] == 0
 
-    def estimate(self, pin_robot, q, v, a, tau, df_prior, F_mes):
+    def estimate(self, q, v, a, tau, df_prior, F_mes):
 
-        M = pin_robot.mass(q)
-        contact_frame_id = pin_robot.model.getFrameId("contact")
-        J = pin_robot.computeFrameJacobian(q, contact_frame_id)
-        h = pin_robot.nle(q, v)
+        M = self.pin_robot.mass(q)
+
+        J = self.pin_robot.computeFrameJacobian(q, self.contact_frame_id)
+        h = self.pin_robot.nle(q, v)
 
 
-        pin.forwardKinematics(pin_robot.model, pin_robot.data, q, v, np.zeros(7))
-        pin.updateFramePlacements(pin_robot.model, pin_robot.data)
-        alpha0 = pin.getFrameAcceleration(pin_robot.model, pin_robot.data, contact_frame_id).vector
-        v = pin.getFrameVelocity(pin_robot.model, pin_robot.data, contact_frame_id)
+        pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v, np.zeros(self.nv))
+        pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
+        alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id).vector[:self.nc]
+        v = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id)
 
-        alpha0 -= self.baumgarte_gains[1] * v.vector
+        alpha0 -= self.baumgarte_gains[1] * v.vector[:self.nc]
 
         b = np.concatenate([h - tau, -alpha0], axis=0)
 
-        A1 = np.concatenate([-M, J.T, J.T], axis=1)
-        A2 = np.concatenate([J, np.zeros((6, 12))], axis=1)
+        A1 = np.concatenate([-M, J[:self.nc].T, J[:self.nc_delta_f].T], axis=1)
+        A2 = np.concatenate([J[:self.nc], np.zeros((self.nc, self.nc + self.nc_delta_f))], axis=1)
         # import pdb; pdb.set_trace()
         A = np.concatenate([A1, A2], axis=0)
 
-
         # n_eq = A.shape[0]
 
-        g = np.zeros(19)
+        g = np.zeros(self.n_tot)
         # import pdb; pdb.set_trace()
-        g[:7] = - self.Q @ a
-        g[7:13] = - self.R @ F_mes
-        g[13:] = - self.P @ df_prior
+        g[:self.nv] = - self.Q @ a
+        g[self.nv:self.nv+self.nc] = - self.R @ F_mes
+        g[-self.nc_delta_f:] = - self.P @ df_prior
 
         # solve it
         
@@ -113,7 +119,7 @@ class Estimator():
         # print("dual ", self.qp.results.info.dua_res)
         # print(1/0)
 
-        return self.qp.results.x[7:13], self.qp.results.x[13:]
+        return self.qp.results.x[self.nv:self.nv+self.nc], self.qp.results.x[-self.nc_delta_f:]
 
 
 

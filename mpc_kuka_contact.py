@@ -14,7 +14,7 @@ from robot_properties_kuka.iiwaWrapper import IiwaRobot
 import pybullet as p
 import pinocchio as pin
 from ContactModel import DAMRigidContact
-
+import sobec
 from estimator import Estimator
 
 # # # # # # # # # # # # # # # # # # #
@@ -57,11 +57,17 @@ terminalCostModel = crocoddyl.CostModelSum(state)
 # Contact model 
 contactModel = crocoddyl.ContactModelMultiple(state, actuation.nu)
 # Create 3D contact on the en-effector frame
-contact_position = robot_simulator.pin_robot.data.oMf[contact_frame_id].copy()
+nc = 3
 baumgarte_gains  = np.array([0., 50.])
-contact3d = crocoddyl.ContactModel6D(state, contact_frame_id, contact_position, baumgarte_gains) 
+if(nc == 3):
+    contactItem = sobec.ContactModel3D(state, contact_frame_id, robot_simulator.pin_robot.data.oMf[contact_frame_id].translation, baumgarte_gains, pin.LOCAL) 
+elif(nc == 6):
+    contactItem = sobec.ContactModel6D(state, contact_frame_id, robot_simulator.pin_robot.data.oMf[contact_frame_id], baumgarte_gains, pin.LOCAL) 
+elif(nc == 1):
+    contactItem = sobec.ContactModel1D(state, contact_frame_id, robot_simulator.pin_robot.data.oMf[contact_frame_id].translation, actuation.nu, baumgarte_gains, sobec.Vector3MaskType.z, pin.LOCAL) 
+else: pass
 # Populate contact model with contacts
-contactModel.addContact("contact", contact3d, active=True)
+contactModel.addContact("contact", contactItem, active=True)
 # Create cost terms 
   # Control regularization cost
 uResidual = crocoddyl.ResidualModelContactControlGrav(state)
@@ -71,7 +77,7 @@ xResidual = crocoddyl.ResidualModelState(state, x0)
 xRegCost = crocoddyl.CostModelResidual(state, xResidual)
   # End-effector frame force cost
 desired_wrench = np.array([0., 0., -100., 0., 0., 0.])
-frameForceResidual = crocoddyl.ResidualModelContactForce(state, contact_frame_id, pin.Force(desired_wrench), 6, actuation.nu)
+frameForceResidual = crocoddyl.ResidualModelContactForce(state, contact_frame_id, pin.Force(desired_wrench), nc, actuation.nu)
 contactForceCost = crocoddyl.CostModelResidual(state, frameForceResidual)
 # Populate cost models with cost terms
 runningCostModel.addCost("stateReg", xRegCost, 1e-2)
@@ -81,8 +87,10 @@ terminalCostModel.addCost("stateReg", xRegCost, 1e-2)
 # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
 # running_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, runningCostModel, inv_damping=0., enable_force=True)
 # terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
-delta_f = np.zeros(6)
-delta_f[2] = -0
+if(nc == 1):
+    delta_f = np.zeros(3) 
+else:
+    delta_f = np.zeros(nc) 
 running_DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
 # terminal_DAM = DAMRigidContact(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
 terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
@@ -142,7 +150,7 @@ sim_data = mpc_utils.init_sim_data(sim_params, ocp_params, x0)
 q_mea_SIM_RATE = q0
 v_mea_SIM_RATE = v0
 f_mea_SIM_RATE = mpc_utils.get_contact_wrench(robot_simulator, sim_data['id_endeff'])
-df_prior = np.array([25, 20, -20, 0, -5, 1])
+# df_prior = np.array([25, 20, -20, 0, -5, 1])
 df_prior = np.zeros(6)
 df_list = []
 F_list = []
@@ -150,7 +158,7 @@ F_GT_list = []
 F_mes_list = []
 F = np.zeros(6)
 
-force_estimator = Estimator(baumgarte_gains)
+force_estimator = Estimator(robot_simulator.pin_robot, nc, contact_frame_id, baumgarte_gains)
 
 
 # Simulate
@@ -172,22 +180,21 @@ for i in range(sim_data['N_sim']):
 
 
         ########################## UPDATE MODEL
-        running_DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, df_prior)
-        # terminal_DAM = DAMRigidContact(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
-        terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
+        # running_DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, df_prior)
+        # # terminal_DAM = DAMRigidContact(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
+        # terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
 
-        dt = 1e-2
-        runningModel = crocoddyl.IntegratedActionModelEuler(running_DAM, dt)
-        terminalModel = crocoddyl.IntegratedActionModelEuler(terminal_DAM, 0.)
-        # # Optionally add armature to take into account actuator's 
-        # Create the shooting problem
-        T = 12
-        problem = crocoddyl.ShootingProblem(ddp.problem.x0, [runningModel] * T, terminalModel)
+        # dt = 1e-2
+        # runningModel = crocoddyl.IntegratedActionModelEuler(running_DAM, dt)
+        # terminalModel = crocoddyl.IntegratedActionModelEuler(terminal_DAM, 0.)
+        # # # Optionally add armature to take into account actuator's 
+        # # Create the shooting problem
+        # T = 12
+        # problem = crocoddyl.ShootingProblem(ddp.problem.x0, [runningModel] * T, terminalModel)
 
-        ddp = crocoddyl.SolverFDDP(problem)
-
-
-
+        # ddp = crocoddyl.SolverFDDP(problem)
+        for m in ddp.problem.runningModels:
+           m.differential.delta_f = df_prior[:nc]*0.
 
 
         # Solve OCP & record MPC predictions
@@ -235,7 +242,7 @@ for i in range(sim_data['N_sim']):
         sim_data['force_des_SIM_RATE'][i, :] = f_ref_SIM_RATE 
 
         #  Send output of actuation torque to the RBD simulator 
-        robot_simulator.send_joint_command(u_ref_SIM_RATE * 0.8 + 0.01*robot_simulator.pin_robot.model.effortLimit)
+        robot_simulator.send_joint_command(u_ref_SIM_RATE) # * 0.8 + 0.01*robot_simulator.pin_robot.model.effortLimit)
         env.step()
 
 
@@ -249,8 +256,8 @@ for i in range(sim_data['N_sim']):
         c, s = np.cos(theta), np.sin(theta)
         R = np.array([[1, 0, 0], [0, c, -s], [0., s, c]])  
         # print(R)
-        if f_mea_SIM_RATE is not None:
-          F_mes = f_mea_SIM_RATE.copy()
+        # if f_mea_SIM_RATE is not None:
+        #   F_mes = f_mea_SIM_RATE[:nc].copy()
           # F_mes[:3] = R @ F_mes[:3]
           # F_mes[2] += 50 + 20*np.sin(i*0.1)
           # F_mes += np.random.multivariate_normal(np.zeros(6), 4*np.eye(6))
@@ -263,7 +270,9 @@ for i in range(sim_data['N_sim']):
         # Estimation 2
         if f_mea_SIM_RATE is not None:
           a = (v_mea_SIM_RATE - v_old) / env.dt
-          F, df_prior = force_estimator.estimate(robot_simulator.pin_robot, q_old, v_old, a, u_ref_SIM_RATE, df_prior, F_mes)
+          F, df_prior = force_estimator.estimate(q_old, v_old, a, u_ref_SIM_RATE, df_prior[:nc], f_mea_SIM_RATE[:nc])
+          if(nc == 3):
+            df_prior = np.concatenate([df_prior, np.zeros(3)])
         df_list.append(df_prior)
         F_list.append(F)
         # print(df_prior)
@@ -272,7 +281,7 @@ for i in range(sim_data['N_sim']):
           F_mes_list.append(np.zeros(6))
         else:
           F_GT_list.append(f_mea_SIM_RATE)
-          F_mes_list.append(F_mes)
+          F_mes_list.append(f_mea_SIM_RATE)
         # print(df_prior)
         # df_prior = np.zeros(6)
         # Update pinocchio model

@@ -32,12 +32,13 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         self.nq = self.pinocchio.nq
         self.nx = self.nv + self.nq
         self.ndx = stateMultibody.ndx
-
+        # print(self.nc)
+        # self.nc=1
         if(self.nc == 1):
             self.J3d = np.zeros((3, self.pinocchio.nv))
-            assert(len(self.delta_f) == 3)
-        else:
-            assert(len(self.delta_f) == self.nc)
+        #     assert(len(self.delta_f) == 3)
+        # else:
+        #     assert(len(self.delta_f) == self.nc)
 
     def createData(self):
         '''
@@ -50,6 +51,8 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         '''
         Compute joint acceleration and costs
         '''
+        self.nc = self.contacts.nc 
+
         q = x[:self.state.nq]
         v = x[self.state.nq:]
         pin.computeAllTerms(self.pinocchio, data.pinocchio, q, v)
@@ -66,6 +69,14 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         self.contacts.calc(data.multibody.contacts, x)
 
         # Add delta_f in torque space
+        if(self.nc == 0):
+            self.J3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)[:3]
+            new_tau = data.multibody.actuation.tau + self.J3d.T @ self.delta_f # Need 3D jac 
+            pin.forwardDynamics(self.pinocchio, data.pinocchio,
+                                                new_tau, #u,
+                                                data.multibody.contacts.Jc[:self.nc], # 1D
+                                                data.multibody.contacts.a0[:self.nc], # 1D
+                                                0.)
         if(self.nc == 1):
             self.J3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)[:3]
             new_tau = data.multibody.actuation.tau + self.J3d.T @ self.delta_f # Need 3D jac 
@@ -74,7 +85,7 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
                                                 data.multibody.contacts.Jc.reshape((1, self.nv)), # 1D
                                                 data.multibody.contacts.a0, # 1D
                                                 0.)
-        else:
+        if(self.nc == 3 or self.nc == 6):
             new_tau = data.multibody.actuation.tau + data.multibody.contacts.Jc[:self.nc].T @ self.delta_f[:self.nc] 
             pin.forwardDynamics(self.pinocchio, data.pinocchio,
                                                 new_tau, #u,
@@ -84,13 +95,15 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         data.xout = data.pinocchio.ddq
         self.contacts.updateAcceleration(data.multibody.contacts, data.pinocchio.ddq) 
         # Here we compute the cost without delta f
-        self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c)# - self.delta_f)  # 1D with lambda_c
+        if(self.nc != 0):
+            self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c)# - self.delta_f)  # 1D with lambda_c
         self.costs.calc(data.costs, x, u)
         # Here we add again delta_f to the computed force for dynamics
         if(self.nc == 1):
             data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([self.delta_f, np.zeros(3)])))
         else:
-            self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)    # 3D with (0,0,lambda_c) + delta_f
+            if(self.nc != 0):
+                self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)    # 3D with (0,0,lambda_c) + delta_f
         data.cost = data.costs.cost
         # pin.updateGlobalPlacements(self.pinocchio, data.pinocchio)
         return data.xout, data.cost
@@ -144,7 +157,8 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         data.df_du[:self.nc,:] = -f_partial_dtau @ data.multibody.actuation.dtau_du
         # self.contacts.updateAccelerationDiff(data.multibody.contacts, data.Fx[-self.nv:])
         self.contacts.updateAccelerationDiff(data.multibody.contacts, data.Fx)
-        self.contacts.updateForceDiff(data.multibody.contacts, data.df_dx[:self.nc], data.df_du[:self.nc])
+        if(self.nc != 0):
+            self.contacts.updateForceDiff(data.multibody.contacts, data.df_dx[:self.nc], data.df_du[:self.nc])
         self.costs.calcDiff(data.costs, x, u)
         data.Lx = data.costs.Lx
         data.Lu = data.costs.Lu

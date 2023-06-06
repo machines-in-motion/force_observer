@@ -14,6 +14,7 @@ from robot_properties_kuka.iiwaWrapper import IiwaRobot
 import pybullet as p
 import pinocchio as pin
 from ContactModel import DAMRigidContact
+import sobec
 
 from estimator import Estimator
 
@@ -102,14 +103,15 @@ print("[PyBullet] Created robot (id = "+str(robot_simulator.robotId)+")")
 # Display contact surface 
 contact_frame_id = robot_simulator.pin_robot.model.getFrameId("contact")
 # contact_frame_placement = robot_simulator.pin_robot.data.oMf[contact_frame_id]
-# offset = 0.03348 
+offset = 0.03348 
 # contact_frame_placement.translation = contact_frame_placement.act(np.array([0., 0., offset]))
 # mpc_utils.display_contact_surface(contact_frame_placement, TILT=[0., 0., 0.])
 
 
 # simulator_utils.print_dynamics_info(1, 9)
 # EE translation target : contact point + vertical offset (radius of the ee ball)
-contactTranslationTarget = contactPosition
+contactTranslationTarget = contactPosition 
+contactTranslationTarget[2] -= offset
 mpc_utils.display_ball(contactTranslationTarget, RADIUS=0.02, COLOR=[1.,0.,0.,0.2])
 # Display contact surface + optional tilt
 import pinocchio as pin
@@ -149,9 +151,9 @@ for i in range(T):
     #                         crocoddyl.CostModelSum(state, nu=actuation.nu), 
     #                         contact_frame_id,
     #                         delta_f)
-    dam = crocoddyl.DifferentialActionModelContactFwdDynamics(state, 
+    dam = sobec.DifferentialActionModelContactFwdDynamics(state, 
                             actuation, 
-                            crocoddyl.ContactModelMultiple(state, actuation.nu), 
+                            sobec.ContactModelMultiple(state, actuation.nu), 
                             crocoddyl.CostModelSum(state, nu=actuation.nu), 
                             inv_damping=0., enable_force=True)
     # Create IAM 
@@ -160,7 +162,7 @@ for i in range(T):
     # Contact model 
     contact_placement = robot_simulator.pin_robot.data.oMf[contact_frame_id].copy()
     baumgarte_gains  = np.array([0., 50.])
-    runningModels[i].differential.contacts.addContact('contact', crocoddyl.ContactModel1D(state, contact_frame_id, contact_placement.translation[2], baumgarte_gains) , active=False)
+    runningModels[i].differential.contacts.addContact('contact', sobec.ContactModel1D(state, contact_frame_id, contact_placement.translation, actuation.nu, baumgarte_gains, sobec.Vector3MaskType.z, pin.LOCAL_WORLD_ALIGNED) , active=False)
 
     # Cost model
         # Control regularization cost
@@ -172,8 +174,8 @@ for i in range(T):
     xRegCost = crocoddyl.CostModelResidual(state, xResidual)
     runningModels[i].differential.costs.addCost("stateReg", xRegCost, 1e-2)
         # End-effector frame force cost
-    desired_wrench = np.array([0., 0., -100., 0., 0., 0.])
-    frameForceResidual = crocoddyl.ResidualModelContactForce(state, contact_frame_id, pin.Force(desired_wrench), 6, actuation.nu)
+    desired_wrench = np.array([0., 0., 50., 0., 0., 0.])
+    frameForceResidual = sobec.ResidualModelContactForce(state, contact_frame_id, pin.Force(desired_wrench), 6, actuation.nu)
     contactForceCost = crocoddyl.CostModelResidual(state, frameForceResidual)
     runningModels[i].differential.costs.addCost("force", contactForceCost, force_weight)
         # End-effector translation cost
@@ -329,8 +331,9 @@ F_list = []
 F_GT_list = []
 F_mes_list = []
 F = np.zeros(6)
+nc = 6
 
-force_estimator = Estimator(baumgarte_gains)
+force_estimator = Estimator(robot_simulator.pin_robot, nc, contact_frame_id, baumgarte_gains)
 
 
 # Simulate
@@ -409,24 +412,9 @@ for i in range(sim_data['N_sim']):
             target_velocity[:,:2] = target_velocity_traj[ti:tf,:2] 
             target_velocity[:,2]  = 0.
 
-        # ########################## UPDATE MODEL
-        # running_DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, df_prior)
-        # # terminal_DAM = DAMRigidContact(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
-        # terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
-
-        # dt = 1e-2
-        # runningModel = crocoddyl.IntegratedActionModelEuler(running_DAM, dt)
-        # terminalModel = crocoddyl.IntegratedActionModelEuler(terminal_DAM, 0.)
-        # # # Optionally add armature to take into account actuator's 
-        # # Create the shooting problem
-        # T = 12
-        # problem = crocoddyl.ShootingProblem(ddp.problem.x0, [runningModel] * T, terminalModel)
-
-        # ddp = crocoddyl.SolverFDDP(problem)
-
-
-
-
+        
+        # for m in ddp.problem.runningModels:
+        #    m.differential.delta_f = df_prior[:nc]*0.
 
         # Solve OCP & record MPC predictions
         q = sim_data['state_mea_SIM_RATE'][i, :nq]
@@ -504,7 +492,7 @@ for i in range(sim_data['N_sim']):
         # Estimation 2
         if f_mea_SIM_RATE is not None:
           a = (v_mea_SIM_RATE - v_old) / env.dt
-          F, df_prior = force_estimator.estimate(robot_simulator.pin_robot, q_old, v_old, a, u_ref_SIM_RATE, df_prior, F_mes)
+          F, df_prior = force_estimator.estimate(q_old, v_old, a, u_ref_SIM_RATE, df_prior, F_mes)
         df_list.append(df_prior)
         F_list.append(F)
         # print(df_prior)
