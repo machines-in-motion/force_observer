@@ -72,11 +72,7 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         if(self.nc == 0):
             self.J3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)[:3]
             new_tau = data.multibody.actuation.tau + self.J3d.T @ self.delta_f # Need 3D jac 
-            pin.forwardDynamics(self.pinocchio, data.pinocchio,
-                                                new_tau, #u,
-                                                data.multibody.contacts.Jc[:self.nc], # 1D
-                                                data.multibody.contacts.a0[:self.nc], # 1D
-                                                0.)
+            pin.aba(self.pinocchio, data.pinocchio, q, v, new_tau)
         if(self.nc == 1):
             self.J3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)[:3]
             new_tau = data.multibody.actuation.tau + self.J3d.T @ self.delta_f # Need 3D jac 
@@ -140,24 +136,27 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
 
         data.Fx[:,:self.nv]  = -a_partial_dtau @ data.pinocchio.dtau_dq 
         data.Fx[:,-self.nv:] = -a_partial_dtau @ data.pinocchio.dtau_dv
+        if(self.nc == 0):
+            pass
         if(self.nc == 1):
             data.Fx -= a_partial_da @ data.multibody.contacts.da0_dx.reshape((1,self.ndx)) # 1D
-        else:
+        if(self.nc == 3 or self.nc == 6):
             data.Fx -= a_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
         data.Fx += a_partial_dtau @ data.multibody.actuation.dtau_dx
         data.Fu = a_partial_dtau @ data.multibody.actuation.dtau_du
 
-        data.df_dx[:self.nc, :self.nv] = f_partial_dtau @ data.pinocchio.dtau_dq 
-        data.df_dx[:self.nc, -self.nv:] = f_partial_dtau @ data.pinocchio.dtau_dv
-        if(self.nc == 1):
-            data.df_dx[:self.nc,:] += f_partial_da @ data.multibody.contacts.da0_dx.reshape((1,self.ndx)) 
-        else:
-            data.df_dx[:self.nc,:] += f_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
-        data.df_dx[:self.nc,:] -= f_partial_dtau @ data.multibody.actuation.dtau_dx
-        data.df_du[:self.nc,:] = -f_partial_dtau @ data.multibody.actuation.dtau_du
-        # self.contacts.updateAccelerationDiff(data.multibody.contacts, data.Fx[-self.nv:])
         self.contacts.updateAccelerationDiff(data.multibody.contacts, data.Fx)
         if(self.nc != 0):
+            data.df_dx[:self.nc, :self.nv] = f_partial_dtau @ data.pinocchio.dtau_dq 
+            data.df_dx[:self.nc, -self.nv:] = f_partial_dtau @ data.pinocchio.dtau_dv
+            if(self.nc == 1):
+                data.df_dx[:self.nc,:] += f_partial_da @ data.multibody.contacts.da0_dx.reshape((1,self.ndx)) 
+            if(self.nc == 3 or self.nc == 6):
+                data.df_dx[:self.nc,:] += f_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
+            data.df_dx[:self.nc,:] -= f_partial_dtau @ data.multibody.actuation.dtau_dx
+            data.df_du[:self.nc,:] = -f_partial_dtau @ data.multibody.actuation.dtau_du
+            # self.contacts.updateAccelerationDiff(data.multibody.contacts, data.Fx[-self.nv:])
+            # print(data.df_dx.shape)
             self.contacts.updateForceDiff(data.multibody.contacts, data.df_dx[:self.nc], data.df_du[:self.nc])
         self.costs.calcDiff(data.costs, x, u)
         data.Lx = data.costs.Lx
@@ -182,8 +181,8 @@ class DADRigidContact(crocoddyl.DifferentialActionDataAbstract):
         self.Lxu = np.zeros((am.state.nx, am.actuation.nu))
         self.Luu = np.zeros((am.actuation.nu, am.actuation.nu))
 
-        self.df_dx = np.zeros((am.nc, am.state.nx))  
-        self.df_du = np.zeros((am.nc, am.actuation.nu))  
+        self.df_dx = np.zeros((6, am.state.nx))  
+        self.df_du = np.zeros((6, am.actuation.nu))  
         self.Kinv  = np.zeros((am.state.nv + am.nc, am.state.nv + am.nc))
         self.pinocchio  = am.pinocchio.createData()
         self.actuation_data = am.actuation.createData()
