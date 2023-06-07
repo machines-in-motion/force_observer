@@ -57,7 +57,7 @@ terminalCostModel = crocoddyl.CostModelSum(state)
 # Contact model 
 contactModel = crocoddyl.ContactModelMultiple(state, actuation.nu)
 # Create 3D contact on the en-effector frame
-nc = 3
+nc = 6
 baumgarte_gains  = np.array([0., 50.])
 if(nc == 3):
     contactItem = sobec.ContactModel3D(state, contact_frame_id, robot_simulator.pin_robot.data.oMf[contact_frame_id].translation, baumgarte_gains, pin.LOCAL) 
@@ -270,7 +270,7 @@ for i in range(sim_data['N_sim']):
         # Estimation 2
         if f_mea_SIM_RATE is not None:
           a = (v_mea_SIM_RATE - v_old) / env.dt
-          F, df_prior = force_estimator.estimate(q_old, v_old, a, u_ref_SIM_RATE, df_prior[:nc], f_mea_SIM_RATE[:nc])
+          F, df_prior = force_estimator.estimate(q_old, v_old, a, u_ref_SIM_RATE, df_prior[:nc], -f_mea_SIM_RATE[:nc])
           if(nc == 3):
             df_prior = np.concatenate([df_prior, np.zeros(3)])
         df_list.append(df_prior)

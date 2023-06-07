@@ -50,7 +50,7 @@ frame_of_interest: 'contact'
 contacts:
   - {
       contactModelFrameName: 'contact',                   # frame name in pinocchio model
-      pinocchioReferenceFrame: 'LOCAL_WORLD_ALIGNED',     # LOCAL, WORLD, LOCAL_WORLD_ALIGNED
+      pinocchioReferenceFrame: 'LOCAL',     # LOCAL, WORLD, LOCAL_WORLD_ALIGNED
       contactModelType: '1Dz',                             # 1Dx, 1Dy, 1Dz, 3D, 6D
       contactModelTranslationRef: '',                     #[0.7, 0.0, 0.0],       # 3d vector
       contactModelRotationRef: '',                        # 3d matrix
@@ -59,7 +59,7 @@ contacts:
     }
 contactPosition: [0.6, 0., 0.1] # table
 oPc_offset: [0., 0., 0.] 
-pinRefFrame: 'LOCAL_WORLD_ALIGNED'
+pinRefFrame: 'LOCAL'
 contactType: '1Dz'
 
 
@@ -72,7 +72,7 @@ WHICH_COSTS: ['force', 'translation', 'velocity', 'stateReg', 'ctrlRegGrav', 'st
  # 'force' : end-effector frame force (translation + rotation)
 frameForceWeights:  [1, 1., 1, 0., 0., 0.]
 frameForceWeight: 10 
-frameForceRef: [0., 0., 50, 0., 0., 0.]    
+frameForceRef: [0., 0., -50, 0., 0., 0.]    
 frameForceFrameName: 'contact'
 
 # 'stateReg' : state regularization  
@@ -90,8 +90,8 @@ ctrlRegRef: 'DEFAULT'
 
  # 'translation' : end-effector frame translation 
 frameTranslationWeights:  [1., 1., 1.1]
-frameTranslationWeight: 50.   # 0.3 ///0.25 ok ///0.12  # 0.1 ok, 0.5 too high
-frameTranslationWeightTerminal: 100.
+frameTranslationWeight: 80.   # 0.3 ///0.25 ok ///0.12  # 0.1 ok, 0.5 too high
+frameTranslationWeightTerminal: 10000.
 alpha_quadflatlog: 0.01
 frameTranslationRef: 'DEFAULT'
 frameTranslationFrameName: 'contact'

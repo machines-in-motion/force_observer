@@ -26,6 +26,7 @@ class Estimator():
         self.nc = nc
         if(self.nc == 1):
             self.nc_delta_f = 3
+            self.mask = 2
         else:
             self.nc_delta_f = self.nc
         self.nv = self.pin_robot.model.nv
@@ -56,24 +57,28 @@ class Estimator():
         assert self.baumgarte_gains[0] == 0
 
     def estimate(self, q, v, a, tau, df_prior, F_mes):
+        F_mes = -F_mes
 
-        M = self.pin_robot.mass(q)
-
-        J = self.pin_robot.computeFrameJacobian(q, self.contact_frame_id)
-        h = self.pin_robot.nle(q, v)
-
-
-        pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v, np.zeros(self.nv))
+        pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q, v)
+        pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v, np.zeros(self.nv)) # a ?
         pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
-        alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id).vector[:self.nc]
-        v = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id)
+        M = self.pin_robot.mass(q)
+        h = self.pin_robot.nle(q, v)
+        if(self.nc == 1):
+            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL).vector[self.mask:self.mask+1]
+            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL).vector[self.mask:self.mask+1]
+            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL)[self.mask:self.mask+1]
+        else:
+            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL).vector[:self.nc]
+            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL).vector[:self.nc]
+            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL)[:self.nc]
+        alpha0 -= self.baumgarte_gains[1] * nu
 
-        alpha0 -= self.baumgarte_gains[1] * v.vector[:self.nc]
+        J2 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL)[:self.nc_delta_f]
 
         b = np.concatenate([h - tau, -alpha0], axis=0)
-
-        A1 = np.concatenate([-M, J[:self.nc].T, J[:self.nc_delta_f].T], axis=1)
-        A2 = np.concatenate([J[:self.nc], np.zeros((self.nc, self.nc + self.nc_delta_f))], axis=1)
+        A1 = np.concatenate([-M, J1.T, J2.T], axis=1)
+        A2 = np.concatenate([J1, np.zeros((self.nc, self.nc + self.nc_delta_f))], axis=1)
         # import pdb; pdb.set_trace()
         A = np.concatenate([A1, A2], axis=0)
 
