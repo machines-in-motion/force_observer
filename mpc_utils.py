@@ -8,6 +8,164 @@ import pin_utils
 
 import pybullet as p
 
+from classical_mpc.data import MPCDataHandlerClassical
+from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
+logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
+
+
+
+
+class MPCDataHandlerClassicalWithEstimator(MPCDataHandlerClassical):
+
+  def __init__(self, config, robot):
+    super().__init__(config, robot)
+ 
+  def init_sim_data(self, x0):
+      super().init_sim_data(x0)
+      self.init_estimates()
+
+
+  def init_estimates(self):
+    '''
+    Allocate data for simulation state & force estimates 
+    '''
+    self.delta_f_SIMU = np.zeros((self.N_simu+1, 3))
+
+
+  def record_simu_cycle_estimates(self, nb_simu, delta_f):
+    '''
+    Records the estimate of the force error
+     Input:
+      nb_simu  : simulation cycle number
+      delta_f  : delta_f 
+    '''
+    self.delta_f_SIMU[nb_simu+1, :] = delta_f
+
+
+  # Extract MPC simu-specific plotting data from sim data
+  def extract_data(self, frame_of_interest):
+    '''
+    Extract plot data from simu data
+    '''
+    plot_data = super().extract_data(frame_of_interest)
+    # Get costs
+    plot_data['delta_f_SIMU'] = self.delta_f_SIMU
+    return plot_data
+
+  def plot_mpc_delta_f(self, plot_data, PLOT_PREDICTIONS=False, pred_plot_sampling=100, SAVE=False, SAVE_DIR=None, SAVE_NAME=None, SHOW=True, AUTOSCALE=False):
+      '''
+      Plot delta_f
+      Input:
+        plot_data                 : plotting data
+        PLOT_PREDICTIONS          : True or False
+        pred_plot_sampling        : plot every pred_plot_sampling prediction 
+                                    to avoid huge amount of plotted data 
+                                    ("1" = plot all)
+        SAVE, SAVE_DIR, SAVE_NAME : save plots as .png
+        SHOW                      : show plots
+        AUTOSCALE                 : rescale y-axis of endeff plot 
+                                    based on maximum value taken
+      '''
+      logger.info('Plotting delta_f data...')
+      T_tot = plot_data['T_tot']
+      N_simu = plot_data['N_simu']
+      dt_simu = plot_data['dt_simu']
+      # Create time spans for X and U + Create figs and subplots
+      t_span_simu = np.linspace(0, T_tot - dt_simu, N_simu)
+      fig, ax = plt.subplots(3, 2, figsize=(19.2,10.8), sharex='col') 
+      # Plot endeff
+      xyz = ['x', 'y', 'z']
+      for i in range(3):
+          # EE linear force
+          ax[i,0].plot(t_span_simu, plot_data['delta_f_SIMU'][:N_simu,i], color='b', linestyle='-', marker='.', label='delta_f', alpha=1.)
+          ax[i,0].set_ylabel('$\\lambda^{EE}_%s$  (N)'%xyz[i], fontsize=16)
+          ax[i,0].yaxis.set_major_locator(plt.MaxNLocator(2))
+          ax[i,0].yaxis.set_major_formatter(plt.FormatStrFormatter('%.3e'))
+          ax[i,0].grid(True)
+          # EE angular force 
+          ax[i,1].plot(t_span_simu, plot_data['delta_f_SIMU'][:N_simu,i]*0., color='b', linestyle='-', marker='.', label='delta_f', alpha=1.)
+          ax[i,1].set_ylabel('$\\tau^{EE}_%s$  (Nm)'%xyz[i], fontsize=16)
+          ax[i,1].yaxis.set_major_locator(plt.MaxNLocator(2))
+          ax[i,1].yaxis.set_major_formatter(plt.FormatStrFormatter('%.3e'))
+          ax[i,1].grid(True)
+      
+      # Align
+      fig.align_ylabels(ax[:,0])
+      fig.align_ylabels(ax[:,1])
+      ax[i,0].set_xlabel('t (s)', fontsize=16)
+      ax[i,1].set_xlabel('t (s)', fontsize=16)
+      # Set ylim if any
+      TOL = 1e-3
+      if(AUTOSCALE):
+          for i in range(3):
+              ax[i,0].set_ylim(-50, 50) 
+              ax[i,1].set_ylim(-50, 50) 
+
+      handles_p, labels_p = ax[0,0].get_legend_handles_labels()
+      fig.legend(handles_p, labels_p, loc='upper right', prop={'size': 16})
+      # Titles
+      fig.suptitle('End-effector forces (LOCAL)', size=18)
+      # Save figs
+      if(SAVE):
+          figs = {'f': fig}
+          if(SAVE_DIR is None):
+              logger.error("Please specify SAVE_DIR")
+          if(SAVE_NAME is None):
+              SAVE_NAME = 'testfig'
+          for name, fig in figs.items():
+              fig.savefig(SAVE_DIR + '/' +str(name) + '_' + SAVE_NAME +'.png')
+      if(SHOW):
+          plt.show() 
+      return fig, ax
+
+  def plot_mpc_force(self, plot_data, PLOT_PREDICTIONS=False, pred_plot_sampling=100, SAVE=False, SAVE_DIR=None, SAVE_NAME=None, SHOW=True, AUTOSCALE=False):
+    fig, ax = super().plot_mpc_force(plot_data, PLOT_PREDICTIONS, pred_plot_sampling, SAVE, SAVE_DIR, SAVE_NAME, False, AUTOSCALE)
+    # Add delta f in ax
+    T_tot = plot_data['T_tot']
+    N_simu = plot_data['N_simu']
+    dt_simu = plot_data['dt_simu']
+    t_span_simu = np.linspace(0, T_tot - dt_simu, N_simu)
+    for i in range(3):
+        ax[i,0].plot(t_span_simu, plot_data['delta_f_SIMU'][:N_simu,i] + plot_data['force_mea_SIMU'][:N_simu,i], color='b', linestyle='-', marker='.', label='f + delta_f', alpha=1.)
+    if(SHOW):
+        plt.show() 
+    return fig, ax
+
+  def plot_mpc_results(self, plot_data, which_plots=None, PLOT_PREDICTIONS=False, 
+                                                pred_plot_sampling=100, 
+                                                SAVE=False, SAVE_DIR=None, SAVE_NAME=None,
+                                                SHOW=True,
+                                                AUTOSCALE=False):
+      '''
+      Plot sim data
+      Input:
+        plot_data                 : plotting data
+        PLOT_PREDICTIONS          : True or False
+        pred_plot_sampling        : plot every pred_plot_sampling prediction 
+                                    to avoid huge amount of plotted data 
+                                    ("1" = plot all)
+        SAVE, SAVE_DIR, SAVE_NAME : save plots as .png
+        SHOW                      : show plots
+        AUTOSCALE                 : rescale y-axis of endeff plot 
+                                    based on maximum value taken
+      '''
+
+      plots = {}
+      super().plot_mpc_results(plot_data, which_plots, PLOT_PREDICTIONS, 
+                                                pred_plot_sampling, 
+                                                SAVE, SAVE_DIR, SAVE_NAME,
+                                                False,
+                                                AUTOSCALE)
+      if('delta_f' in which_plots or which_plots is None or which_plots =='all' or 'all' in which_plots):
+          plots['delta_f'] = self.plot_mpc_delta_f(plot_data, PLOT_PREDICTIONS=PLOT_PREDICTIONS, 
+                                              pred_plot_sampling=pred_plot_sampling, 
+                                              SAVE=SAVE, SAVE_DIR=SAVE_DIR, SAVE_NAME=SAVE_NAME,
+                                              SHOW=False, AUTOSCALE=AUTOSCALE)
+      if(SHOW):
+          plt.show() 
+      plt.close('all')
+
+
 # Get contact wrench from robot simulator
 def get_contact_wrench(pybullet_simulator, id_endeff):
     '''

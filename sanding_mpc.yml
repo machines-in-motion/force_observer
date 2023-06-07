@@ -2,19 +2,19 @@
 # + PyBullet or Raisim simulation
 
 # MPC & sim parameters
-simu_freq: 5000               # Simulation frequency in Hz
+simu_freq: 1000               # Simulation frequency in Hz
 ctrl_freq: 1000                # Control frequency
 plan_freq: 500                # Planning frequency
 T_tot: 6.                           # Simu duration (s)n (s)
 # Simulation options
-DELAY_SIM: True                 # Add delay in reference torques (low-level)
-DELAY_OCP: True                 # Add delay in OCP solution (i.e. ~1ms resolution time)
-SCALE_TORQUES: True             # Affine scaling of reference torque
-NOISE_TORQUES: True             # Add Gaussian noise on reference torques
-NOISE_STATE: True               # Add Gaussian noise on the measured state 
-STATIC_FRICTION: True           # Simulate static friction torque
-VISCOUS_FRICTION: True          # Simulate viscous friction torque
-TORQUE_TRACKING: True           # Low-level torque tracking with a PI controller
+DELAY_SIM: False                 # Add delay in reference torques (low-level)
+DELAY_OCP: False                 # Add delay in OCP solution (i.e. ~1ms resolution time)
+SCALE_TORQUES: False             # Affine scaling of reference torque
+NOISE_TORQUES: False             # Add Gaussian noise on reference torques
+NOISE_STATE: False               # Add Gaussian noise on the measured state 
+STATIC_FRICTION: False           # Simulate static friction torque
+VISCOUS_FRICTION: False          # Simulate viscous friction torque
+TORQUE_TRACKING: False           # Low-level torque tracking with a PI controller
 SAVE_DATA: True                 # Save plot_data to npz
 RECORD_SOLVER_DATA: False       # Keep trace of Vxx, Riccati gains, reg, Jacobian etc. (more data to save)
 INIT_LOG: True                  # Initial logs summarizing parameters
@@ -22,15 +22,15 @@ init_log_display_time: 1        # How long (s) to display the initial logs ?
 LOG: True                       # Logs during simulation
 log_rate: 1000                  # Display sim status once very 'log_rate' sim cycles
 # WHICH_PLOTS: ['w', 'f', 'ee', 'y']   # Which plots to generate after the simulation
-WHICH_PLOTS: ['f', 'ee']   # Which plots to generate after the simulation
+WHICH_PLOTS: ['f', 'delta_f']   # Which plots to generate after the simulation
 TILT_SURFACE: True              # Tilt contact surface 
 TILT_PITCH_LOCAL_DEG: 0.      # Tilt angle of the contact surface
-RICCATI: True
+RICCATI: False
 
 T_REACH: 0.
 # T_TRACK: 1.
-T_CONTACT: 2.
-T_CIRCLE: 3.
+T_CONTACT: 3.
+T_CIRCLE: 6.
 
 
 
@@ -95,7 +95,7 @@ frameTranslationWeightTerminal: 100.
 alpha_quadflatlog: 0.01
 frameTranslationRef: 'DEFAULT'
 frameTranslationFrameName: 'contact'
-frameCircleTrajectoryRadius: 0.1  # in m
+frameCircleTrajectoryRadius: 0.  # in m
 frameCircleTrajectoryVelocity: 3 # in rad/s
 numberOfRounds: 10
 CIRCLE_LOCAL_PLANE: 'XY'

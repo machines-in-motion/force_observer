@@ -24,8 +24,10 @@ from core_mpc import path_utils, pin_utils, mpc_utils, misc_utils
 from core_mpc import ocp as ocp_utils
 from core_mpc import sim_utils as simulator_utils
 
-from classical_mpc.data import MPCDataHandlerClassical, DDPDataHandlerClassical
+from classical_mpc.data import DDPDataHandlerClassical
 from ocp_utils import OptimalControlProblemClassicalWithObserver
+from mpc_utils import MPCDataHandlerClassicalWithEstimator
+from estimator import Estimator
 
 
 import time
@@ -51,8 +53,6 @@ def solveOCP(q, v, ddp, nb_iter, node_id_reach, target_reach, node_id_contact, n
                 for k in range( node_id_reach, ddp.problem.T+1, 1 ):
                     m[k].differential.costs.costs["translation"].active = True
                     m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                    m[k].differential.costs.costs["velocity"].active = True
-                    m[k].differential.costs.costs["velocity"].weight = 0.01
         # Update OCP for contact phase
         if(TASK_PHASE == 3):
             # If node id is valid
@@ -69,9 +69,6 @@ def solveOCP(q, v, ddp, nb_iter, node_id_reach, target_reach, node_id_contact, n
                     if(k < ddp.problem.T):
                         fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
                         m[k].differential.costs.costs["force"].active = True
-                        # print(m[k].differential.costs.costs["force"].weight)
-                        # print(wf)
-                        # m[k].differential.costs.costs["force"].weight = wf
                         m[k].differential.costs.costs["force"].cost.residual.reference = fref
         # Update OCP for circle phase
         if(TASK_PHASE == 4):
@@ -165,6 +162,11 @@ if(PLOT_INIT):
   _, _ = ddp_handler.plot_ddp_results(ddp_data, markers=['.'], SHOW=True)
 
 
+
+# Create estimator 
+force_estimator = Estimator(robot_simulator.pin_robot, 1, id_endeff, config['contacts'][0]['contactModelGains'])
+
+
 # Setup tracking problem with circle ref EE trajectory + Warm start state = IK of circle trajectory
 RADIUS = config['frameCircleTrajectoryRadius'] 
 OMEGA  = config['frameCircleTrajectoryVelocity']
@@ -204,7 +206,7 @@ target_position[:,:] = pdes.copy()
 # # # # # # # # # # #
 ### INIT MPC SIMU ###
 # # # # # # # # # # #
-sim_data = MPCDataHandlerClassical(config, robot)
+sim_data = MPCDataHandlerClassicalWithEstimator(config, robot)
 sim_data.init_sim_data(x0)
 sim_data.record_simu_cycle_measured(0, x0, x0, us_init[0], np.zeros(6))
 
@@ -383,10 +385,16 @@ for i in range(sim_data.N_simu):
     # Record data (unnoised)
     x_mea_SIMU = np.concatenate([q_mea_SIMU, v_mea_SIMU]).T 
     # Simulate sensing 
-    x_mea_no_noise_SIMU = sensingModel.step(x_mea_SIMU)
+    x_mea_noise_SIMU = sensingModel.step(x_mea_SIMU)
     # Record measurements of state, torque and forces 
-    sim_data.record_simu_cycle_measured(i, x_mea_SIMU, x_mea_no_noise_SIMU, tau_mea_SIMU, f_mea_SIMU)
+    sim_data.record_simu_cycle_measured(i, x_mea_SIMU, x_mea_noise_SIMU, tau_mea_SIMU, f_mea_SIMU)
 
+
+    # Estimation
+    if(i>0): a_mea_SIMU = (v_mea_SIMU - sim_data.state_mea_SIMU[i-1, nv:]) / env.dt
+    else: a_mea_SIMU = np.zeros(nv)
+    F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
+    sim_data.record_simu_cycle_estimates(i, delta_f)
 
     # Display real 
     if(i%draw_rate==0):

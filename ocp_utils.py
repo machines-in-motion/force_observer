@@ -22,7 +22,7 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 
 # Check installed pkg
-USE_SOBEC = False 
+USE_SOBEC = True 
 import sobec
 from ContactModel import DAMRigidContact
 
@@ -84,17 +84,17 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
 
         # Create DAMContactDyn      
         if(USE_SOBEC):
+            contactModelSum = sobec.ContactModelMultiple(state, actuation.nu)
+            contactModelSum.addContact(self.contacts[0]['contactModelFrameName'], contactModels[0], active=self.contacts[0]['active'])
             dam = sobec.DifferentialActionModelContactFwdDynamics(state, 
                                                                     actuation, 
-                                                                    sobec.ContactModelMultiple(state, actuation.nu), 
+                                                                    contactModelSum, 
                                                                     crocoddyl.CostModelSum(state, nu=actuation.nu), 
                                                                     inv_damping=0., 
                                                                     enable_force=True)
         else:
             contactModelSum = sobec.ContactModelMultiple(state, actuation.nu)
-            # print(contactModels[0].n
             contactModelSum.addContact(self.contacts[0]['contactModelFrameName'], contactModels[0], active=self.contacts[0]['active'])
-            # print(contactModelSum.nc)
             dam = DAMRigidContact(state, 
                                 actuation, 
                                 contactModelSum, 
@@ -125,9 +125,11 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
 
     # Create terminal DAMContactDyn
     if(USE_SOBEC):
+        contactModelSum = sobec.ContactModelMultiple(state, actuation.nu)
+        contactModelSum.addContact(self.contacts[0]['contactModelFrameName'], contactModels[0], active=self.contacts[0]['active'])
         dam_t = sobec.DifferentialActionModelContactFwdDynamics(state, 
                                                                 actuation, 
-                                                                sobec.ContactModelMultiple(state, actuation.nu), 
+                                                                contactModelSum, 
                                                                 crocoddyl.CostModelSum(state, nu=actuation.nu), 
                                                                 inv_damping=0., 
                                                                 enable_force=True)
