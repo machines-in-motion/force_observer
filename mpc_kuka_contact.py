@@ -270,7 +270,7 @@ for i in range(sim_data['N_sim']):
         # Estimation 2
         if f_mea_SIM_RATE is not None:
           a = (v_mea_SIM_RATE - v_old) / env.dt
-          F, df_prior = force_estimator.estimate(q_old, v_old, a, u_ref_SIM_RATE, df_prior[:nc], -f_mea_SIM_RATE[:nc])
+          F, df_prior = force_estimator.estimate(q_old, v_old, a, u_ref_SIM_RATE, df_prior[:nc], f_mea_SIM_RATE[:nc])
           if(nc == 3):
             df_prior = np.concatenate([df_prior, np.zeros(3)])
         df_list.append(df_prior)
@@ -286,7 +286,13 @@ for i in range(sim_data['N_sim']):
         # df_prior = np.zeros(6)
         # Update pinocchio model
         robot_simulator.forward_robot(q_mea_SIM_RATE, v_mea_SIM_RATE)
-        f_mea_SIM_RATE = mpc_utils.get_contact_wrench(robot_simulator, sim_data['id_endeff']) #+ np.random.multivariate_normal(np.zeros(6), 4*np.eye(6))
+        
+        # !!! PyBullet forces come in LWA by default : transform to LOCAL if necessary
+        f_mea_SIM_RATE_world = robot_simulator.end_effector_forces(pin.LOCAL)[1][0]
+        lwaMc = robot_simulator.pin_robot.data.oMf[sim_data['id_endeff']]
+        f_mea_SIM_RATE = lwaMc.actInv(pin.Force(f_mea_SIM_RATE_world)).vector
+
+
         # Record data (unnoised)
         x_mea_SIM_RATE = np.concatenate([q_mea_SIM_RATE, v_mea_SIM_RATE]).T 
         sim_data['state_mea_SIM_RATE'][i+1, :] = x_mea_SIM_RATE
@@ -320,5 +326,5 @@ ax[2, 1].set_xlabel("Time [s]")
 
 plot_data = mpc_utils.extract_plot_data_from_sim_data(sim_data)
 
-mpc_utils.plot_mpc_results(plot_data, which_plots=['all'], PLOT_PREDICTIONS=True, pred_plot_sampling=int(sim_params['mpc_freq']/10), AUTOSCALE=True)
+mpc_utils.plot_mpc_results(plot_data, which_plots=['f'], PLOT_PREDICTIONS=True, pred_plot_sampling=int(sim_params['mpc_freq']/10), AUTOSCALE=True)
 

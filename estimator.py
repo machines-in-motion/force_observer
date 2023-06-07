@@ -57,8 +57,6 @@ class Estimator():
         assert self.baumgarte_gains[0] == 0
 
     def estimate(self, q, v, a, tau, df_prior, F_mes):
-        F_mes = -F_mes
-
         pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q, v)
         pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v, np.zeros(self.nv)) # a ?
         pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)

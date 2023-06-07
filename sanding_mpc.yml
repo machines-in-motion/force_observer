@@ -5,7 +5,7 @@
 simu_freq: 1000               # Simulation frequency in Hz
 ctrl_freq: 1000                # Control frequency
 plan_freq: 500                # Planning frequency
-T_tot: 6.                           # Simu duration (s)n (s)
+T_tot: 12.                           # Simu duration (s)n (s)
 # Simulation options
 DELAY_SIM: False                 # Add delay in reference torques (low-level)
 DELAY_OCP: False                 # Add delay in OCP solution (i.e. ~1ms resolution time)
@@ -29,8 +29,8 @@ RICCATI: False
 
 T_REACH: 0.
 # T_TRACK: 1.
-T_CONTACT: 3.
-T_CIRCLE: 6.
+T_CONTACT: 2.
+T_CIRCLE: 4.
 
 
 
@@ -95,7 +95,7 @@ frameTranslationWeightTerminal: 10000.
 alpha_quadflatlog: 0.01
 frameTranslationRef: 'DEFAULT'
 frameTranslationFrameName: 'contact'
-frameCircleTrajectoryRadius: 0.  # in m
+frameCircleTrajectoryRadius: 0.1  # in m
 frameCircleTrajectoryVelocity: 3 # in rad/s
 numberOfRounds: 10
 CIRCLE_LOCAL_PLANE: 'XY'

@@ -126,7 +126,7 @@ class MPCDataHandlerClassicalWithEstimator(MPCDataHandlerClassical):
     dt_simu = plot_data['dt_simu']
     t_span_simu = np.linspace(0, T_tot - dt_simu, N_simu)
     for i in range(3):
-        ax[i,0].plot(t_span_simu, plot_data['delta_f_SIMU'][:N_simu,i] + plot_data['force_mea_SIMU'][:N_simu,i], color='b', linestyle='-', marker='.', label='f + delta_f', alpha=1.)
+        ax[i,0].plot(t_span_simu, plot_data['force_mea_SIMU'][:N_simu,i] - plot_data['delta_f_SIMU'][:N_simu,i], color='b', linestyle='-', marker='.', label='f + delta_f', alpha=1.)
     if(SHOW):
         plt.show() 
     return fig, ax
@@ -165,34 +165,6 @@ class MPCDataHandlerClassicalWithEstimator(MPCDataHandlerClassical):
           plt.show() 
       plt.close('all')
 
-
-# Get contact wrench from robot simulator
-def get_contact_wrench(pybullet_simulator, id_endeff):
-    '''
-    Get contact wrench in LOCAL contact frame
-    '''
-    contact_points = p.getContactPoints()
-    force = np.zeros(6)
-    for ci in reversed(contact_points):
-        p_ct = np.array(ci[6])
-        contact_normal = ci[7]
-        normal_force = ci[9]
-        lateral_friction_direction_1 = ci[11]
-        lateral_friction_force_1 = ci[10]
-        lateral_friction_direction_2 = ci[13]
-        lateral_friction_force_2 = ci[12]
-        # Wrench in LOCAL contact frame
-        linear_LOCAL = np.array([normal_force, lateral_friction_force_1, lateral_friction_force_2])
-        wrench_LOCAL = np.concatenate([linear_LOCAL, np.zeros(3)])
-        # LOCAL contact placement
-        R_ct = np.vstack([np.array(contact_normal), np.array(lateral_friction_direction_1), np.array(lateral_friction_direction_2)]).T
-        M_ct = pin.SE3(R_ct, p_ct) 
-        # wrench LOCAL(p)-->WORLD
-        wrench_WORLD = M_ct.act(pin.Force(wrench_LOCAL))
-        # wrench WORLD-->LOCAL(EE)
-        wrench_croco = -pybullet_simulator.pin_robot.data.oMf[id_endeff].actInv(wrench_WORLD)
-        force =+ wrench_croco.vector
-        return force
 
 # Display
 def display_ball(p_des, RADIUS=.05, COLOR=[1.,1.,1.,1.]):

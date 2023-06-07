@@ -171,7 +171,7 @@ force_estimator = Estimator(robot_simulator.pin_robot, 1, id_endeff, config['con
 RADIUS = config['frameCircleTrajectoryRadius'] 
 OMEGA  = config['frameCircleTrajectoryVelocity']
 # Force trajectory
-F_MIN = 5.
+F_MIN = 0.
 F_MAX = config['frameForceRef'][2]
 N_total = int((config['T_tot'] - config['T_CONTACT'])/config['dt'] + config['N_h'])
 N_min  = 5
@@ -378,7 +378,12 @@ for i in range(sim_data.N_simu):
     # Measure new state + forces from simulation 
     q_mea_SIMU, v_mea_SIMU = robot_simulator.get_state()
     robot_simulator.forward_robot(q_mea_SIMU, v_mea_SIMU)
-    f_mea_SIMU = robot_simulator.end_effector_forces(sim_data.PIN_REF_FRAME)[1][0]
+
+    # !!! PyBullet forces come in LWA by default : transform to LOCAL 
+    f_mea_SIMU_world = robot_simulator.end_effector_forces(sim_data.PIN_REF_FRAME)[1][0]
+    if(sim_data.PIN_REF_FRAME == pin.LOCAL):
+        lwaMc = robot_simulator.pin_robot.data.oMf[id_endeff]
+        f_mea_SIMU = lwaMc.actInv(pin.Force(f_mea_SIMU_world)).vector
     fz_mea_SIMU = np.array([f_mea_SIMU[2]])
     if(i%1000==0): 
       logger.info("f_mea  = "+str(f_mea_SIMU))      
@@ -393,7 +398,8 @@ for i in range(sim_data.N_simu):
     # Estimation
     if(i>0): a_mea_SIMU = (v_mea_SIMU - sim_data.state_mea_SIMU[i-1, nv:]) / env.dt
     else: a_mea_SIMU = np.zeros(nv)
-    F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
+    if(np.linalg.norm(fz_mea_SIMU) > 1e-6):
+        F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
     sim_data.record_simu_cycle_estimates(i, delta_f)
 
     # Display real 
