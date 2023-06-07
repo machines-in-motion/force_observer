@@ -17,6 +17,8 @@ from ContactModel import DAMRigidContact
 import sobec
 from estimator import Estimator
 
+from core_mpc.sim_utils import get_contact_wrench
+
 # # # # # # # # # # # # # # # # # # #
 ### LOAD ROBOT MODEL and SIMU ENV ### 
 # # # # # # # # # # # # # # # # # # # 
@@ -149,7 +151,9 @@ sim_data = mpc_utils.init_sim_data(sim_params, ocp_params, x0)
 
 q_mea_SIM_RATE = q0
 v_mea_SIM_RATE = v0
-f_mea_SIM_RATE = mpc_utils.get_contact_wrench(robot_simulator, sim_data['id_endeff'])
+f_mea_SIM_RATE_world = robot_simulator.end_effector_forces(pin.LOCAL)[1][0]
+lwaMc = robot_simulator.pin_robot.data.oMf[sim_data['id_endeff']]
+f_mea_SIM_RATE = lwaMc.actInv(pin.Force(f_mea_SIM_RATE_world)).vector
 # df_prior = np.array([25, 20, -20, 0, -5, 1])
 df_prior = np.zeros(6)
 df_list = []
@@ -177,24 +181,8 @@ for i in range(sim_data['N_sim']):
         xs_init[0] = sim_data['state_mea_SIM_RATE'][i, :]
         us_init = list(ddp.us[1:]) + [ddp.us[-1]] 
 
-
-
-        ########################## UPDATE MODEL
-        # running_DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, df_prior)
-        # # terminal_DAM = DAMRigidContact(state, actuation, contactModel, terminalCostModel, contact_frame_id, delta_f)
-        # terminal_DAM = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, terminalCostModel, inv_damping=0., enable_force=True)
-
-        # dt = 1e-2
-        # runningModel = crocoddyl.IntegratedActionModelEuler(running_DAM, dt)
-        # terminalModel = crocoddyl.IntegratedActionModelEuler(terminal_DAM, 0.)
-        # # # Optionally add armature to take into account actuator's 
-        # # Create the shooting problem
-        # T = 12
-        # problem = crocoddyl.ShootingProblem(ddp.problem.x0, [runningModel] * T, terminalModel)
-
-        # ddp = crocoddyl.SolverFDDP(problem)
         for m in ddp.problem.runningModels:
-           m.differential.delta_f = df_prior[:nc]*0.
+           m.differential.delta_f = df_prior[:nc]
 
 
         # Solve OCP & record MPC predictions
@@ -242,7 +230,7 @@ for i in range(sim_data['N_sim']):
         sim_data['force_des_SIM_RATE'][i, :] = f_ref_SIM_RATE 
 
         #  Send output of actuation torque to the RBD simulator 
-        robot_simulator.send_joint_command(u_ref_SIM_RATE) # * 0.8 + 0.01*robot_simulator.pin_robot.model.effortLimit)
+        robot_simulator.send_joint_command(u_ref_SIM_RATE * 0.8 + 0.01*robot_simulator.pin_robot.model.effortLimit)
         env.step()
 
 
@@ -250,22 +238,10 @@ for i in range(sim_data['N_sim']):
         # Estimation 1
         q_old = q_mea_SIM_RATE.copy()
         v_old = v_mea_SIM_RATE.copy()
-        
-
-        theta = 1.
-        c, s = np.cos(theta), np.sin(theta)
-        R = np.array([[1, 0, 0], [0, c, -s], [0., s, c]])  
-        # print(R)
-        # if f_mea_SIM_RATE is not None:
-        #   F_mes = f_mea_SIM_RATE[:nc].copy()
-          # F_mes[:3] = R @ F_mes[:3]
-          # F_mes[2] += 50 + 20*np.sin(i*0.1)
-          # F_mes += np.random.multivariate_normal(np.zeros(6), 4*np.eye(6))
-
+      
         # Measure new state from simulation 
         q_mea_SIM_RATE, v_mea_SIM_RATE = robot_simulator.get_state()
         # v_mea_SIM_RATE += np.random.multivariate_normal(np.zeros(7), 0.005*np.eye(7))
-
 
         # Estimation 2
         if f_mea_SIM_RATE is not None:
@@ -282,16 +258,18 @@ for i in range(sim_data['N_sim']):
         else:
           F_GT_list.append(f_mea_SIM_RATE)
           F_mes_list.append(f_mea_SIM_RATE)
-        # print(df_prior)
-        # df_prior = np.zeros(6)
+
+
         # Update pinocchio model
         robot_simulator.forward_robot(q_mea_SIM_RATE, v_mea_SIM_RATE)
         
         # !!! PyBullet forces come in LWA by default : transform to LOCAL if necessary
-        f_mea_SIM_RATE_world = robot_simulator.end_effector_forces(pin.LOCAL)[1][0]
-        lwaMc = robot_simulator.pin_robot.data.oMf[sim_data['id_endeff']]
-        f_mea_SIM_RATE = lwaMc.actInv(pin.Force(f_mea_SIM_RATE_world)).vector
-
+        # f_mea_SIM_RATE_world = robot_simulator.end_effector_forces(pin.LOCAL)[1][0]
+        f_mea_SIM_RATE_world = get_contact_wrench(robot_simulator, sim_data['id_endeff'], pin.LOCAL)
+        # lwaMc = robot_simulator.pin_robot.data.oMf[sim_data['id_endeff']]
+        # lwaMc.translation = np.zeros(3)
+        # print(lwaMc)
+        f_mea_SIM_RATE = f_mea_SIM_RATE_world #lwaMc.actInv(pin.Force(f_mea_SIM_RATE_world)).vector
 
         # Record data (unnoised)
         x_mea_SIM_RATE = np.concatenate([q_mea_SIM_RATE, v_mea_SIM_RATE]).T 

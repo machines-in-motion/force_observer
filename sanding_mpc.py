@@ -29,6 +29,7 @@ from ocp_utils import OptimalControlProblemClassicalWithObserver
 from mpc_utils import MPCDataHandlerClassicalWithEstimator
 from estimator import Estimator
 
+from core_mpc.sim_utils import get_contact_wrench
 
 import time
 import pinocchio as pin
@@ -337,6 +338,8 @@ for i in range(sim_data.N_simu):
         q = x_filtered[:nq]
         v = x_filtered[nq:nq+nv]
         # Solve OCP 
+        for m in ddp.problem.runningModels:
+           m.differential.delta_f = delta_f
         solveOCP(q, v, ddp, config['maxiter'], node_id_reach, target_position, node_id_contact, node_id_track, node_id_circle, force_weight, TASK_PHASE, target_force)
         # Record MPC predictions, cost references and solver data 
         sim_data.record_predictions(nb_plan, ddp)
@@ -383,10 +386,14 @@ for i in range(sim_data.N_simu):
     f_mea_SIMU_world = robot_simulator.end_effector_forces(sim_data.PIN_REF_FRAME)[1][0]
     if(sim_data.PIN_REF_FRAME == pin.LOCAL):
         lwaMc = robot_simulator.pin_robot.data.oMf[id_endeff]
+        lwaMc.translation = np.zeros(3)
         f_mea_SIMU = lwaMc.actInv(pin.Force(f_mea_SIMU_world)).vector
     fz_mea_SIMU = np.array([f_mea_SIMU[2]])
-    if(i%1000==0): 
+    # f = get_contact_wrench(robot_simulator, id_endeff, pin.LOCAL)
+    
+    if(i%500==0): 
       logger.info("f_mea  = "+str(f_mea_SIMU))      
+    #   logger.info("f  = "+str(f))      
     # Record data (unnoised)
     x_mea_SIMU = np.concatenate([q_mea_SIMU, v_mea_SIMU]).T 
     # Simulate sensing 
