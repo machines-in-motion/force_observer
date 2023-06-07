@@ -61,11 +61,14 @@ if(nc == 3):
     contactItem = sobec.ContactModel3D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, baumgarte_gains, pin.LOCAL) 
 elif(nc == 6):
     contactItem = sobec.ContactModel6D(state, contact_frame_id, robot.data.oMf[contact_frame_id], baumgarte_gains, pin.LOCAL) 
-elif(nc == 1):
+elif(nc == 1 or nc == 0):
     contactItem = sobec.ContactModel1D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, actuation.nu, baumgarte_gains, sobec.Vector3MaskType.z, pin.LOCAL) 
 else: pass
 # Populate contact model with contacts
-contactModel.addContact("contact", contactItem, active=True)
+if(nc == 0):
+    contactModel.addContact("contact", contactItem, active=False)
+else:
+    contactModel.addContact("contact", contactItem, active=True)
 # Create cost terms 
 uResidual = crocoddyl.ResidualModelContactControlGrav(state)
 uRegCost = crocoddyl.CostModelResidual(state, uResidual)
@@ -139,3 +142,30 @@ assert(np.linalg.norm(df_dtau[:nc] - df_dtau_ND)<=TOL)
 
 assert(np.linalg.norm(dtau_dq - dtau_dq_ND)<=TOL)   
 assert(np.linalg.norm(dtau_dv - dtau_dv_ND)<=TOL)   
+
+
+
+# Check that our custom DAM is equivalent to sobec DAM when delta_f = 0
+DAM_sobec = sobec.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, runningCostModel, inv_damping=0., enable_force=True)
+DAD_sobec = DAM_sobec.createData()
+DAM_sobec.calc(DAD_sobec, x0, tau0)
+DAM_sobec.calcDiff(DAD_sobec, x0, tau0)
+
+delta_f = np.zeros(3) 
+DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
+DAD = DAM.createData()
+DAM.calc(DAD, x0, tau0)
+DAM.calcDiff(DAD, x0, tau0)
+
+assert(np.linalg.norm(DAD_sobec.xout - DAD.xout)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.cost - DAD.cost)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.pinocchio.lambda_c - DAD.pinocchio.lambda_c)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Fx - DAD.Fx)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Fu - DAD.Fu)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Lx - DAD.Lx)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Lu - DAD.Lu)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Lxx - DAD.Lxx)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Lxu - DAD.Lxu)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Luu - DAD.Luu)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.df_dx - DAD.df_dx[:nc])<=TOL)   
+assert(np.linalg.norm(DAD_sobec.df_du - DAD.df_du[:nc])<=TOL)   

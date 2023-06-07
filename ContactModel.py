@@ -65,9 +65,8 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
 
         # Add delta_f in torque space
         if(self.nc == 0):
-            self.J3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)[:3]
-            new_tau = data.multibody.actuation.tau + self.J3d.T @ self.delta_f # Need 3D jac 
-            pin.aba(self.pinocchio, data.pinocchio, q, v, new_tau)
+            pin.aba(self.pinocchio, data.pinocchio, q, v, data.multibody.actuation.tau)
+            pin.updateGlobalPlacements(self.pinocchio, data.pinocchio)
         if(self.nc == 1):
             self.J3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)[:3]
             new_tau = data.multibody.actuation.tau + self.J3d.T @ self.delta_f # Need 3D jac 
@@ -109,20 +108,22 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
             print("hey")
             u = np.zeros(self.nu)
 
-        # First call calc
         q = x[:self.state.nq]
         v = x[self.state.nq:]
+
         # Actuation calcDiff
         self.actuation.calcDiff(data.multibody.actuation, x, u)
         
+        # Free fwd dynamics
         if(self.nc == 0):
             aba_dq, aba_dv, aba_dtau = pin.computeABADerivatives(self.pinocchio, data.pinocchio, q, v, data.multibody.actuation.tau)
-            assert(np.linalg.norm(aba_dtau - data.pinocchio.Minv) <= 1e-3)
-            data.Fx[:,:self.nv]  = data.pinocchio.Minv @ aba_dq
-            data.Fx[:,-self.nv:] = data.pinocchio.Minv @ aba_dv
+            assert(np.linalg.norm(aba_dtau - data.pinocchio.Minv) <= 1e-8)
+            data.Fx[:,:self.nv]  = aba_dq
+            data.Fx[:,-self.nv:] = aba_dv
             data.Fx += data.pinocchio.Minv @ data.multibody.actuation.dtau_dx
             data.Fu = data.pinocchio.Minv @ data.multibody.actuation.dtau_du
-
+        
+        # Constrained dynamics
         else: 
             pin.computeRNEADerivatives(self.pinocchio, data.pinocchio, q, v, data.xout, data.multibody.contacts.fext) # 3D derivative with fext including delta_f
             if(self.nc == 1):
