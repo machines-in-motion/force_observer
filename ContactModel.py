@@ -32,13 +32,8 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         self.nq = self.pinocchio.nq
         self.nx = self.nv + self.nq
         self.ndx = stateMultibody.ndx
-        # print(self.nc)
-        # self.nc=1
         if(self.nc == 1):
             self.J3d = np.zeros((3, self.pinocchio.nv))
-        #     assert(len(self.delta_f) == 3)
-        # else:
-        #     assert(len(self.delta_f) == self.nc)
 
     def createData(self):
         '''
@@ -93,13 +88,13 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         # Here we compute the cost without delta f
         if(self.nc != 0):
             self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c)# - self.delta_f)  # 1D with lambda_c
-        self.costs.calc(data.costs, x, u)
         # Here we add again delta_f to the computed force for dynamics
         if(self.nc == 1):
             data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([self.delta_f, np.zeros(3)])))
         else:
             if(self.nc != 0):
                 self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)    # 3D with (0,0,lambda_c) + delta_f
+        self.costs.calc(data.costs, x, u)
         data.cost = data.costs.cost
         # pin.updateGlobalPlacements(self.pinocchio, data.pinocchio)
         return data.xout, data.cost
@@ -119,34 +114,43 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         v = x[self.state.nq:]
         # Actuation calcDiff
         self.actuation.calcDiff(data.multibody.actuation, x, u)
-
-        pin.computeRNEADerivatives(self.pinocchio, data.pinocchio, q, v, data.xout, data.multibody.contacts.fext) # 3D derivative with fext including delta_f
-        if(self.nc == 1):
-            data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc.reshape((1, self.nv))) # Kinv has nc=1 
-        else:
-            data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc[:self.nc])  
-
-        self.actuation.calcDiff(data.multibody.actuation, x, u)
-        self.contacts.calcDiff(data.multibody.contacts, x) 
-
-        a_partial_dtau = data.Kinv[:self.nv, :self.nv]
-        a_partial_da = data.Kinv[:self.nv, -self.nc:]
-        f_partial_dtau = data.Kinv[-self.nc:, :self.nv]
-        f_partial_da = data.Kinv[-self.nc:, -self.nc:]
-
-        data.Fx[:,:self.nv]  = -a_partial_dtau @ data.pinocchio.dtau_dq 
-        data.Fx[:,-self.nv:] = -a_partial_dtau @ data.pinocchio.dtau_dv
+        
         if(self.nc == 0):
-            pass
-        if(self.nc == 1):
-            data.Fx -= a_partial_da @ data.multibody.contacts.da0_dx.reshape((1,self.ndx)) # 1D
-        if(self.nc == 3 or self.nc == 6):
-            data.Fx -= a_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
-        data.Fx += a_partial_dtau @ data.multibody.actuation.dtau_dx
-        data.Fu = a_partial_dtau @ data.multibody.actuation.dtau_du
+            aba_dq, aba_dv, aba_dtau = pin.computeABADerivatives(self.pinocchio, data.pinocchio, q, v, data.multibody.actuation.tau)
+            assert(np.linalg.norm(aba_dtau - data.pinocchio.Minv) <= 1e-3)
+            data.Fx[:,:self.nv]  = data.pinocchio.Minv @ aba_dq
+            data.Fx[:,-self.nv:] = data.pinocchio.Minv @ aba_dv
+            data.Fx += data.pinocchio.Minv @ data.multibody.actuation.dtau_dx
+            data.Fu = data.pinocchio.Minv @ data.multibody.actuation.dtau_du
 
-        self.contacts.updateAccelerationDiff(data.multibody.contacts, data.Fx)
-        if(self.nc != 0):
+        else: 
+            pin.computeRNEADerivatives(self.pinocchio, data.pinocchio, q, v, data.xout, data.multibody.contacts.fext) # 3D derivative with fext including delta_f
+            if(self.nc == 1):
+                data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc.reshape((1, self.nv))) # Kinv has nc=1 
+            else:
+                data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc[:self.nc])  
+
+            # Contact derivatives
+            self.contacts.calcDiff(data.multibody.contacts, x) 
+
+            # Extract Kinv blocks
+            a_partial_dtau = data.Kinv[:self.nv, :self.nv]
+            a_partial_da = data.Kinv[:self.nv, -self.nc:]
+            f_partial_dtau = data.Kinv[-self.nc:, :self.nv]
+            f_partial_da = data.Kinv[-self.nc:, -self.nc:]
+
+            # DAM partials
+            data.Fx[:,:self.nv]  = -a_partial_dtau @ data.pinocchio.dtau_dq 
+            data.Fx[:,-self.nv:] = -a_partial_dtau @ data.pinocchio.dtau_dv
+            if(self.nc == 1):
+                data.Fx -= a_partial_da @ data.multibody.contacts.da0_dx.reshape((1,self.ndx)) # 1D
+            if(self.nc == 3 or self.nc == 6):
+                data.Fx -= a_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
+            data.Fx += a_partial_dtau @ data.multibody.actuation.dtau_dx
+            data.Fu = a_partial_dtau @ data.multibody.actuation.dtau_du
+
+            # Update contact & force partials
+            self.contacts.updateAccelerationDiff(data.multibody.contacts, data.Fx)
             data.df_dx[:self.nc, :self.nv] = f_partial_dtau @ data.pinocchio.dtau_dq 
             data.df_dx[:self.nc, -self.nv:] = f_partial_dtau @ data.pinocchio.dtau_dv
             if(self.nc == 1):
@@ -155,9 +159,9 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
                 data.df_dx[:self.nc,:] += f_partial_da @ data.multibody.contacts.da0_dx[:self.nc]
             data.df_dx[:self.nc,:] -= f_partial_dtau @ data.multibody.actuation.dtau_dx
             data.df_du[:self.nc,:] = -f_partial_dtau @ data.multibody.actuation.dtau_du
-            # self.contacts.updateAccelerationDiff(data.multibody.contacts, data.Fx[-self.nv:])
-            # print(data.df_dx.shape)
             self.contacts.updateForceDiff(data.multibody.contacts, data.df_dx[:self.nc], data.df_du[:self.nc])
+        
+        # Cost partials        
         self.costs.calcDiff(data.costs, x, u)
         data.Lx = data.costs.Lx
         data.Lu = data.costs.Lu

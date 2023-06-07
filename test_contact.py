@@ -28,7 +28,7 @@ x0 = np.concatenate([q0, v0])
 gains = np.zeros(2)
 nq = robot.model.nq
 nv = robot.model.nv
-nc = 3
+nc = 1
 
 # Numerical difference function
 def numdiff(f,inX,h=1e-6):
@@ -133,9 +133,9 @@ dtau_dv_ND = numdiff(lambda v_:tau_dam(DAM, DAD, q0, v_, tau0), v0)
 assert(np.linalg.norm(ddq_dq - ddq_dq_ND)<=TOL)
 assert(np.linalg.norm(ddq_dv - ddq_dv_ND)<=TOL)
 assert(np.linalg.norm(ddq_dtau - ddq_dtau_ND)<=TOL)
-assert(np.linalg.norm(df_dq - df_dq_ND)<=TOL)      
-assert(np.linalg.norm(df_dv - df_dv_ND)<=TOL)
-assert(np.linalg.norm(df_dtau - df_dtau_ND)<=TOL)
+assert(np.linalg.norm(df_dq[:nc] - df_dq_ND)<=TOL)      
+assert(np.linalg.norm(df_dv[:nc] - df_dv_ND)<=TOL)
+assert(np.linalg.norm(df_dtau[:nc] - df_dtau_ND)<=TOL)
 
 assert(np.linalg.norm(dtau_dq - dtau_dq_ND)<=TOL)   
 assert(np.linalg.norm(dtau_dv - dtau_dv_ND)<=TOL)   

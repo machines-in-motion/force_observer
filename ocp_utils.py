@@ -22,7 +22,7 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 
 # Check installed pkg
-USE_SOBEC = True 
+USE_SOBEC = False 
 import sobec
 from ContactModel import DAMRigidContact
 
@@ -110,12 +110,6 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
       # Armature 
         # Add armature to current IAM
         runningModels[i].differential.armature = np.asarray(self.armature)
-      
-    #   # Contact model
-    #     # Add contact model to current IAM
-    #     for k,contactModel in enumerate(contactModels):
-    #         runningModels[i].differential.contacts.addContact(self.contacts[k]['contactModelFrameName'], contactModel, active=self.contacts[k]['active'])
-
 
   # Terminal DAM (Contact or FreeFwd)
     # If contact, initialize terminal contact model and create terminal DAMContactDyn
