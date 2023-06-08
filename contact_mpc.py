@@ -29,7 +29,7 @@ from ocp_utils import OptimalControlProblemClassicalWithObserver
 from mpc_utils import MPCDataHandlerClassicalWithEstimator
 from estimator import Estimator
 
-from core_mpc.sim_utils import get_contact_wrench
+import pybullet as p
 
 import time
 import pinocchio as pin
@@ -278,8 +278,8 @@ for i in range(sim_data.N_simu):
         q = x_filtered[:nq]
         v = x_filtered[nq:nq+nv]
         # Solve OCP 
-        # for m in ddp.problem.runningModels:
-        #    m.differential.delta_f = delta_f
+        for m in ddp.problem.runningModels:
+           m.differential.delta_f = delta_f
         solveOCP(q, v, ddp, config['maxiter'], node_id_reach, target_position, node_id_contact, TASK_PHASE, target_force)
         # Record MPC predictions, cost references and solver data 
         sim_data.record_predictions(nb_plan, ddp)
@@ -317,6 +317,11 @@ for i in range(sim_data.N_simu):
     tau_mea_SIMU = actuationModel.step(i, tau_mot_CTRL, joint_vel=sim_data.state_mea_SIMU[i,nq:nq+nv])
     # Step PyBullet simulator
     robot_simulator.send_joint_command(tau_mea_SIMU)
+
+    # Disturb force
+    position = p.getLinkState(robot_simulator.robotId, 7)[0]
+    p.applyExternalForce(objectUniqueId=robot_simulator.robotId, linkIndex=7, forceObj=np.array([0., 0., -10.]), posObj=position, flags=p.WORLD_FRAME)
+    
     env.step()
     # Measure new state + forces from simulation 
     q_mea_SIMU, v_mea_SIMU = robot_simulator.get_state()

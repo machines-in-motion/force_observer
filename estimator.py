@@ -33,7 +33,7 @@ class Estimator():
 
         self.R = 1e-2 * np.eye(self.nc)
         self.Q = 1e-2 * np.eye(self.nv)
-        self.P = 1e-0 * np.eye(self.nc_delta_f)
+        self.P = 1e0 * np.eye(self.nc_delta_f)
 
         self.n_tot = self.nv + self.nc + self.nc_delta_f 
         n_eq = self.nv + self.nc

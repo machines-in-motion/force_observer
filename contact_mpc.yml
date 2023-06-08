@@ -9,7 +9,7 @@ T_tot: 6.                           # Simu duration (s)n (s)
 # Simulation options
 DELAY_SIM: False                 # Add delay in reference torques (low-level)
 DELAY_OCP: False                 # Add delay in OCP solution (i.e. ~1ms resolution time)
-SCALE_TORQUES: True             # Affine scaling of reference torque
+SCALE_TORQUES: False             # Affine scaling of reference torque
 NOISE_TORQUES: False             # Add Gaussian noise on reference torques
 NOISE_STATE: False               # Add Gaussian noise on the measured state 
 STATIC_FRICTION: False           # Simulate static friction torque
