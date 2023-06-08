@@ -48,7 +48,7 @@ frame_of_interest: 'contact'
 contacts:
   - {
       contactModelFrameName: 'contact',                   # frame name in pinocchio model
-      pinocchioReferenceFrame: 'LOCAL',     # LOCAL, WORLD, LOCAL_WORLD_ALIGNED
+      pinocchioReferenceFrame: 'LOCAL_WORLD_ALIGNED',     # LOCAL, WORLD, LOCAL_WORLD_ALIGNED
       contactModelType: '3D',                             # 1Dx, 1Dy, 1Dz, 3D, 6D
       contactModelTranslationRef: '',                     #[0.7, 0.0, 0.0],       # 3d vector
       contactModelRotationRef: '',                        # 3d matrix
@@ -57,7 +57,7 @@ contacts:
     }
 contactPosition: [0.6, 0., 0.1] # table
 oPc_offset: [0., 0., 0.] 
-pinRefFrame: 'LOCAL'
+pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '3D'
 
 
@@ -70,7 +70,7 @@ WHICH_COSTS: ['force', 'translation', 'velocity', 'stateReg', 'ctrlRegGrav', 'st
  # 'force' : end-effector frame force (translation + rotation)
 frameForceWeights:  [1, 1., 1, 0., 0., 0.]
 frameForceWeight: 10 
-frameForceRef: [0., 0., -50, 0., 0., 0.]    
+frameForceRef: [0., 0., 50, 0., 0., 0.]    
 frameForceFrameName: 'contact'
 
 # 'stateReg' : state regularization  

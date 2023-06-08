@@ -319,8 +319,9 @@ for i in range(sim_data.N_simu):
     robot_simulator.send_joint_command(tau_mea_SIMU)
 
     # Disturb force
-    position = p.getLinkState(robot_simulator.robotId, 7)[0]
-    p.applyExternalForce(objectUniqueId=robot_simulator.robotId, linkIndex=7, forceObj=np.array([0., 0., -10.]), posObj=position, flags=p.WORLD_FRAME)
+    if(time_to_contact >= 0):
+        position = p.getLinkState(robot_simulator.robotId, 7)[0]
+        p.applyExternalForce(objectUniqueId=robot_simulator.robotId, linkIndex=7, forceObj=np.array([0., 0., -10.]), posObj=position, flags=p.WORLD_FRAME)
     
     env.step()
     # Measure new state + forces from simulation 
@@ -333,6 +334,8 @@ for i in range(sim_data.N_simu):
         lwaMc = robot_simulator.pin_robot.data.oMf[id_endeff]
         lwaMc.translation = np.zeros(3)
         f_mea_SIMU = lwaMc.actInv(pin.Force(f_mea_SIMU_world)).vector
+    else:
+        f_mea_SIMU = f_mea_SIMU_world
     fz_mea_SIMU = np.array([f_mea_SIMU[2]])    
     if(i%500==0): 
       logger.info("f_mea  = "+str(f_mea_SIMU))      
@@ -349,7 +352,7 @@ for i in range(sim_data.N_simu):
     if(i>0): a_mea_SIMU = (v_mea_SIMU - sim_data.state_mea_SIMU[i-1, nv:]) / env.dt
     else: a_mea_SIMU = np.zeros(nv)
     if(np.linalg.norm(f_mea_SIMU) > 1e-6):
-        F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, f_mea_SIMU[:3]) # + np.array([10,-10,20]))
+        F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, f_mea_SIMU[:3], pinRefRame=sim_data.PIN_REF_FRAME) # + np.array([10,-10,20]))
     sim_data.record_simu_cycle_estimates(i, delta_f)
 
     # Display real 

@@ -56,23 +56,23 @@ class Estimator():
 
         assert self.baumgarte_gains[0] == 0
 
-    def estimate(self, q, v, a, tau, df_prior, F_mes):
+    def estimate(self, q, v, a, tau, df_prior, F_mes, pinRefRame=pin.LOCAL):
         pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q, v)
         pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v, np.zeros(self.nv)) # a ?
         pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
         M = self.pin_robot.mass(q)
         h = self.pin_robot.nle(q, v)
         if(self.nc == 1):
-            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL).vector[self.mask:self.mask+1]
-            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL).vector[self.mask:self.mask+1]
-            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL)[self.mask:self.mask+1]
+            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame).vector[self.mask:self.mask+1]
+            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame).vector[self.mask:self.mask+1]
+            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame)[self.mask:self.mask+1]
         else:
-            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL).vector[:self.nc]
-            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL).vector[:self.nc]
-            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL)[:self.nc]
+            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame).vector[:self.nc]
+            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame).vector[:self.nc]
+            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame)[:self.nc]
         alpha0 -= self.baumgarte_gains[1] * nu
 
-        J2 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pin.LOCAL)[:self.nc_delta_f]
+        J2 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame)[:self.nc_delta_f]
 
         b = np.concatenate([h - tau, -alpha0], axis=0)
         A1 = np.concatenate([-M, J1.T, J2.T], axis=1)
