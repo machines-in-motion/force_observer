@@ -126,8 +126,8 @@ armature:  [.0, .0, .0, .0, .0, .0, 0.]
   # Scaling of desired torque
 alpha_min: 1.
 alpha_max: 1.
-beta_min: -1.
-beta_max: 1.
+beta_min: -0.2
+beta_max: 0.2
   # White noise on desired torque and measured state
 var_u: [0.03, 0.03, 0.02, 0.02, 0.01, 0.01, 0.01]
 var_q: 0.001 

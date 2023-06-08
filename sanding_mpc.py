@@ -29,8 +29,6 @@ from ocp_utils import OptimalControlProblemClassicalWithObserver
 from mpc_utils import MPCDataHandlerClassicalWithEstimator
 from estimator import Estimator
 
-from core_mpc.sim_utils import get_contact_wrench
-
 import time
 import pinocchio as pin
 jRc = np.eye(3)

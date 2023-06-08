@@ -278,8 +278,8 @@ for i in range(sim_data.N_simu):
         q = x_filtered[:nq]
         v = x_filtered[nq:nq+nv]
         # Solve OCP 
-        for m in ddp.problem.runningModels:
-           m.differential.delta_f = delta_f
+        # for m in ddp.problem.runningModels:
+        #    m.differential.delta_f = delta_f
         solveOCP(q, v, ddp, config['maxiter'], node_id_reach, target_position, node_id_contact, TASK_PHASE, target_force)
         # Record MPC predictions, cost references and solver data 
         sim_data.record_predictions(nb_plan, ddp)
