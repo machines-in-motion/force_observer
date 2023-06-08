@@ -95,9 +95,13 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         data.cost = data.costs.cost
         # Here we add again delta_f to the computed force for dynamics
         if(self.nc == 1):
-            lwaMf = data.pinocchio.oMf[self.frameId] ; lwaMf.translation = np.zeros(3)
-            self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
-            data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([ lwaMf.rotation @ self.delta_f, np.zeros(3)])))
+            if(self.pinRefFrame != pin.LOCAL):
+                lwaMf = data.pinocchio.oMf[self.frameId] ; lwaMf.translation = np.zeros(3)
+                self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
+                data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([ lwaMf.rotation.T @ self.delta_f, np.zeros(3)])))
+            else:
+                self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
+                data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([ self.delta_f, np.zeros(3)])))    
         else:
             if(self.nc != 0):
                 self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)    # 3D with (0,0,lambda_c) + delta_f
@@ -143,11 +147,11 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
                 data.pinocchio.dtau_dq[:self.nv, :self.nv] += data.multibody.contacts.contacts['contact'].drnea_skew_term 
                 # missing skew term for delta_f 
                 # pin.skew(data.pinocchio.oMf[self.frameId].rotation.T[:,2] * data.pinocchio.lambda_c)
-                tmp_skew = pin.skew(data.pinocchio.oMf[self.frameId].rotation.T @ self.delta_f) 
-                # + data.pinocchio.oMf[self.frameId].rotation.T[:,2] * data.pinocchio.lambda_c)
-                lJ3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)
-                drnea_skew_term = -lJ3d[:3].T @ tmp_skew @ lJ3d[3:]
-                data.pinocchio.dtau_dq[:self.nv, :self.nv] += drnea_skew_term
+                if(self.nc == 1):
+                    tmp_skew = pin.skew(data.pinocchio.oMf[self.frameId].rotation.T @ self.delta_f) 
+                    lJ3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)
+                    drnea_skew_term = -lJ3d[:3].T @ tmp_skew @ lJ3d[3:]
+                    data.pinocchio.dtau_dq[:self.nv, :self.nv] += drnea_skew_term
 
             # Extract Kinv blocks
             a_partial_dtau = data.Kinv[:self.nv, :self.nv]

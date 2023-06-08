@@ -87,9 +87,6 @@ terminalCostModel.addCost("stateReg", xRegCost, 1e-2)
 # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
 if(nc == 1):
     delta_f = 100*np.random.rand(3) # delta_f[2] = -0
-    delta_f[0] = 0
-    delta_f[1] = 0
-    # delta_f[2] = 0
 else:
     delta_f = 100*np.random.rand(nc) # delta_f[2] = -0
 DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
