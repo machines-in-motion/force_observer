@@ -28,7 +28,7 @@ x0 = np.concatenate([q0, v0])
 gains = np.zeros(2)
 nq = robot.model.nq
 nv = robot.model.nv
-nc = 1
+nc = 3
 
 # Numerical difference function
 def numdiff(f,inX,h=1e-6):
@@ -152,20 +152,20 @@ DAM_sobec.calc(DAD_sobec, x0, tau0)
 DAM_sobec.calcDiff(DAD_sobec, x0, tau0)
 
 delta_f = np.zeros(3) 
-DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
-DAD = DAM.createData()
-DAM.calc(DAD, x0, tau0)
-DAM.calcDiff(DAD, x0, tau0)
+DAM2 = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
+DAD2 = DAM2.createData()
+DAM2.calc(DAD2, x0, tau0)
+DAM2.calcDiff(DAD2, x0, tau0)
 
-assert(np.linalg.norm(DAD_sobec.xout - DAD.xout)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.cost - DAD.cost)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.pinocchio.lambda_c - DAD.pinocchio.lambda_c)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.Fx - DAD.Fx)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.Fu - DAD.Fu)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.Lx - DAD.Lx)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.Lu - DAD.Lu)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.Lxx - DAD.Lxx)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.Lxu - DAD.Lxu)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.Luu - DAD.Luu)<=TOL)   
-assert(np.linalg.norm(DAD_sobec.df_dx - DAD.df_dx[:nc])<=TOL)   
-assert(np.linalg.norm(DAD_sobec.df_du - DAD.df_du[:nc])<=TOL)   
+assert(np.linalg.norm(DAD_sobec.xout - DAD2.xout)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.cost - DAD2.cost)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.pinocchio.lambda_c - DAD2.pinocchio.lambda_c)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Fx - DAD2.Fx)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Fu - DAD2.Fu)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Lx - DAD2.Lx)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Lu - DAD2.Lu)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Lxx - DAD2.Lxx)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Lxu - DAD2.Lxu)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.Luu - DAD2.Luu)<=TOL)   
+assert(np.linalg.norm(DAD_sobec.df_dx - DAD2.df_dx[:nc])<=TOL)   
+assert(np.linalg.norm(DAD_sobec.df_du - DAD2.df_du[:nc])<=TOL)   

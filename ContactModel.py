@@ -5,6 +5,9 @@ import numpy as np
 np.set_printoptions(precision=6, linewidth=180, suppress=True)
 # np.random.seed(1)
 
+from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
+logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
+
 import crocoddyl
 import pinocchio as pin
 
@@ -87,14 +90,14 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         # Here we compute the cost without delta f
         if(self.nc != 0):
             self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c)# - self.delta_f)  # 1D with lambda_c
+        self.costs.calc(data.costs, x, u)
+        data.cost = data.costs.cost
         # Here we add again delta_f to the computed force for dynamics
         if(self.nc == 1):
             data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([self.delta_f, np.zeros(3)])))
         else:
             if(self.nc != 0):
                 self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)    # 3D with (0,0,lambda_c) + delta_f
-        self.costs.calc(data.costs, x, u)
-        data.cost = data.costs.cost
         # pin.updateGlobalPlacements(self.pinocchio, data.pinocchio)
         return data.xout, data.cost
 
