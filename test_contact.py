@@ -28,7 +28,10 @@ x0 = np.concatenate([q0, v0])
 gains = np.zeros(2)
 nq = robot.model.nq
 nv = robot.model.nv
-nc = 3
+nc = 1
+
+pinRefFrame = pin.LOCAL_WORLD_ALIGNED
+
 
 # Numerical difference function
 def numdiff(f,inX,h=1e-6):
@@ -58,11 +61,11 @@ contactModel = sobec.ContactModelMultiple(state, actuation.nu)
 # contact_position = robot.data.oMf[contact_frame_id].copy()
 baumgarte_gains  = np.array([0., 50.])
 if(nc == 3):
-    contactItem = sobec.ContactModel3D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, baumgarte_gains, pin.LOCAL) 
+    contactItem = sobec.ContactModel3D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, baumgarte_gains, pinRefFrame) 
 elif(nc == 6):
-    contactItem = sobec.ContactModel6D(state, contact_frame_id, robot.data.oMf[contact_frame_id], baumgarte_gains, pin.LOCAL) 
+    contactItem = sobec.ContactModel6D(state, contact_frame_id, robot.data.oMf[contact_frame_id], baumgarte_gains, pinRefFrame) 
 elif(nc == 1 or nc == 0):
-    contactItem = sobec.ContactModel1D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, actuation.nu, baumgarte_gains, sobec.Vector3MaskType.z, pin.LOCAL) 
+    contactItem = sobec.ContactModel1D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, actuation.nu, baumgarte_gains, sobec.Vector3MaskType.z, pinRefFrame) 
 else: pass
 # Populate contact model with contacts
 if(nc == 0):
@@ -84,9 +87,12 @@ terminalCostModel.addCost("stateReg", xRegCost, 1e-2)
 # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
 if(nc == 1):
     delta_f = 100*np.random.rand(3) # delta_f[2] = -0
+    delta_f[0] = 0
+    delta_f[1] = 0
+    # delta_f[2] = 0
 else:
     delta_f = 100*np.random.rand(nc) # delta_f[2] = -0
-DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
+DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
 DAD = DAM.createData()
 jMf = robot.model.frames[contact_frame_id].placement
 
@@ -97,9 +103,18 @@ def df_dam(dam, dad, q, v, u):
     dam.calc(dad, np.concatenate([q,v]), u)
     cd = dad.multibody.contacts.contacts['contact']
     if(nc == 1):
-        return jMf.actInv(cd.f).vector[2]
+        if(pinRefFrame == pin.LOCAL):
+            return jMf.actInv(cd.f).vector[2]
+        else:
+            lwaMf = dad.pinocchio.oMf[contact_frame_id].copy() ; lwaMf.translation = np.zeros(3)
+            return lwaMf.act(jMf.actInv(cd.f)).vector[2]
     else:
-        return jMf.actInv(cd.f).vector[:nc]
+        if(pinRefFrame == pin.LOCAL):
+            return jMf.actInv(cd.f).vector[:nc]
+        else:
+            lwaMf = dad.pinocchio.oMf[contact_frame_id].copy() ; lwaMf.translation = np.zeros(3)
+            return lwaMf.act(jMf.actInv(cd.f)).vector[:nc]
+
 def tau_dam(dam, dad, q, v, u):
     pin.rnea(dam.pinocchio, dad.pinocchio, q, v, dad.xout, dad.multibody.contacts.fext)
     return dad.pinocchio.tau 
@@ -128,9 +143,10 @@ ddq_dtau_ND = numdiff(lambda tau_:ddq_dam(DAM, DAD, q0, v0, tau_), tau0)
 df_dq_ND = numdiff(lambda q_:df_dam(DAM, DAD, q_, v0, tau0), q0)
 df_dv_ND = numdiff(lambda v_:df_dam(DAM, DAD, q0, v_, tau0), v0)
 df_dtau_ND = numdiff(lambda tau_:df_dam(DAM, DAD, q0, v0, tau_), tau0)
-# RNEA derivatives (ND)
-dtau_dq_ND = numdiff(lambda q_:tau_dam(DAM, DAD, q_, v0, tau0), q0)
-dtau_dv_ND = numdiff(lambda v_:tau_dam(DAM, DAD, q0, v_, tau0), v0)
+# RNEA derivatives (ND) 
+if(pinRefFrame == pin.LOCAL):
+    dtau_dq_ND = numdiff(lambda q_:tau_dam(DAM, DAD, q_, v0, tau0), q0)
+    dtau_dv_ND = numdiff(lambda v_:tau_dam(DAM, DAD, q0, v_, tau0), v0)
 
 # Tests
 assert(np.linalg.norm(ddq_dq - ddq_dq_ND)<=TOL)
@@ -139,9 +155,9 @@ assert(np.linalg.norm(ddq_dtau - ddq_dtau_ND)<=TOL)
 assert(np.linalg.norm(df_dq[:nc] - df_dq_ND)<=TOL)      
 assert(np.linalg.norm(df_dv[:nc] - df_dv_ND)<=TOL)
 assert(np.linalg.norm(df_dtau[:nc] - df_dtau_ND)<=TOL)
-
-assert(np.linalg.norm(dtau_dq - dtau_dq_ND)<=TOL)   
-assert(np.linalg.norm(dtau_dv - dtau_dv_ND)<=TOL)   
+if(pinRefFrame == pin.LOCAL):
+    assert(np.linalg.norm(dtau_dq - dtau_dq_ND)<=TOL)   
+    assert(np.linalg.norm(dtau_dv - dtau_dv_ND)<=TOL)   
 
 
 
@@ -151,8 +167,11 @@ DAD_sobec = DAM_sobec.createData()
 DAM_sobec.calc(DAD_sobec, x0, tau0)
 DAM_sobec.calcDiff(DAD_sobec, x0, tau0)
 
-delta_f = np.zeros(3) 
-DAM2 = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f)
+if(nc == 1):
+    delta_f = np.zeros(3) # delta_f[2] = -0
+else:
+    delta_f = np.zeros(nc) # delta_f[2] = -0
+DAM2 = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
 DAD2 = DAM2.createData()
 DAM2.calc(DAD2, x0, tau0)
 DAM2.calcDiff(DAD2, x0, tau0)

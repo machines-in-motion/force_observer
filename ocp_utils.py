@@ -43,7 +43,7 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
     '''
     super().check_config()
 
-  def initialize(self, x0, delta_f, callbacks=False):
+  def initialize(self, x0, delta_f, pinRefFrame=pin.LOCAL, callbacks=False):
     '''
     Initializes OCP and FDDP solver from config parameters and initial state
       INPUT: 
@@ -100,7 +100,8 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
                                 contactModelSum, 
                                 crocoddyl.CostModelSum(state, nu=actuation.nu), 
                                 contactModels[0].id,
-                                delta_f)
+                                delta_f,
+                                pinRefFrame=pinRefFrame)
       # Create IAM from DAM
         runningModels.append(crocoddyl.IntegratedActionModelEuler(dam, stepTime=self.dt))
         
@@ -135,7 +136,8 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
                             contactModelSum, 
                             crocoddyl.CostModelSum(state, nu=actuation.nu), 
                             contactModels[0].id,
-                            delta_f)
+                            delta_f,
+                            pinRefFrame=pinRefFrame)
         
   # Create terminal IAM from terminal DAM
     terminalModel = crocoddyl.IntegratedActionModelEuler( dam_t, stepTime=0. )

@@ -124,7 +124,7 @@ simulator_utils.set_contact_stiffness_and_damping(contact_surface_bulletId, 1e6,
 
 # Init shooting problem and solver
 delta_f = np.zeros(3)
-ddp = OptimalControlProblemClassicalWithObserver(robot, config).initialize(x0, delta_f, callbacks=False)
+ddp = OptimalControlProblemClassicalWithObserver(robot, config).initialize(x0, delta_f, pinRefFrame=pin.LOCAL_WORLD_ALIGNED, callbacks=False)
 # !!! Deactivate all costs & contact models initially !!!
 models = list(ddp.problem.runningModels) + [ddp.problem.terminalModel]
 for k,m in enumerate(models):
@@ -147,7 +147,7 @@ if(PLOT_INIT):
 
 
 # Create estimator 
-force_estimator = Estimator(robot_simulator.pin_robot, 3, id_endeff, config['contacts'][0]['contactModelGains'])
+force_estimator = Estimator(robot_simulator.pin_robot, 1, id_endeff, config['contacts'][0]['contactModelGains'])
 
 
 # Setup tracking problem with circle ref EE trajectory + Warm start state = IK of circle trajectory
@@ -278,13 +278,13 @@ for i in range(sim_data.N_simu):
         q = x_filtered[:nq]
         v = x_filtered[nq:nq+nv]
         # Solve OCP 
-        for m in ddp.problem.runningModels:
-           m.differential.delta_f = delta_f
+        # for m in ddp.problem.runningModels:
+        #    m.differential.delta_f = delta_f
         solveOCP(q, v, ddp, config['maxiter'], node_id_reach, target_position, node_id_contact, TASK_PHASE, target_force)
         # Record MPC predictions, cost references and solver data 
         sim_data.record_predictions(nb_plan, ddp)
         sim_data.record_cost_references(nb_plan, ddp)
-        sim_data.record_solver_data(nb_plan, ddp) 
+        sim_data.record_solver_data(nb_plan, ddp)  
         # Model communication delay between computer & robot (buffered OCP solution)
         communicationModel.step(sim_data.x_pred, sim_data.u_curr)
         # Record interpolated desired state, control and force at MPC frequency
@@ -321,7 +321,7 @@ for i in range(sim_data.N_simu):
     # Disturb force
     if(time_to_contact >= 0):
         position = p.getLinkState(robot_simulator.robotId, 7)[0]
-        p.applyExternalForce(objectUniqueId=robot_simulator.robotId, linkIndex=7, forceObj=np.array([0., 0., -10.]), posObj=position, flags=p.WORLD_FRAME)
+        p.applyExternalForce(objectUniqueId=robot_simulator.robotId, linkIndex=7, forceObj=np.array([10., 0., 0.]), posObj=position, flags=p.WORLD_FRAME)
     
     env.step()
     # Measure new state + forces from simulation 
@@ -352,7 +352,7 @@ for i in range(sim_data.N_simu):
     if(i>0): a_mea_SIMU = (v_mea_SIMU - sim_data.state_mea_SIMU[i-1, nv:]) / env.dt
     else: a_mea_SIMU = np.zeros(nv)
     if(np.linalg.norm(f_mea_SIMU) > 1e-6):
-        F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, f_mea_SIMU[:3], pinRefRame=sim_data.PIN_REF_FRAME) # + np.array([10,-10,20]))
+        F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, f_mea_SIMU[2:3], pinRefRame=sim_data.PIN_REF_FRAME) # + np.array([10,-10,20]))
     sim_data.record_simu_cycle_estimates(i, delta_f)
 
     # Display real 
