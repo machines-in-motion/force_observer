@@ -27,6 +27,7 @@ TILT_PITCH_LOCAL_DEG: 0.      # Tilt angle of the contact surface
 RICCATI: False              
 
 USE_DELTA_F: True               # Use delta_f computed by estimator 
+USE_LATERAL_FORCE: True         # Use lateral friction
 
 T_REACH: 0.
 # T_TRACK: 1.

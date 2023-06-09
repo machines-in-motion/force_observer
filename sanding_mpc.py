@@ -375,6 +375,13 @@ for i in range(sim_data.N_simu):
 
     # Simulate actuation 
     tau_mea_SIMU = actuationModel.step(i, tau_mot_CTRL, joint_vel=sim_data.state_mea_SIMU[i,nq:nq+nv])
+
+
+    if config["USE_LATERAL_FORCE"] and (i >= T_CIRCLE):
+        Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, pin.LOCAL_WORLD_ALIGNED)[:3]
+        F = np.array([f_mea_SIMU_world[0], f_mea_SIMU_world[1], 0])
+        tau_mea_SIMU -= Jac.T @ F
+
     # Step PyBullet simulator
     robot_simulator.send_joint_command(tau_mea_SIMU)
     env.step()
@@ -426,8 +433,8 @@ for i in range(sim_data.N_simu):
 # # # # # # # # # # #
 # PLOT SIM RESULTS  #
 # # # # # # # # # # #
-logger.debug("Avg force error norm    = "+str(np.max(err_fz)))
-logger.debug("Max. force error norm   = "+str(np.sum(err_fz)/count))
+logger.debug("Max force error norm    = "+str(np.max(err_fz)))
+logger.debug("Avg. force error norm   = "+str(np.sum(err_fz)/count))
 logger.debug("Avg position error norm = "+str(err_p/count))
 
 save_dir = '/tmp'
