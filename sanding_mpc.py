@@ -111,7 +111,7 @@ PLOT_INIT=False
 # # # # # # # # # # # # # # # # # # # 
 
 # Read config file, create a simulation environment & simu-pin wrapper 
-config = path_utils.load_yaml_file('/home/skleff/misc_repos/force_observer/sanding_mpc.yml')
+config = path_utils.load_yaml_file(__file__[:-3]+'.yml')
 dt_simu = 1./float(config['simu_freq'])  
 q0 = np.asarray(config['q0'])
 v0 = np.asarray(config['dq0'])
@@ -139,7 +139,7 @@ simulator_utils.set_contact_stiffness_and_damping(contact_surface_bulletId, 1e6,
 # # # # # # # # # 
 
 # Init shooting problem and solver
-delta_f = np.zeros(3)
+delta_f = np.zeros(1)
 ddp = OptimalControlProblemClassicalWithObserver(robot, config).initialize(x0, delta_f, callbacks=False)
 # !!! Deactivate all costs & contact models initially !!!
 models = list(ddp.problem.runningModels) + [ddp.problem.terminalModel]
@@ -163,7 +163,7 @@ if(PLOT_INIT):
 
 
 # Create estimator 
-force_estimator = Estimator(robot_simulator.pin_robot, 1, id_endeff, config['contacts'][0]['contactModelGains'])
+force_estimator = Estimator(robot_simulator.pin_robot, 1, 1, id_endeff, config['contacts'][0]['contactModelGains'])
 
 
 # Setup tracking problem with circle ref EE trajectory + Warm start state = IK of circle trajectory
@@ -338,6 +338,7 @@ for i in range(sim_data.N_simu):
         # Solve OCP 
         for m in ddp.problem.runningModels:
            m.differential.delta_f = delta_f
+        
         solveOCP(q, v, ddp, config['maxiter'], node_id_reach, target_position, node_id_contact, node_id_track, node_id_circle, force_weight, TASK_PHASE, target_force)
         # Record MPC predictions, cost references and solver data 
         sim_data.record_predictions(nb_plan, ddp)
@@ -381,7 +382,7 @@ for i in range(sim_data.N_simu):
     robot_simulator.forward_robot(q_mea_SIMU, v_mea_SIMU)
 
     # !!! PyBullet forces come in LWA by default : transform to LOCAL 
-    f_mea_SIMU_world = robot_simulator.end_effector_forces(sim_data.PIN_REF_FRAME)[1][0]
+    f_mea_SIMU_world = robot_simulator.end_effector_forces()[1][0]
     if(sim_data.PIN_REF_FRAME == pin.LOCAL):
         lwaMc = robot_simulator.pin_robot.data.oMf[id_endeff]
         lwaMc.translation = np.zeros(3)
@@ -405,7 +406,9 @@ for i in range(sim_data.N_simu):
     else: a_mea_SIMU = np.zeros(nv)
     if(np.linalg.norm(fz_mea_SIMU) > 1e-6):
         F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
-    sim_data.record_simu_cycle_estimates(i, delta_f)
+
+
+    sim_data.record_simu_cycle_estimates(i, np.array([0, 0, delta_f[0]]))
 
     # Display real 
     if(i%draw_rate==0):

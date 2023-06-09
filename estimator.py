@@ -20,15 +20,18 @@ class Estimator():
     '''
     Computes the forward dynamics under rigid contact model 6D + force estimate
     '''
-    def __init__(self, pin_robot, nc, frameId, baumgarte_gains):
+    def __init__(self, pin_robot, nc, nc_delta_f, frameId, baumgarte_gains):
 
         self.pin_robot = pin_robot
         self.nc = nc
+        self.nc_delta_f = nc_delta_f
         if(self.nc == 1):
-            self.nc_delta_f = 3
             self.mask = 2
+            assert nc_delta_f == 1 or nc_delta_f == 3
         else:
             self.nc_delta_f = self.nc
+            assert nc == nc_delta_f
+
         self.nv = self.pin_robot.model.nv
 
         self.R = 1e-2 * np.eye(self.nc)
@@ -72,8 +75,10 @@ class Estimator():
             J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame)[:self.nc]
         alpha0 -= self.baumgarte_gains[1] * nu
 
-        J2 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame)[:self.nc_delta_f]
-
+        if self.nc_delta_f == 3 and self.nc == 1:
+            J2 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame)[:self.nc_delta_f]
+        else:
+            J2 = J1
         b = np.concatenate([h - tau, -alpha0], axis=0)
         A1 = np.concatenate([-M, J1.T, J2.T], axis=1)
         A2 = np.concatenate([J1, np.zeros((self.nc, self.nc + self.nc_delta_f))], axis=1)
@@ -123,90 +128,4 @@ class Estimator():
         # print(1/0)
 
         return self.qp.results.x[self.nv:self.nv+self.nc], self.qp.results.x[-self.nc_delta_f:]
-
-
-
-
-# class Estimator():
-#     '''
-#     Computes the forward dynamics under rigid contact model 6D + force estimate
-#     '''
-#     def __init__(self):
-#         self.R = 1e-2 * np.eye(6)
-#         self.P = 1e-0 * np.eye(6)
-
-#         n = 12
-#         n_eq = 7
-#         n_in = 0
-
-#         self.qp = proxsuite.proxqp.dense.QP(n, n_eq, n_in)
-
-
-#         self.H = np.zeros((12, 12))
-#         self.H[:6, :6]  = self.R 
-#         self.H[6:, 6:]  = self.P 
-
-
-#         self.n = 12
-
-#         self.C = None
-#         self.u = None
-#         self.l = None
-
-#     def estimate(self, pin_robot, q, v, a, tau, df_prior, F_mes):
-
-#         M = pin_robot.mass(q)
-#         contact_frame_id = pin_robot.model.getFrameId("contact")
-#         J = pin_robot.computeFrameJacobian(q, contact_frame_id)
-#         h = pin_robot.nle(q, v)
-
-
-#         b = M @ a + h - tau
-
-#         A = np.concatenate([J.T, J.T], axis=1)
-        
-#         print(np.linalg.matrix_rank(A))
-
-#         # n_eq = A.shape[0]
-
-#         g = np.zeros(12)
-#         # import pdb; pdb.set_trace()
-#         g[:6] = - self.R @ F_mes
-#         g[6:] = - self.P @ df_prior
-
-#         # solve it
-        
-#         self.qp.init(self.H, g, A, b, self.C, self.l, self.u)
-
-
-
-#         t1 = time.time()
-#         self.qp.solve()
-#         print("time ", time.time() - t1)
-#         print("iter ", self.qp.results.info.iter)
-#         print("primal ", self.qp.results.info.pri_res)
-#         print("dual ", self.qp.results.info.dua_res)
-
-
-
-#         # self.qp.settings.initial_guess = (
-#         #     proxsuite.proxqp.InitialGuess.WARM_START_WITH_PREVIOUS_RESULT
-#         # )
-
-#         # # # print an optimal solution
-#         # # print("optimal x: {}".format(qp.results.x))
-#         # # print("optimal y: {}".format(qp.results.y))
-#         # # print("optimal z: {}".format(qp.results.z))
-
-
-#         # t1 = time.time()
-
-#         # self.qp.solve()
-#         # print("time ", time.time() - t1)
-#         # print("iter ", self.qp.results.info.iter)
-#         # print("primal ", self.qp.results.info.pri_res)
-#         # print("dual ", self.qp.results.info.dua_res)
-#         # print(1/0)
-
-#         return self.qp.results.x[:6], self.qp.results.x[6:]
 

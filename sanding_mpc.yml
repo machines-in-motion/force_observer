@@ -5,7 +5,7 @@
 simu_freq: 1000               # Simulation frequency in Hz
 ctrl_freq: 1000                # Control frequency
 plan_freq: 500                # Planning frequency
-T_tot: 8.                           # Simu duration (s)n (s)
+T_tot: 12.                           # Simu duration (s)n (s)
 # Simulation options
 DELAY_SIM: False                 # Add delay in reference torques (low-level)
 DELAY_OCP: False                 # Add delay in OCP solution (i.e. ~1ms resolution time)
@@ -22,7 +22,7 @@ init_log_display_time: 1        # How long (s) to display the initial logs ?
 LOG: True                       # Logs during simulation
 log_rate: 1000                  # Display sim status once very 'log_rate' sim cycles
 # WHICH_PLOTS: ['w', 'f', 'ee', 'y']   # Which plots to generate after the simulation
-WHICH_PLOTS: ['f', 'delta_f']   # Which plots to generate after the simulation
+WHICH_PLOTS: ['f', 'delta_f', 'ee']   # Which plots to generate after the simulation
 TILT_SURFACE: True              # Tilt contact surface 
 TILT_PITCH_LOCAL_DEG: 0.      # Tilt angle of the contact surface
 RICCATI: False
@@ -54,7 +54,7 @@ contacts:
       contactModelType: '1Dz',                             # 1Dx, 1Dy, 1Dz, 3D, 6D
       contactModelTranslationRef: '',                     #[0.7, 0.0, 0.0],       # 3d vector
       contactModelRotationRef: '',                        # 3d matrix
-      contactModelGains: [0, 50],                         # Baumgarte stabilization gains
+      contactModelGains: [0, 0],                         # Baumgarte stabilization gains
       active: False                                       # Initially active? 
     }
 contactPosition: [0.6, 0., 0.1] # table
