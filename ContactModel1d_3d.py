@@ -36,7 +36,8 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         self.nq = self.pinocchio.nq
         self.nx = self.nv + self.nq
         self.ndx = stateMultibody.ndx
-        
+        if(self.nc == 1):
+            self.J3d = np.zeros((3, self.pinocchio.nv))
 
     def createData(self):
         '''
@@ -71,11 +72,12 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
             pin.aba(self.pinocchio, data.pinocchio, q, v, data.multibody.actuation.tau)
             pin.updateGlobalPlacements(self.pinocchio, data.pinocchio)
         if(self.nc == 1):
-            new_tau = data.multibody.actuation.tau + data.multibody.contacts.Jc.reshape((1, self.nv)).T @ self.delta_f
+            self.J3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, self.pinRefFrame)[:3]
+            new_tau = data.multibody.actuation.tau + self.J3d.T @ self.delta_f # Need 3D jac 
             pin.forwardDynamics(self.pinocchio, data.pinocchio,
                                                 new_tau, #u,
                                                 data.multibody.contacts.Jc.reshape((1, self.nv)), # 1D
-                                                data.multibody.contacts.a0[:self.nc], 
+                                                data.multibody.contacts.a0, # 1D
                                                 0.)
         if(self.nc == 3 or self.nc == 6):
             new_tau = data.multibody.actuation.tau + data.multibody.contacts.Jc[:self.nc].T @ self.delta_f[:self.nc] 
@@ -92,8 +94,17 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         self.costs.calc(data.costs, x, u)
         data.cost = data.costs.cost
         # Here we add again delta_f to the computed force for dynamics
-        if(self.nc != 0):
-            self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)   
+        if(self.nc == 1):
+            if(self.pinRefFrame != pin.LOCAL):
+                lwaMf = data.pinocchio.oMf[self.frameId] ; lwaMf.translation = np.zeros(3)
+                self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
+                data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([ lwaMf.rotation.T @ self.delta_f, np.zeros(3)])))
+            else:
+                self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
+                data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([ self.delta_f, np.zeros(3)])))    
+        else:
+            if(self.nc != 0):
+                self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)    # 3D with (0,0,lambda_c) + delta_f
         # pin.updateGlobalPlacements(self.pinocchio, data.pinocchio)
         return data.xout, data.cost
 
@@ -134,7 +145,13 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
             # Compute skew term to be added to rnea derivatives if we are in LWA 
             if(self.pinRefFrame == pin.LOCAL_WORLD_ALIGNED):
                 data.pinocchio.dtau_dq[:self.nv, :self.nv] += data.multibody.contacts.contacts['contact'].drnea_skew_term 
-
+                # missing skew term for delta_f 
+                # pin.skew(data.pinocchio.oMf[self.frameId].rotation.T[:,2] * data.pinocchio.lambda_c)
+                if(self.nc == 1):
+                    tmp_skew = pin.skew(data.pinocchio.oMf[self.frameId].rotation.T @ self.delta_f) 
+                    lJ3d = pin.getFrameJacobian(self.pinocchio, data.pinocchio, self.frameId, pin.LOCAL)
+                    drnea_skew_term = -lJ3d[:3].T @ tmp_skew @ lJ3d[3:]
+                    data.pinocchio.dtau_dq[:self.nv, :self.nv] += drnea_skew_term
 
             # Extract Kinv blocks
             a_partial_dtau = data.Kinv[:self.nv, :self.nv]

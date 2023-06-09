@@ -86,7 +86,7 @@ runningCostModel.addCost("force", contactForceCost, 10.)
 terminalCostModel.addCost("stateReg", xRegCost, 1e-2)
 # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
 if(nc == 1):
-    delta_f = 100*np.random.rand(3) # delta_f[2] = -0
+    delta_f = 100*np.random.rand() * np.ones(1)
 else:
     delta_f = 100*np.random.rand(nc) # delta_f[2] = -0
 DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
@@ -165,7 +165,7 @@ DAM_sobec.calc(DAD_sobec, x0, tau0)
 DAM_sobec.calcDiff(DAD_sobec, x0, tau0)
 
 if(nc == 1):
-    delta_f = np.zeros(3) # delta_f[2] = -0
+    delta_f = np.zeros(1) # delta_f[2] = -0
 else:
     delta_f = np.zeros(nc) # delta_f[2] = -0
 DAM2 = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
