@@ -253,7 +253,7 @@ logger.debug("OCP to PLAN time ratio = "+str(OCP_TO_MPC_CYCLES))
 
 # SIMULATE
 sim_data.tau_mea_SIMU[0,:] = ddp.us[0]
-err_fz = 0
+err_fz = []
 err_p = 0
 count=0
 
@@ -336,8 +336,9 @@ for i in range(sim_data.N_simu):
         q = x_filtered[:nq]
         v = x_filtered[nq:nq+nv]
         # Solve OCP 
-        for m in ddp.problem.runningModels:
-           m.differential.delta_f = delta_f
+        if(config['USE_DELTA_F']):
+            for m in ddp.problem.runningModels:
+                m.differential.delta_f = delta_f
         
         solveOCP(q, v, ddp, config['maxiter'], node_id_reach, target_position, node_id_contact, node_id_track, node_id_circle, force_weight, TASK_PHASE, target_force)
         # Record MPC predictions, cost references and solver data 
@@ -400,6 +401,13 @@ for i in range(sim_data.N_simu):
     # Record measurements of state, torque and forces 
     sim_data.record_simu_cycle_measured(i, x_mea_SIMU, x_mea_noise_SIMU, tau_mea_SIMU, f_mea_SIMU)
 
+    # Compute force and position errors
+    if(i >= T_CIRCLE):
+        count+=1
+        err_fz.append(np.linalg.norm(fz_mea_SIMU - target_force[0]))
+        p0 = target_position[0][:2] 
+        err_p += np.linalg.norm(robot_simulator.pin_robot.data.oMf[id_endeff].translation[:2] - target_position[0][:2])
+
 
     # Estimation
     if(i>0): a_mea_SIMU = (v_mea_SIMU - sim_data.state_mea_SIMU[i-1, nv:]) / env.dt
@@ -418,6 +426,10 @@ for i in range(sim_data.N_simu):
 # # # # # # # # # # #
 # PLOT SIM RESULTS  #
 # # # # # # # # # # #
+logger.debug("Avg force error norm    = "+str(np.max(err_fz)))
+logger.debug("Max. force error norm   = "+str(np.sum(err_fz)/count))
+logger.debug("Avg position error norm = "+str(err_p/count))
+
 save_dir = '/tmp'
 save_name = 'kuka_sanding_estimator'+\
                         '_BIAS='+str(config['SCALE_TORQUES'])+\
