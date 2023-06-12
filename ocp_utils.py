@@ -25,6 +25,7 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 USE_SOBEC = False 
 import sobec
 from ContactModel import DAMRigidContact
+from ContactModel1d_3d import DAMRigidContact1D3D
 
 
 class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassical):
@@ -43,7 +44,7 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
     '''
     super().check_config()
 
-  def initialize(self, x0, delta_f, pinRefFrame=pin.LOCAL, callbacks=False):
+  def initialize(self, x0, delta_f, hybrid_df=False, pinRefFrame=pin.LOCAL, callbacks=False):
     '''
     Initializes OCP and FDDP solver from config parameters and initial state
       INPUT: 
@@ -95,13 +96,23 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
         else:
             contactModelSum = sobec.ContactModelMultiple(state, actuation.nu)
             contactModelSum.addContact(self.contacts[0]['contactModelFrameName'], contactModels[0], active=self.contacts[0]['active'])
-            dam = DAMRigidContact(state, 
-                                actuation, 
-                                contactModelSum, 
-                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                contactModels[0].id,
-                                delta_f,
-                                pinRefFrame=pinRefFrame)
+            
+            if hybrid_df:
+                dam = DAMRigidContact1D3D(state, 
+                                    actuation, 
+                                    contactModelSum, 
+                                    crocoddyl.CostModelSum(state, nu=actuation.nu), 
+                                    contactModels[0].id,
+                                    delta_f,
+                                    pinRefFrame=pinRefFrame)
+            else:
+                dam = DAMRigidContact(state, 
+                                    actuation, 
+                                    contactModelSum, 
+                                    crocoddyl.CostModelSum(state, nu=actuation.nu), 
+                                    contactModels[0].id,
+                                    delta_f,
+                                    pinRefFrame=pinRefFrame)
       # Create IAM from DAM
         runningModels.append(crocoddyl.IntegratedActionModelEuler(dam, stepTime=self.dt))
         
@@ -131,13 +142,22 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
     else:
         contactModelSum = sobec.ContactModelMultiple(state, actuation.nu)
         contactModelSum.addContact(self.contacts[0]['contactModelFrameName'], contactModels[0], active=self.contacts[0]['active'])
-        dam_t = DAMRigidContact(state, 
-                            actuation, 
-                            contactModelSum, 
-                            crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                            contactModels[0].id,
-                            delta_f,
-                            pinRefFrame=pinRefFrame)
+        if hybrid_df:
+            dam_t = DAMRigidContact1D3D(state, 
+                                actuation, 
+                                contactModelSum, 
+                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
+                                contactModels[0].id,
+                                delta_f,
+                                pinRefFrame=pinRefFrame)
+        else:
+            dam_t = DAMRigidContact(state, 
+                                actuation, 
+                                contactModelSum, 
+                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
+                                contactModels[0].id,
+                                delta_f,
+                                pinRefFrame=pinRefFrame)
         
   # Create terminal IAM from terminal DAM
     terminalModel = crocoddyl.IntegratedActionModelEuler( dam_t, stepTime=0. )

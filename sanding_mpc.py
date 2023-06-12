@@ -139,8 +139,11 @@ simulator_utils.set_contact_stiffness_and_damping(contact_surface_bulletId, 1e6,
 # # # # # # # # # 
 
 # Init shooting problem and solver
-delta_f = np.zeros(1)
-ddp = OptimalControlProblemClassicalWithObserver(robot, config).initialize(x0, delta_f, callbacks=False)
+if config['USE_HYBRID_DELTA_F']:
+    delta_f = np.zeros(3)
+else:
+    delta_f = np.zeros(1)
+ddp = OptimalControlProblemClassicalWithObserver(robot, config).initialize(x0, delta_f, config['USE_HYBRID_DELTA_F'], callbacks=False)
 # !!! Deactivate all costs & contact models initially !!!
 models = list(ddp.problem.runningModels) + [ddp.problem.terminalModel]
 for k,m in enumerate(models):
@@ -163,7 +166,10 @@ if(PLOT_INIT):
 
 
 # Create estimator 
-force_estimator = Estimator(robot_simulator.pin_robot, 1, 1, id_endeff, config['contacts'][0]['contactModelGains'])
+if config['USE_HYBRID_DELTA_F']:
+    force_estimator = Estimator(robot_simulator.pin_robot, 1, 3, id_endeff, config['contacts'][0]['contactModelGains'], config['contacts'][0]['pinocchioReferenceFrame'])
+else:
+    force_estimator = Estimator(robot_simulator.pin_robot, 1, 1, id_endeff, config['contacts'][0]['contactModelGains'], config['contacts'][0]['pinocchioReferenceFrame'])
 
 
 # Setup tracking problem with circle ref EE trajectory + Warm start state = IK of circle trajectory
@@ -336,7 +342,7 @@ for i in range(sim_data.N_simu):
         q = x_filtered[:nq]
         v = x_filtered[nq:nq+nv]
         # Solve OCP 
-        if(config['USE_DELTA_F']):
+        if(config['USE_DELTA_F'])and (i >= T_CONTACT):
             for m in ddp.problem.runningModels:
                 m.differential.delta_f = delta_f
         
@@ -395,6 +401,8 @@ for i in range(sim_data.N_simu):
         lwaMc = robot_simulator.pin_robot.data.oMf[id_endeff]
         lwaMc.translation = np.zeros(3)
         f_mea_SIMU = lwaMc.actInv(pin.Force(f_mea_SIMU_world)).vector
+    else:
+        f_mea_SIMU = f_mea_SIMU_world
     fz_mea_SIMU = np.array([f_mea_SIMU[2]])
     # f = get_contact_wrench(robot_simulator, id_endeff, pin.LOCAL)
     
@@ -423,8 +431,11 @@ for i in range(sim_data.N_simu):
         F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
 
 
-    sim_data.record_simu_cycle_estimates(i, np.array([0, 0, delta_f[0]]))
-
+    if config["USE_HYBRID_DELTA_F"]:
+        sim_data.record_simu_cycle_estimates(i, delta_f)
+    else:
+        sim_data.record_simu_cycle_estimates(i, np.array([0, 0, delta_f[0]]))
+        
     # Display real 
     if(i%draw_rate==0):
       pos = robot_simulator.pin_robot.data.oMf[id_endeff].translation.copy()

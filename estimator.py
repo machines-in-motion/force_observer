@@ -20,11 +20,20 @@ class Estimator():
     '''
     Computes the forward dynamics under rigid contact model 6D + force estimate
     '''
-    def __init__(self, pin_robot, nc, nc_delta_f, frameId, baumgarte_gains):
+    def __init__(self, pin_robot, nc, nc_delta_f, frameId, baumgarte_gains, pinRefRame='LOCAL'):
+
 
         self.pin_robot = pin_robot
         self.nc = nc
         self.nc_delta_f = nc_delta_f
+
+        if pinRefRame == 'LOCAL':
+            self.pinRefRame = pin.LOCAL
+        elif pinRefRame == 'LOCAL_WORLD_ALIGNED':
+            self.pinRefRame = pin.LOCAL_WORLD_ALIGNED
+        else: 
+            assert False 
+
         if(self.nc == 1):
             self.mask = 2
             assert nc_delta_f == 1 or nc_delta_f == 3
@@ -59,24 +68,24 @@ class Estimator():
 
         assert self.baumgarte_gains[0] == 0
 
-    def estimate(self, q, v, a, tau, df_prior, F_mes, pinRefRame=pin.LOCAL):
+    def estimate(self, q, v, a, tau, df_prior, F_mes):
         pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q, v)
         pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v,np.zeros(self.nv)) # a ?
         pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
         M = self.pin_robot.mass(q)
         h = self.pin_robot.nle(q, v)
         if(self.nc == 1):
-            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame).vector[self.mask:self.mask+1]
-            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame).vector[self.mask:self.mask+1]
-            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame)[self.mask:self.mask+1]
+            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[self.mask:self.mask+1]
+            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[self.mask:self.mask+1]
+            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame)[self.mask:self.mask+1]
         else:
-            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame).vector[:self.nc]
-            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame).vector[:self.nc]
-            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame)[:self.nc]
+            alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[:self.nc]
+            nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[:self.nc]
+            J1 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame)[:self.nc]
         alpha0 -= self.baumgarte_gains[1] * nu
 
         if self.nc_delta_f == 3 and self.nc == 1:
-            J2 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, pinRefRame)[:self.nc_delta_f]
+            J2 = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame)[:self.nc_delta_f]
         else:
             J2 = J1
         b = np.concatenate([h - tau, -alpha0], axis=0)

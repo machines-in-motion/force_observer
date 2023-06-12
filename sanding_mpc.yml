@@ -28,6 +28,7 @@ RICCATI: False
 
 USE_DELTA_F: True               # Use delta_f computed by estimator 
 USE_LATERAL_FORCE: True         # Use lateral friction
+USE_HYBRID_DELTA_F: False         # Use 3d delta_F with 1d contact model
 
 T_REACH: 0.
 # T_TRACK: 1.

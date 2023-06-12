@@ -11,7 +11,7 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 import crocoddyl
 import pinocchio as pin
 
-class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
+class DAMRigidContact1D3D(crocoddyl.DifferentialActionModelAbstract):
     '''
     Computes the forward dynamics under rigid contact model + force estimate
     '''
