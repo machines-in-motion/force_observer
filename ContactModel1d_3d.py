@@ -99,12 +99,12 @@ class DAMRigidContact1D3D(crocoddyl.DifferentialActionModelAbstract):
                 lwaMf = data.pinocchio.oMf[self.frameId] ; lwaMf.translation = np.zeros(3)
                 self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
                 data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([ lwaMf.rotation.T @ self.delta_f, np.zeros(3)])))
-                data.multibody.contacts.contacts['contact'].f.vector[:3] += lwaMf.rotation.T @ self.delta_f
+                data.multibody.contacts.contacts['contact'].f += self.jMf.act(pin.Force(np.concatenate([ lwaMf.rotation.T @ self.delta_f, np.zeros(3)])))
 
             else:
                 self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c) 
                 data.multibody.contacts.fext[self.parentId] += self.jMf.act(pin.Force(np.concatenate([ self.delta_f, np.zeros(3)])))
-                data.multibody.contacts.contacts['contact'].f.vector[:3] += self.delta_f
+                data.multibody.contacts.contacts['contact'].f += self.jMf.act(pin.Force(np.concatenate([ self.delta_f, np.zeros(3)])))
         else:
             if(self.nc != 0):
                 self.contacts.updateForce(data.multibody.contacts, data.pinocchio.lambda_c + self.delta_f)    # 3D with (0,0,lambda_c) + delta_f
