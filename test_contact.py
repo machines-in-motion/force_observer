@@ -4,9 +4,13 @@ import numpy as np
 np.set_printoptions(precision=4, linewidth=180)
 import crocoddyl
 from ContactModel import DAMRigidContact
+from ContactModel1d_3d import DAMRigidContact1D3D
 import sobec
 
 
+nc = 1
+nc_delta_f = 3
+pinRefFrame = pin.LOCAL_WORLD_ALIGNED
 
 np.random.seed(10)
 
@@ -24,14 +28,8 @@ v0 = np.random.rand(robot.model.nv)
 a0 = np.random.rand(robot.model.nv) 
 tau0 = np.random.rand(robot.model.nv) 
 x0 = np.concatenate([q0, v0])
-# BG gains
-gains = np.zeros(2)
 nq = robot.model.nq
 nv = robot.model.nv
-nc = 1
-
-pinRefFrame = pin.LOCAL_WORLD_ALIGNED
-
 
 # Numerical difference function
 def numdiff(f,inX,h=1e-6):
@@ -59,7 +57,7 @@ terminalCostModel = crocoddyl.CostModelSum(state)
 # Create 3D contact on the en-effector frame
 contactModel = sobec.ContactModelMultiple(state, actuation.nu)
 # contact_position = robot.data.oMf[contact_frame_id].copy()
-baumgarte_gains  = np.array([0., 50.])
+baumgarte_gains  = np.array([0., 0.])
 if(nc == 3):
     contactItem = sobec.ContactModel3D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, baumgarte_gains, pinRefFrame) 
 elif(nc == 6):
@@ -85,11 +83,13 @@ runningCostModel.addCost("ctrlRegGrav", uRegCost, 1e-4)
 runningCostModel.addCost("force", contactForceCost, 10.)
 terminalCostModel.addCost("stateReg", xRegCost, 1e-2)
 # Create Differential Action Model (DAM), i.e. continuous dynamics and cost functions
-if(nc == 1):
-    delta_f = 100*np.random.rand() * np.ones(1)
+
+delta_f = 100*np.random.rand(nc_delta_f) 
+if nc != nc_delta_f:
+    DAM = DAMRigidContact1D3D(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
 else:
-    delta_f = 100*np.random.rand(nc) # delta_f[2] = -0
-DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
+    DAM = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
+
 DAD = DAM.createData()
 jMf = robot.model.frames[contact_frame_id].placement
 
@@ -164,11 +164,12 @@ DAD_sobec = DAM_sobec.createData()
 DAM_sobec.calc(DAD_sobec, x0, tau0)
 DAM_sobec.calcDiff(DAD_sobec, x0, tau0)
 
-if(nc == 1):
-    delta_f = np.zeros(1) # delta_f[2] = -0
+
+delta_f = np.zeros(nc_delta_f)
+if nc != nc_delta_f:
+    DAM2 = DAMRigidContact1D3D(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
 else:
-    delta_f = np.zeros(nc) # delta_f[2] = -0
-DAM2 = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
+    DAM2 = DAMRigidContact(state, actuation, contactModel, runningCostModel, contact_frame_id, delta_f, pinRefFrame)
 DAD2 = DAM2.createData()
 DAM2.calc(DAD2, x0, tau0)
 DAM2.calcDiff(DAD2, x0, tau0)
