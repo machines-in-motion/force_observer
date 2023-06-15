@@ -345,7 +345,8 @@ for i in range(sim_data.N_simu):
         if(config['USE_DELTA_F'])and (i >= T_CONTACT):
             for m in ddp.problem.runningModels:
                 m.differential.delta_f = delta_f
-        
+
+                
         solveOCP(q, v, ddp, config['maxiter'], node_id_reach, target_position, node_id_contact, node_id_track, node_id_circle, force_weight, TASK_PHASE, target_force)
         # Record MPC predictions, cost references and solver data 
         sim_data.record_predictions(nb_plan, ddp)
@@ -382,14 +383,18 @@ for i in range(sim_data.N_simu):
     # Simulate actuation 
     tau_mea_SIMU = actuationModel.step(i, tau_mot_CTRL, joint_vel=sim_data.state_mea_SIMU[i,nq:nq+nv])
 
-
+    lat_comp = np.zeros(nv)
     if config["USE_LATERAL_FORCE"] and (i >= T_CIRCLE):
         Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, pin.LOCAL_WORLD_ALIGNED)[:3]
         F = np.array([f_mea_SIMU_world[0], f_mea_SIMU_world[1], 0])
-        tau_mea_SIMU -= Jac.T @ F
+        lat_comp = - Jac.T @ F
 
     # Step PyBullet simulator
-    robot_simulator.send_joint_command(tau_mea_SIMU)
+    Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, force_estimator.pinRefRame)[:3]
+    tau_mea_SIMU -= Jac.T @ delta_f
+
+    robot_simulator.send_joint_command(tau_mea_SIMU + lat_comp)
+    
     env.step()
     # Measure new state + forces from simulation 
     q_mea_SIMU, v_mea_SIMU = robot_simulator.get_state()
@@ -427,14 +432,18 @@ for i in range(sim_data.N_simu):
     # Estimation
     if(i>0): a_mea_SIMU = (v_mea_SIMU - sim_data.state_mea_SIMU[i-1, nv:]) / env.dt
     else: a_mea_SIMU = np.zeros(nv)
+
+
+    # f_delta_f = np.array([0, 0, fz_mea_SIMU[0]])
+    f_delta_f = np.array([0, 0, 0])
     if(np.linalg.norm(fz_mea_SIMU) > 1e-6):
         F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
-
+        # f_delta_f = np.array([0, 0, F[0]]) + delta_f
 
     if config["USE_HYBRID_DELTA_F"]:
         sim_data.record_simu_cycle_estimates(i, delta_f)
     else:
-        sim_data.record_simu_cycle_estimates(i, np.array([0, 0, delta_f[0]]))
+        sim_data.record_simu_cycle_estimates(i, np.array([0, 0, delta_f[0]]),)
         
     # Display real 
     if(i%draw_rate==0):

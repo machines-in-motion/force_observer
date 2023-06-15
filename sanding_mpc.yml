@@ -7,13 +7,13 @@ ctrl_freq: 1000                # Control frequency
 plan_freq: 500                # Planning frequency
 T_tot: 8.                           # Simu duration (s)n (s)
 # Simulation options
-DELAY_SIM: True                 # Add delay in reference torques (low-level)
-DELAY_OCP: True                 # Add delay in OCP solution (i.e. ~1ms resolution time)
-SCALE_TORQUES: True             # Affine scaling of reference torque
+DELAY_SIM: False                 # Add delay in reference torques (low-level)
+DELAY_OCP: False                 # Add delay in OCP solution (i.e. ~1ms resolution time)
+SCALE_TORQUES: False             # Affine scaling of reference torque
 NOISE_TORQUES: False             # Add Gaussian noise on reference torques
-NOISE_STATE: True               # Add Gaussian noise on the measured state 
-STATIC_FRICTION: True           # Simulate static friction torque
-VISCOUS_FRICTION: True          # Simulate viscous friction torque
+NOISE_STATE: False               # Add Gaussian noise on the measured state 
+STATIC_FRICTION: False           # Simulate static friction torque
+VISCOUS_FRICTION: False          # Simulate viscous friction torque
 TORQUE_TRACKING: True           # Low-level torque tracking with a PI controller
 SAVE_DATA: True                 # Save plot_data to npz
 RECORD_SOLVER_DATA: False       # Keep trace of Vxx, Riccati gains, reg, Jacobian etc. (more data to save)
@@ -26,12 +26,12 @@ TILT_SURFACE: True              # Tilt contact surface
 TILT_PITCH_LOCAL_DEG: 0.      # Tilt angle of the contact surface
 RICCATI: False              
 
-USE_DELTA_F: True               # Use delta_f computed by estimator 
+USE_DELTA_F: False               # Use delta_f computed by estimator 
 USE_LATERAL_FORCE: True         # Use lateral friction
-USE_HYBRID_DELTA_F: False         # Use 3d delta_F with 1d contact model
+USE_HYBRID_DELTA_F: True         # Use 3d delta_F with 1d contact model
 
 T_REACH: 0.
-# T_TRACK: 1.
+T_TRACK: 1.
 T_CONTACT: 2.
 T_CIRCLE: 4.
 
@@ -53,7 +53,7 @@ frame_of_interest: 'contact'
 contacts:
   - {
       contactModelFrameName: 'contact',                   # frame name in pinocchio model
-      pinocchioReferenceFrame: 'LOCAL',     # LOCAL, WORLD, LOCAL_WORLD_ALIGNED
+      pinocchioReferenceFrame: 'LOCAL_WORLD_ALIGNED',     # LOCAL, WORLD, LOCAL_WORLD_ALIGNED
       contactModelType: '1Dz',                             # 1Dx, 1Dy, 1Dz, 3D, 6D
       contactModelTranslationRef: '',                     #[0.7, 0.0, 0.0],       # 3d vector
       contactModelRotationRef: '',                        # 3d matrix
@@ -62,7 +62,7 @@ contacts:
     }
 contactPosition: [0.6, 0., 0.1] # table
 oPc_offset: [0., 0., 0.] 
-pinRefFrame: 'LOCAL'
+pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '1Dz'
 
 
@@ -75,7 +75,7 @@ WHICH_COSTS: ['force', 'translation', 'velocity', 'stateReg', 'ctrlRegGrav', 'st
  # 'force' : end-effector frame force (translation + rotation)
 frameForceWeights:  [1, 1., 1, 0., 0., 0.]
 frameForceWeight: 10 
-frameForceRef: [0., 0., -50, 0., 0., 0.]    
+frameForceRef: [0., 0., 50, 0., 0., 0.]    
 frameForceFrameName: 'contact'
 
 # 'stateReg' : state regularization  
