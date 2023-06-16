@@ -27,8 +27,8 @@ TILT_PITCH_LOCAL_DEG: 0.      # Tilt angle of the contact surface
 RICCATI: False              
 
 USE_DELTA_F: False               # Use delta_f computed by estimator 
-USE_LATERAL_FORCE: True         # Use lateral friction
-USE_HYBRID_DELTA_F: True         # Use 3d delta_F with 1d contact model
+USE_LATERAL_FORCE: False         # Use lateral friction
+USE_HYBRID_DELTA_F: False         # Use 3d delta_F with 1d contact model
 
 T_REACH: 0.
 T_TRACK: 1.
@@ -57,7 +57,7 @@ contacts:
       contactModelType: '1Dz',                             # 1Dx, 1Dy, 1Dz, 3D, 6D
       contactModelTranslationRef: '',                     #[0.7, 0.0, 0.0],       # 3d vector
       contactModelRotationRef: '',                        # 3d matrix
-      contactModelGains: [0, 0],                         # Baumgarte stabilization gains
+      contactModelGains: [0, 50],                         # Baumgarte stabilization gains
       active: False                                       # Initially active? 
     }
 contactPosition: [0.6, 0., 0.1] # table

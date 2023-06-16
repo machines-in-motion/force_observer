@@ -389,11 +389,11 @@ for i in range(sim_data.N_simu):
         F = np.array([f_mea_SIMU_world[0], f_mea_SIMU_world[1], 0])
         lat_comp = - Jac.T @ F
 
-    # Step PyBullet simulator
-    Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, force_estimator.pinRefRame)[:3]
-    tau_mea_SIMU -= Jac.T @ delta_f
+    # # Step PyBullet simulator
+    # Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, force_estimator.pinRefRame)[:3]
+    # tau_mea_SIMU -= Jac.T @ delta_f
 
-    robot_simulator.send_joint_command(tau_mea_SIMU + lat_comp)
+    robot_simulator.send_joint_command(tau_mea_SIMU) #+ lat_comp)
     
     env.step()
     # Measure new state + forces from simulation 
