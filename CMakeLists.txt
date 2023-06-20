@@ -40,6 +40,9 @@ project(${PROJECT_NAME} ${PROJECT_ARGS})
 # Project dependencies
 find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
+add_project_dependency(pinocchio REQUIRED)
+add_project_dependency(eigenpy 2.7.10 REQUIRED)
+
 if(BUILD_PYTHON_INTERFACE)
   FINDPYTHON()
   string(REGEX REPLACE "-" "_" PY_NAME ${PROJECT_NAME})
@@ -51,10 +54,12 @@ endif()
 set(${PROJECT_NAME}_HEADERS
   include/${PROJECT_NAME}/gepadd.hpp
   include/${PROJECT_NAME}/python.hpp
+  include/${PROJECT_NAME}/estimator.hpp
   )
 
 set(${PROJECT_NAME}_SOURCES
   src/gepadd.cpp
+  src/estimator.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
@@ -66,6 +71,7 @@ endif()
 
 # Main Executable
 add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} pinocchio::pinocchio)
 target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME} PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib")
 
