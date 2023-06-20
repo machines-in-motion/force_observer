@@ -1,5 +1,6 @@
 set(${PY_NAME}_SOURCES
   gepadd.cpp
+  estimator.cpp
   main.cpp
   )
 
