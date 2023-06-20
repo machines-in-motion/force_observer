@@ -27,7 +27,7 @@ from core_mpc import sim_utils as simulator_utils
 from classical_mpc.data import DDPDataHandlerClassical
 from ocp_utils import OptimalControlProblemClassicalWithObserver
 from mpc_utils import MPCDataHandlerClassicalWithEstimator
-from python.force_observer.estimator import Estimator
+from estimator import Estimator
 
 import pybullet as p
 
