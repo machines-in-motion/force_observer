@@ -4,7 +4,7 @@ import pinocchio as pin
 from matplotlib.collections import LineCollection
 import matplotlib.pyplot as plt
 import matplotlib
-import pin_utils
+from core_mpc import pin_utils
 
 import pybullet as p
 

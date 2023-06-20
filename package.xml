@@ -1,13 +1,13 @@
 <?xml version="1.0"?>
 <package format="3">
-  <name>example-adder</name>
+  <name>force_observer</name>
   <version>4.0.2</version>
   <description>Example project</description>
-  <maintainer email="guilhem.saurel@laas.fr">Guilhem Saurel</maintainer>
-  <author email="guilhem.saurel@laas.fr">Guilhem Saurel</author>
+  <maintainer email="sk8001@nyu.edu">Sébastien Kleff</maintainer>
+  <author email="sk8001@nyu.edu">Sébastien Kleff</author>
   <license>BSD</license>
 
-  <url type="website">https://github.com/gepetto/example-adder</url>
+  <url type="website">https://github.com/machines-in-motion/force_observer</url>
 
   <build_depend>git</build_depend>
   <build_depend>doxygen</build_depend>

@@ -20,13 +20,13 @@ np.set_printoptions(precision=4, linewidth=180)
 RANDOM_SEED = 19
 
 
-from core_mpc import path_utils, pin_utils, mpc_utils, misc_utils
+from core_mpc import path_utils, pin_utils, mpc_utils
 from core_mpc import ocp as ocp_utils
 from core_mpc import sim_utils as simulator_utils
 
 from classical_mpc.data import DDPDataHandlerClassical
-from ocp_utils import OptimalControlProblemClassicalWithObserver
-from mpc_utils import MPCDataHandlerClassicalWithEstimator
+from utils.ocp_utils import OptimalControlProblemClassicalWithObserver
+from utils.mpc_utils import MPCDataHandlerClassicalWithEstimator
 from estimator import Estimator
 
 import time

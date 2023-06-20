@@ -15,7 +15,7 @@ from classical_mpc import ocp
 import numpy as np
 import pinocchio as pin
 import matplotlib.pyplot as plt
-import pin_utils
+from core_mpc import pin_utils
 
 from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
