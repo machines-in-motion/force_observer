@@ -1,6 +1,7 @@
 #ifndef __force_observer_python__
 #define __force_observer_python__
 
+#include <pinocchio/multibody/fwd.hpp>  // Must be included first!
 #include <boost/python.hpp>
 
 #include "force_observer/gepadd.hpp"
