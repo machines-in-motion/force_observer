@@ -42,6 +42,7 @@ find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
 add_project_dependency(pinocchio REQUIRED)
 add_project_dependency(eigenpy 2.7.10 REQUIRED)
+find_package(proxsuite REQUIRED)
 
 if(BUILD_PYTHON_INTERFACE)
   FINDPYTHON()
@@ -72,6 +73,7 @@ endif()
 # Main Executable
 add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} pinocchio::pinocchio)
+target_link_libraries(${PROJECT_NAME} proxsuite::proxsuite)
 target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME} PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib")
 
