@@ -150,6 +150,10 @@ std::size_t ForceEstimator::get_n_tot() const {
     return n_tot_;
 }
 
+std::size_t ForceEstimator::get_mask() const {
+    return mask_;
+}
+
 const Eigen::VectorXd& ForceEstimator::get_P() const {
     return P_;
 }
@@ -200,6 +204,11 @@ void ForceEstimator::set_R(const Eigen::VectorXd& inR) {
     Q_ = inR;
     H_.block(nv_, nv_, nc_, nc_) = R_.asDiagonal(); 
 }
+
+void ForceEstimator::set_mask(const std::size_t mask) {
+    mask_ = mask;
+}
+
 
 boost::shared_ptr<ForceEstimatorData> ForceEstimator::createData() {
   return boost::allocate_shared<ForceEstimatorData>(Eigen::aligned_allocator<ForceEstimatorData>(), this);

@@ -157,6 +157,7 @@ class ForceEstimator{
   const Vector2d& get_baumgarte_gains() const;
   std::size_t get_frameId() const;
   pinocchio::ReferenceFrame get_ref() const;
+  std::size_t get_mask() const;
 
   std::size_t get_n_tot() const;
   std::size_t get_neq() const;
@@ -173,6 +174,7 @@ class ForceEstimator{
   void set_frameId(const std::size_t ref);
   void set_baumgarte_gains(const Vector2d&);
   void set_ref(const pinocchio::ReferenceFrame ref);
+  void set_mask(const std::size_t);
 
   void set_P(const VectorXd& p);
   void set_Q(const VectorXd& q);
