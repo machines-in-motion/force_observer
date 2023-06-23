@@ -47,6 +47,7 @@ struct ForceEstimatorData {
         C(model->get_nin(), model->get_n_tot()),
         l(model->get_nin()),
         u(model->get_nin()) {
+      // pinocchio = pinocchio::DataTpl<double>(mode)
       F.setZero();
       delta_f.setZero();
       J.setZero();
@@ -114,7 +115,7 @@ class ForceEstimator{
    * @param[in] ref               Pinocchio reference frame of the contact model
    */
   ForceEstimator(
-      boost::shared_ptr<pinocchio::Model> pin_model,
+      pinocchio::Model& pin_model,
       std::size_t nc,
       std::size_t nc_delta_f,
       const pinocchio::FrameIndex frameId,
@@ -147,7 +148,7 @@ class ForceEstimator{
    *
    * @return Force estimator data
    */
-  virtual boost::shared_ptr<ForceEstimatorData> createData();
+  boost::shared_ptr<ForceEstimatorData> createData();
 
   // getters 
   pinocchio::Model& get_pinocchio() const;

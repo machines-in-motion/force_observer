@@ -9,13 +9,13 @@ namespace estimator {
 
 
 ForceEstimator::ForceEstimator(
-      boost::shared_ptr<pinocchio::Model> pin_model,
+      pinocchio::Model& pin_model,
       std::size_t nc,
       std::size_t nc_delta_f,
       const pinocchio::FrameIndex frameId,
       const Vector2d& baumgarte_gains, 
       const pinocchio::ReferenceFrame ref
-    ) : pinocchio_(*pin_model),
+    ) : pinocchio_(pin_model),
         nc_(nc),
         nc_delta_f_(nc_delta_f),
         frameId_(frameId),
@@ -26,7 +26,7 @@ ForceEstimator::ForceEstimator(
     nv_ = pinocchio_.nv;
     n_tot_ = nv_ + nc_ + nc_delta_f_;
     neq_ = nv_ + nc_;
-    nin_ = 0;
+    nin_ = 0.;
 
     // Set default mask if 1D model
     if(nc_ == 1){
@@ -98,11 +98,11 @@ void ForceEstimator::estimate(
     d->A.topLeftCorner(nv_, nv_) = d->M;
     d->A.block(0, nv_, nv_, nc_) = d->J1.transpose();
     d->A.block(0, nv_+nc_, nv_, nc_delta_f_) = d->J2.transpose();
-    d->A.block(nv_, 0, nv_+nv_, nc_) = d->J1;
+    d->A.block(nv_, 0, nc_, nv_) = d->J1;
 
-    d->g.topRows(nv_) = -Q_ * a;
-    d->g.middleRows(nv_, nc_) = -R_ * F_mes;
-    d->g.bottomRows(nc_delta_f_)= - P_ * df_prior;
+    d->g.head(nv_) = -Q_.cwiseProduct(a);
+    d->g.segment(nv_, nc_) = -R_.cwiseProduct(F_mes);
+    d->g.tail(nc_delta_f_)= - P_.cwiseProduct(df_prior);
     
     qp_->init(H_, d->g, d->A, d->b, d->C, d->l, d->u);
 
@@ -197,11 +197,11 @@ void ForceEstimator::set_P(const Eigen::VectorXd& inP) {
 
 void ForceEstimator::set_Q(const Eigen::VectorXd& inQ) {
     Q_ = inQ;
-    H_.topLeftCorner(n_tot_, n_tot_) = Q_.asDiagonal();
+    H_.topLeftCorner(nv_, nv_) = Q_.asDiagonal();
 }
 
 void ForceEstimator::set_R(const Eigen::VectorXd& inR) {
-    Q_ = inR;
+    R_ = inR;
     H_.block(nv_, nv_, nc_, nc_) = R_.asDiagonal(); 
 }
 
@@ -211,7 +211,8 @@ void ForceEstimator::set_mask(const std::size_t mask) {
 
 
 boost::shared_ptr<ForceEstimatorData> ForceEstimator::createData() {
-  return boost::allocate_shared<ForceEstimatorData>(Eigen::aligned_allocator<ForceEstimatorData>(), this);
+//   return boost::allocate_shared<ForceEstimatorData>(Eigen::aligned_allocator<ForceEstimatorData>(), this);
+  return boost::make_shared<ForceEstimatorData>(this);
 }
 
 }  // namespace mim

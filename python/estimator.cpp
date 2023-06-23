@@ -14,7 +14,7 @@ void exposeEstimator() {
   bp::class_<ForceEstimator>(
       "ForceEstimator",
       "EStimates the contact force offset from prior & force/state measurements.",
-      bp::init<boost::shared_ptr<pinocchio::Model>,
+      bp::init<pinocchio::Model&,
                std::size_t,
                std::size_t,
                const pinocchio::FrameIndex, 
@@ -36,7 +36,7 @@ void exposeEstimator() {
                                     const Eigen::Ref<const Eigen::VectorXd>&,
                                     const Eigen::Ref<const Eigen::VectorXd>&,
                                     const Eigen::Ref<const Eigen::VectorXd>&)>(
-          "calc", &ForceEstimator::estimate, bp::args("self", "data", "q", "v", "a", "tau", "df_prior", "F_mes"),
+          "estimate", &ForceEstimator::estimate, bp::args("self", "data", "q", "v", "a", "tau", "df_prior", "F_mes"),
           "Computes the force offset estimate.\n\n"
           ":param data: force estimator data\n"
           ":param q: joint position vector\n"
@@ -45,6 +45,9 @@ void exposeEstimator() {
           ":param tau: joint torque vector\n"
           ":param df_prior: contact force offset prior\n"
           ":param F_mes: measured contact force")
+
+      .def("createData", &ForceEstimator::createData,
+           bp::args("self"), "Create the Force estimator data.")
 
       .add_property("pinocchio", bp::make_function(&ForceEstimator::get_pinocchio, bp::return_value_policy<bp::return_by_value>()), "multibody model (i.e. pinocchio model)")
       .add_property("nv", bp::make_function(&ForceEstimator::get_nv, bp::return_value_policy<bp::return_by_value>()), "Size of the joint velocity vector")
