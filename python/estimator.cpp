@@ -77,8 +77,8 @@ void exposeEstimator() {
         //   [bp::with_custodian_and_ward<1, 2, bp::with_custodian_and_ward<1, 3> >()])
 
       .add_property("pinocchio", bp::make_getter(&ForceEstimatorData::pinocchio, bp::return_internal_reference<>()), "pinocchio data")
-      .add_property("F", bp::make_getter(&ForceEstimatorData::F, bp::return_internal_reference<>()), "measured contact force")
-      .add_property("delta_f", bp::make_getter(&ForceEstimatorData::delta_f, bp::return_internal_reference<>()), "contact force offset estimate")
+      .add_property("F", bp::make_getter(&ForceEstimatorData::F, bp::return_value_policy<bp::return_by_value>()), "measured contact force")
+      .add_property("delta_f", bp::make_getter(&ForceEstimatorData::delta_f, bp::return_value_policy<bp::return_by_value>()), "contact force offset estimate")
       .add_property("J", bp::make_getter(&ForceEstimatorData::J, bp::return_internal_reference<>()), "full contact Jacobian")
       .add_property("J1", bp::make_getter(&ForceEstimatorData::J1, bp::return_internal_reference<>()), "Jacobian 1")
       .add_property("J2", bp::make_getter(&ForceEstimatorData::J2, bp::return_internal_reference<>()), "Jacobian 2")
