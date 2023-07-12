@@ -58,20 +58,20 @@ if(SIM):
     
 else:
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_REAL_2023-07-12T17:38:41.788278_TEST'
+    data_name = 'config_REAL_2023-07-12T18:27:45.783544_TEST'
     
 r = DataReader(data_path+data_name+'.mds')
 N = r.data['tau'].shape[0]
 
-# fig, ax = plt.subplots(4, 1, sharex='col') 
-# ax[0].plot(r.data['count']-1, label='count')
-# ax[1].plot(r.data['t_child'], label='child')
-# ax[1].plot(r.data['t_child_1'], label='child_1 (not solve)')
-# ax[2].plot(r.data['ddp_iter'], label='iter')
-# ax[3].plot(r.data['t_run'], label='t_run')
-# ax[1].plot(N*[1./config['plan_freq']], label= 'mpc')
-# ax[3].plot(N*[1./config['plan_freq']], label= 'mpc')
-# # plt.show()
+fig, ax = plt.subplots(4, 1, sharex='col') 
+ax[0].plot(r.data['count']-1, label='count')
+ax[1].plot(r.data['t_child'], label='child')
+ax[1].plot(r.data['t_child_1'], label='child_1 (not solve)')
+ax[2].plot(r.data['ddp_iter'], label='iter')
+ax[3].plot(r.data['t_run'], label='t_run')
+ax[1].plot(N*[1./config['plan_freq']], label= 'mpc')
+ax[3].plot(N*[1./config['plan_freq']], label= 'mpc')
+# plt.show()
 
 
 
@@ -84,6 +84,15 @@ s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x
                   ['mea', 'pred'], # 'pred0', 'pred1'], 
                   ['r', 'b'], #[0.2, 0.2, 0.2, 0.5], 'b', 'g']) 
                   ylims=[-model.velocityLimit, +model.velocityLimit] )
+
+
+s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids]],
+                  ['mea', ], # 'pred0', 'pred1'], 
+                  ['r'] )
+
+plt.figure()
+plt.plot(np.array(r.data['delta_f']))
+plt.title("delta_f")
 
 # For SIM robot only
 if(SIM):

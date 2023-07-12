@@ -12,6 +12,7 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 from multiprocessing import Pipe, Process
 from robot_properties_kuka.config import IiwaConfig
 
+from force_observer import ForceEstimator
 
 
 NO_PIPE = True
@@ -118,6 +119,7 @@ class ClassicalMPCContact:
         self.RUN_SIM = run_sim
         self.joint_positions  = head.get_sensor('joint_positions')
         self.joint_velocities = head.get_sensor("joint_velocities")
+        self.joint_accelerations = head.get_sensor("joint_accelerations")
         if not self.RUN_SIM:
             self.joint_ext_torques = head.get_sensor("joint_torques_external")
             self.joint_cmd_torques = head.get_sensor("joint_torques_commanded")
@@ -290,6 +292,15 @@ class ClassicalMPCContact:
         self.target_velocity_z = self.target_velocity[:,2]
 
         
+        # ForceEstimator
+        frame_of_interest = config['frame_of_interest']
+        id_endeff = robot.model.getFrameId(frame_of_interest)
+        self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+        self.data_estimator = self.estimator.createData()
+        self.delta_f = 0.
+
+
+
         self.node_id_reach = -1
         self.node_id_contact = -1
         self.node_id_track = -1
@@ -379,6 +390,8 @@ class ClassicalMPCContact:
         # # # # # # # # # 
         q = self.joint_positions[self.controlled_joint_ids]
         v = self.joint_velocities[self.controlled_joint_ids]
+        self.a = self.joint_accelerations[self.controlled_joint_ids]
+
         fs = self.ft_sensor_wrench
 
         # When getting torque measurement from robot, do not forget to flip the sign
@@ -414,18 +427,9 @@ class ClassicalMPCContact:
         time_to_contact = int(thread.ti - self.T_CONTACT)
         time_to_circle  = int(thread.ti - self.T_CIRCLE)
 
-
-
-        # # # # # # # # # # # # # # # # #
-        # # # # DISTURB MEASUREMENT # # #
-        # # # # # # # # # # # # # # # # #
-        # if(0 <= time_to_contact):
-        #     self.contact_force_3d_measured[2] += 10
-        # # # # # # # # # # # # # # # # #
-        # # # # # # # # # # # # # # # # #
-        # # # # # # # # # # # # # # # # #
-        
-        
+        if time_to_contact > 0:
+            self.estimator.estimate(self.data_estimator, q, v, self.a, self.tau, np.array([self.delta_f]), np.array([f6d_world.linear[2]]))
+            self.delta_f = self.data_estimator.delta_f
         
         if(time_to_reach == 0): 
             print("Entering reaching phase")
