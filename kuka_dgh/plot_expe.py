@@ -54,11 +54,11 @@ s = SimpleDataPlotter()
 
 if(SIM):
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_SIM_2023-07-12T17:36:19.747223'
+    data_name = 'config_SIM_2023-07-13T17:29:58.630356'
     
 else:
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_REAL_2023-07-12T18:27:45.783544_TEST'
+    data_name = 'config_REAL_2023-07-13T18:17:39.331269_TEST'
     
 r = DataReader(data_path+data_name+'.mds')
 N = r.data['tau'].shape[0]
@@ -139,14 +139,21 @@ target_force_3d[:,0] = r.data['target_force'][:,0]*0
 target_force_3d[:,1] = r.data['target_force'][:,0]*0
 target_force_3d[:,2] = r.data['target_force'][:,0]
 
+
+force_delta_f = np.zeros((N, 3))
+force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.array(r.data['delta_f'])[:,0]
+# force_delta_f[:,2] = np.array(r.data['delta_f'])[:,0]
+
+
 # Plot forces
 fig_f, _ = s.plot_soft_contact_force([
                            r.data['contact_force_3d_measured'], 
                            target_force_3d,
+                           force_delta_f,
                            r.data['fpred']],
-                          ['Measured', 'Reference', 'Predicted'], 
-                          ['r', 'b', 'g'],
-                          linestyle=['solid', 'dotted', 'solid'])
+                          ['Measured', 'Reference', 'Measured+df', 'Predicted'], 
+                          ['r', 'b', 'k', 'g'],
+                          linestyle=['solid', 'dotted', 'solid', 'solid'])
                         #   ylims=[[-50,-50, 0], [50, 50, 100]])
 
 if(SAVE):

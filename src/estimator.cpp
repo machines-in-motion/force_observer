@@ -106,8 +106,9 @@ void ForceEstimator::estimate(
     
     qp_->init(H_, d->g, d->A, d->b, d->C, d->l, d->u);
 
-    // t1 = time.time()
     qp_->solve();
+    // std::cout << "optimal x: " << qp_->results.x << std::endl;
+    d->delta_f = qp_->results.x.bottomRows(nc_delta_f_);
 }
 
 pinocchio::Model& ForceEstimator::get_pinocchio() const{

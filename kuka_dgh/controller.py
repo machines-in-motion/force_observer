@@ -298,7 +298,8 @@ class ClassicalMPCContact:
         self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
         self.data_estimator = self.estimator.createData()
         self.delta_f = 0.
-
+        # self.estimator.Q = 1e-4 * np.ones(7)
+        # self.estimator.R = 1e-4 * np.ones(1)
 
 
         self.node_id_reach = -1
@@ -428,7 +429,8 @@ class ClassicalMPCContact:
         time_to_circle  = int(thread.ti - self.T_CIRCLE)
 
         if time_to_contact > 0:
-            self.estimator.estimate(self.data_estimator, q, v, self.a, self.tau, np.array([self.delta_f]), np.array([f6d_world.linear[2]]))
+            fz = np.array([self.contact_force_3d_measured[2]])
+            self.estimator.estimate(self.data_estimator, q, v, self.a, self.tau_old, np.array([self.delta_f]), fz)
             self.delta_f = self.data_estimator.delta_f
         
         if(time_to_reach == 0): 
@@ -585,7 +587,9 @@ class ClassicalMPCContact:
         if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau -= Jac.T @ np.array([self.contact_force_3d_measured[0], self.contact_force_3d_measured[1], 0])
-            
+
+        self.tau_old = self.tau.copy()
+
         # Compute gravity
         self.tau_gravity = pin.rnea(self.robot.model, self.robot.data, self.joint_positions[self.controlled_joint_ids], np.zeros(self.nv), np.zeros(self.nv))
 
