@@ -54,12 +54,15 @@ s = SimpleDataPlotter()
 
 if(SIM):
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_SIM_2023-07-13T17:29:58.630356'
+    data_name = 'config_SIM_2023-07-14T10:41:43.545840'
     
 else:
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_REAL_2023-07-13T18:17:39.331269_TEST'
+    data_name = 'config_REAL_2023-07-14T11:29:42.638373_delta_f_Q=R=2e-2'
     
+# data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
+# data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
+
 r = DataReader(data_path+data_name+'.mds')
 N = r.data['tau'].shape[0]
 
@@ -86,9 +89,9 @@ s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x
                   ylims=[-model.velocityLimit, +model.velocityLimit] )
 
 
-s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids]],
-                  ['mea', ], # 'pred0', 'pred1'], 
-                  ['r'] )
+# s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids]],
+#                   ['mea', ], # 'pred0', 'pred1'], 
+#                   ['r'] )
 
 plt.figure()
 plt.plot(np.array(r.data['delta_f']))
@@ -142,7 +145,6 @@ target_force_3d[:,2] = r.data['target_force'][:,0]
 
 force_delta_f = np.zeros((N, 3))
 force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.array(r.data['delta_f'])[:,0]
-# force_delta_f[:,2] = np.array(r.data['delta_f'])[:,0]
 
 
 # Plot forces
@@ -150,8 +152,10 @@ fig_f, _ = s.plot_soft_contact_force([
                            r.data['contact_force_3d_measured'], 
                            target_force_3d,
                            force_delta_f,
-                           r.data['fpred']],
-                          ['Measured', 'Reference', 'Measured+df', 'Predicted'], 
+                           target_force_3d],
+                          ['Measured', 'Reference',
+                           'Measured+df', 
+                           'Predicted'], 
                           ['r', 'b', 'k', 'g'],
                           linestyle=['solid', 'dotted', 'solid', 'solid'])
                         #   ylims=[[-50,-50, 0], [50, 50, 100]])

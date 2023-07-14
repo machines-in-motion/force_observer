@@ -298,8 +298,8 @@ class ClassicalMPCContact:
         self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
         self.data_estimator = self.estimator.createData()
         self.delta_f = 0.
-        # self.estimator.Q = 1e-4 * np.ones(7)
-        # self.estimator.R = 1e-4 * np.ones(1)
+        self.estimator.Q = 1e-2 * np.ones(7)
+        self.estimator.R = 1e-2 * np.ones(1)
 
 
         self.node_id_reach = -1
@@ -475,6 +475,8 @@ class ClassicalMPCContact:
             ti  = int((thread.ti - self.T_CONTACT)/self.OCP_TO_SIMU_CYCLES)
             tf  = ti + self.Nh+1
             self.target_force = self.coef_target_force * self.target_force_traj[ti:tf, 2]
+            if self.config['USE_DELTA_F']:
+                self.target_force += self.delta_f
 
 
         if(time_to_circle == 0): 

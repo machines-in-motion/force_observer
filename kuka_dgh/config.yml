@@ -50,7 +50,8 @@ oPc_offset: [0., 0., 0.]
 pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '1Dz'
 
-USE_LATERAL_FRICTION: False
+USE_LATERAL_FRICTION: True
+USE_DELTA_F: False
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
 # to select from the list : 'stateReg', 'ctrlReg', 'ctrlRegGrav', 'stateLim', 'ctrlLim'
