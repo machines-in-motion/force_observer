@@ -54,11 +54,11 @@ s = SimpleDataPlotter()
 
 if(SIM):
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_SIM_2023-07-14T10:41:43.545840'
+    data_name = 'config_SIM_2023-07-14T12:16:08.763940'
     
 else:
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_REAL_2023-07-14T11:29:42.638373_delta_f_Q=R=2e-2'
+    data_name = 'config_REAL_2023-07-14T13:21:48.860470delta_f_Q=R=2e-2_lat_fric'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -151,10 +151,10 @@ force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.arr
 fig_f, _ = s.plot_soft_contact_force([
                            r.data['contact_force_3d_measured'], 
                            target_force_3d,
-                           force_delta_f,
-                           target_force_3d],
+                        #    force_delta_f,
+                           r.data['fpred']],
                           ['Measured', 'Reference',
-                           'Measured+df', 
+                        #    'Measured+df', 
                            'Predicted'], 
                           ['r', 'b', 'k', 'g'],
                           linestyle=['solid', 'dotted', 'solid', 'solid'])

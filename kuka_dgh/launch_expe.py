@@ -102,7 +102,7 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/ajordana/Desktop/delta_f_real_exp/sanding/"
-suffix = "_no_delta_f_lat_fric"
+suffix = "delta_f_Q=R=2e-2_lat_fric"
 
 if SIM:
     thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+".mds")
