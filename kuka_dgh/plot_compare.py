@@ -58,7 +58,7 @@ r3 = DataReader(data_path+'config_REAL_2023-07-14T13:21:48.860470delta_f_Q=R=2e-
 CONFIG_NAME = 'config.yml'
 config      = path_utils.load_yaml_file(CONFIG_NAME)
 
-FILTER = 1 
+FILTER = 10
 from core_mpc import analysis_utils 
 
 

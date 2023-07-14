@@ -18,6 +18,8 @@ T_REACH: 1.
 T_TRACK: 3.
 # Start of the contact phase
 T_CONTACT: 5.
+# End of ramp
+T_RAMP: 6.
 # Start of the circle tracking phase
 T_CIRCLE: 7.
 
@@ -45,7 +47,7 @@ contacts:
       contactModelGains: [0, 10],                         # Baumgarte stabilization gains
       active: False                                       # Initially active? 
     }
-contactPosition: [0.65, 0., 0.01] # table
+contactPosition: [0.65, 0., 0.001] # table
 oPc_offset: [0., 0., 0.] 
 pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '1Dz'

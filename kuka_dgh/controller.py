@@ -240,23 +240,19 @@ class ClassicalMPCContact:
         F_MIN = 5.
         F_MAX = self.config['frameForceRef'][2]
         N_total = int((self.config['T_tot'] - self.config['T_CONTACT'])/self.dt_ocp + self.Nh)
-        N_min  = 20
-        N_ramp = N_min + 40
-        N_sinus = N_ramp + 10
-        self.target_force_traj = np.zeros( (N_total, 3) )
-        self.target_force_traj[0:N_min*self.Nh, 2] = F_MIN
-        self.target_force_traj[N_min*self.Nh:N_ramp*self.Nh, 2] = [F_MIN + (F_MAX - F_MIN)*i/((N_ramp-N_min)*self.Nh) for i in range((N_ramp-N_min)*self.Nh)]
-        self.target_force_traj[N_ramp*self.Nh:, 2] = F_MAX
+
+        N_ramp = int((self.config['T_RAMP'] - self.config['T_CONTACT']) / self.dt_ocp)
+        self.target_force_traj = np.zeros((N_total, 3))
+        self.target_force_traj[:N_ramp, 2] = [F_MIN + (F_MAX - F_MIN)*i/N_ramp for i in range(N_ramp)]
+        self.target_force_traj[N_ramp:, 2] = F_MAX
         # self.target_force_traj[N_sinus*self.Nh:, 2] = [F_MAX + 20.*np.round(np.sin(0.01 * (2*np.pi/self.Nh) * i/2 )  ) for i in range(N_total-N_sinus*self.Nh)]
         # plt.plot(self.target_force_traj)
         # plt.show()
         self.target_force = np.zeros(self.Nh+1)
         self.force_weight = self.config['frameForceWeight']
 
-        # self.target_position = np.asarray(self.config['contactPosition']) + np.asarray(self.config['oPc_offset'])
-            # Circle trajectory 
+        # Circle trajectory 
         N_total_pos = int((self.config['T_tot'] - self.config['T_REACH'])/self.dt_ocp + self.Nh)
-        # N_static = int((self.config['T_CIRCLE'] - self.config['T_REACH'])/self.dt_ocp) + self.Nh
         N_circle = int((self.config['T_tot'] - self.config['T_CIRCLE'])/self.dt_ocp) + self.Nh
         self.target_position_traj = np.zeros( (N_total_pos, 3) )
         self.target_velocity_traj = np.zeros( (N_total_pos, 3) )
@@ -265,9 +261,7 @@ class ClassicalMPCContact:
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
         radius = 0.07 ; omega = 3.
         # radius = 0.0 ; omega = 3.
-        # self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * np.sin(i*self.dt_ocp*omega), 
-        #                                                       self.pdes[1] + radius * (1-np.cos(i*self.dt_ocp*omega)),
-        #                                                       self.pdes[2]]) for i in range(N_circle)]
+
         self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_ocp*omega)), 
                                                               self.pdes[1] - radius * np.sin(i*self.dt_ocp*omega),
                                                               self.pdes[2]]) for i in range(N_circle)]
@@ -298,8 +292,8 @@ class ClassicalMPCContact:
         self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
         self.data_estimator = self.estimator.createData()
         self.delta_f = 0.
-        self.estimator.Q = 2e-2 * np.ones(7)
-        self.estimator.R = 2e-2 * np.ones(1)
+        self.estimator.Q = 1e-2 * np.ones(7)
+        self.estimator.R = 1e-2 * np.ones(1)
 
 
         self.node_id_reach = -1
@@ -311,6 +305,7 @@ class ClassicalMPCContact:
         self.T_REACH   = int(self.config['T_REACH']/self.dt_simu)
         self.T_TRACK   = int(self.config['T_TRACK']/self.dt_simu)
         self.T_CONTACT = int(self.config['T_CONTACT']/self.dt_simu)
+        self.T_RAMP = int(self.config['T_RAMP']/self.dt_simu)
         self.T_CIRCLE = int(self.config['T_CIRCLE']/self.dt_simu)
         self.OCP_TO_SIMU_CYCLES = 1./(self.dt_simu / self.dt_ocp)
         logger.debug("Size of MPC horizon in simu cycles = "+str(self.NH_SIMU))
@@ -426,13 +421,16 @@ class ClassicalMPCContact:
         time_to_reach   = int(thread.ti - self.T_REACH)
         time_to_track   = int(thread.ti - self.T_TRACK)
         time_to_contact = int(thread.ti - self.T_CONTACT)
+        time_to_ramp    = int(thread.ti - self.T_RAMP)
         time_to_circle  = int(thread.ti - self.T_CIRCLE)
 
-        if time_to_contact > 0:
+        if time_to_ramp > 0:
             fz = np.array([self.contact_force_3d_measured[2]])
             self.estimator.estimate(self.data_estimator, q, v, self.a, self.tau_old, np.array([self.delta_f]), fz)
             self.delta_f = self.data_estimator.delta_f
-        
+            # Safety clipping
+            self.delta_f = np.clip(self.delta_f, -40, 40)
+
         if(time_to_reach == 0): 
             print("Entering reaching phase")
         # If tracking phase enters the MPC horizon, start updating models from the end with tracking models      

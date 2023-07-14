@@ -54,11 +54,11 @@ s = SimpleDataPlotter()
 
 if(SIM):
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_SIM_2023-07-14T12:16:08.763940'
+    data_name = 'config_SIM_2023-07-14T14:47:05.836463'
     
 else:
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_REAL_2023-07-14T13:21:48.860470delta_f_Q=R=2e-2_lat_fric'
+    data_name = 'config_REAL_2023-07-14T14:18:43.276150delta_f_Q=R=2e-2_mass'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
