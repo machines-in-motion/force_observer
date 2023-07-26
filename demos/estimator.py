@@ -132,3 +132,117 @@ class Estimator():
 
         return self.qp.results.x[self.nv:self.nv+self.nc], self.qp.results.x[-self.nc_delta_f:]
 
+
+
+
+class MHEstimator():
+    '''
+    Computes the forward dynamics under rigid contact model 6D + force estimate
+    '''
+    def __init__(self, T, pin_robot, nc, frameId, baumgarte_gains, pinRefRame='LOCAL'):
+
+
+        self.pin_robot = pin_robot
+        self.nc = nc
+
+        if pinRefRame == 'LOCAL':
+            self.pinRefRame = pin.LOCAL
+        elif pinRefRame == 'LOCAL_WORLD_ALIGNED':
+            self.pinRefRame = pin.LOCAL_WORLD_ALIGNED
+        else: 
+            assert False 
+
+        if(self.nc == 1):
+            self.mask = 2
+
+
+        self.nv = self.pin_robot.model.nv
+
+        self.R = 1e-2 * np.eye(self.nc)
+        self.Q = 1e-2 * np.eye(self.nv)
+        self.P = 1e-0 * np.eye(self.nc)
+
+
+        self.n_tot = T * (self.nv + self.nc) + self.nc
+        n_eq = T * (self.nv + self.nc)
+        n_in = 0
+
+        self.qp = proxsuite.proxqp.sparse.QP(self.n_tot, n_eq, n_in)
+
+        self.contact_frame_id = frameId
+
+        self.A = np.zeros((n_eq, self.n_tot))
+        self.b = np.zeros(n_eq)
+
+        self.H = np.zeros((self.n_tot, self.n_tot))
+        for t in range(T):
+            ind =  t * (self.nv + self.nc)
+            self.H[ind:ind+self.nv, ind:ind+self.nv]  = self.Q
+            self.H[ind+self.nv:ind+self.nv+self.nc, ind+self.nv:ind+self.nv+self.nc]  = self.R 
+        self.H[-self.nc:, -self.nc:]  = self.P 
+
+        self.g = np.zeros(self.n_tot)
+
+
+        self.C = None
+        self.u = None
+        self.l = None
+
+        self.baumgarte_gains = baumgarte_gains
+
+        assert self.baumgarte_gains[0] == 0
+
+        self.T = T
+
+    def estimate(self, q_list, v_list, a_list, tau_list, df_prior, F_mes_list):
+        for t in range(self.T):
+            pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q_list[t], v_list[t])
+            pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q_list[t], v_list[t],np.zeros(self.nv))
+            pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
+            M = self.pin_robot.mass(q_list[t])
+            h = self.pin_robot.nle(q_list[t], v_list[t])
+            if(self.nc == 1):
+                alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[self.mask:self.mask+1]
+                nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[self.mask:self.mask+1]
+                J = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame)[self.mask:self.mask+1]
+            else:
+                alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[:self.nc]
+                nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[:self.nc]
+                J = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame)[:self.nc]
+            alpha0 -= self.baumgarte_gains[1] * nu
+
+            ind =  t * (self.nv + self.nc)
+
+            self.b[ind:ind+self.nv + self.nc] = np.concatenate([h - tau_list[t], -alpha0], axis=0)
+
+
+            self.A[ind:ind+self.nv, ind:ind+self.nv] = - M 
+            self.A[ind:ind+self.nv, ind+self.nv:ind+2*self.nv] = J.T 
+            self.A[ind:ind+self.nv, -self.nc:] = J.T 
+            self.A[ind+self.nv:ind+self.nv+self.nc, ind:ind+self.nv] = J
+
+            
+            # import pdb; pdb.set_trace()
+            self.g[ind:ind+self.nv] = - self.Q @ a_list[t]
+            self.g[ind+self.nv:ind+self.nv+self.nc] = - self.R @ F_mes_list[t]
+        self.g[-self.nc:] = - self.P @ df_prior 
+
+    
+        
+        self.qp.init(self.H, self.g, self.A, self.b, self.C, self.l, self.u)
+
+
+
+        t1 = time.time()
+
+        self.qp.solve()
+        # print("time ", time.time() - t1)
+        # print("iter ", self.qp.results.info.iter)
+        # print("primal ", self.qp.results.info.pri_res)
+        # print("dual ", self.qp.results.info.dua_res)
+        # print(1/0)
+
+
+        return None, self.qp.results.x[-self.nc:]
+
+

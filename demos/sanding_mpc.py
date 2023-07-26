@@ -27,7 +27,7 @@ from core_mpc import sim_utils as simulator_utils
 from classical_mpc.data import DDPDataHandlerClassical
 from utils.ocp_utils import OptimalControlProblemClassicalWithObserver
 from utils.mpc_utils import MPCDataHandlerClassicalWithEstimator
-from estimator import Estimator
+from estimator import Estimator, MHEstimator
 
 import time
 import pinocchio as pin
@@ -170,6 +170,12 @@ if config['USE_HYBRID_DELTA_F']:
     force_estimator = Estimator(robot_simulator.pin_robot, 1, 3, id_endeff, config['contacts'][0]['contactModelGains'], config['contacts'][0]['pinocchioReferenceFrame'])
 else:
     force_estimator = Estimator(robot_simulator.pin_robot, 1, 1, id_endeff, config['contacts'][0]['contactModelGains'], config['contacts'][0]['pinocchioReferenceFrame'])
+
+if config['HORIZON'] > 0:
+    print("Horizon is larger than 1, nc=nc_deltaf")
+    T_MHE = config['HORIZON']
+    force_estimator = MHEstimator(T_MHE, robot_simulator.pin_robot, 1, id_endeff, config['contacts'][0]['contactModelGains'], config['contacts'][0]['pinocchioReferenceFrame'])
+
 
 
 # Setup tracking problem with circle ref EE trajectory + Warm start state = IK of circle trajectory
@@ -391,7 +397,6 @@ for i in range(sim_data.N_simu):
 
     # Step PyBullet simulator
     Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, force_estimator.pinRefRame)[:3]
-    tau_mea_SIMU -= Jac.T @ delta_f
 
     robot_simulator.send_joint_command(tau_mea_SIMU + lat_comp)
     
@@ -430,15 +435,29 @@ for i in range(sim_data.N_simu):
 
 
     # Estimation
-    if(i>0): a_mea_SIMU = (v_mea_SIMU - sim_data.state_mea_SIMU[i-1, nv:]) / env.dt
-    else: a_mea_SIMU = np.zeros(nv)
-
+    if config["HORIZON"] == 0 :
+        if(i>0): a_mea_SIMU = (v_mea_SIMU - sim_data.state_mea_SIMU[i-1, nv:]) / env.dt
+        else: a_mea_SIMU = np.zeros(nv)
+    else:
+        if(i>config["HORIZON"] ):
+            a_mea_SIMU_list = (sim_data.state_mea_SIMU[i+1-T_MHE:i+1, nv:] - sim_data.state_mea_SIMU[i-T_MHE:i, nv:]) / env.dt
+        else:
+            a_mea_SIMU_list = np.zeros((T_MHE, nv))
 
     # f_delta_f = np.array([0, 0, fz_mea_SIMU[0]])
     f_delta_f = np.array([0, 0, 0])
     if(np.linalg.norm(fz_mea_SIMU) > 1e-6):
-        F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
-        # f_delta_f = np.array([0, 0, F[0]]) + delta_f
+        if config["HORIZON"] ==0:
+            F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
+        else:
+            q_mea_SIMU_list = sim_data.state_mea_SIMU[i-T_MHE+1:i+1, :nv]
+            v_mea_SIMU_list = sim_data.state_mea_SIMU[i-T_MHE+1:i+1, nv:]
+            tau_mea_SIMU_list = sim_data.tau_mea_SIMU[i-T_MHE+1:i+1]
+            fz_mea_SIMU_list = sim_data.force_mea_SIMU[i-T_MHE+1:i+1, 2:3]
+            delta_f = np.zeros(1)
+            # delta_f = sim_data.delta_f_SIMU[i-T_MHE+1, 2:3]
+            F, delta_f = force_estimator.estimate(q_mea_SIMU_list, v_mea_SIMU_list, a_mea_SIMU_list, tau_mea_SIMU_list, delta_f, fz_mea_SIMU_list)
+
 
     if config["USE_HYBRID_DELTA_F"]:
         sim_data.record_simu_cycle_estimates(i, delta_f)
