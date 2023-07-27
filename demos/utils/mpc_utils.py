@@ -125,8 +125,8 @@ class MPCDataHandlerClassicalWithEstimator(MPCDataHandlerClassical):
     N_simu = plot_data['N_simu']
     dt_simu = plot_data['dt_simu']
     t_span_simu = np.linspace(0, T_tot - dt_simu, N_simu)
-    # for i in range(3):
-    #     ax[i,0].plot(t_span_simu, plot_data['force_mea_SIMU'][:N_simu,i] + plot_data['delta_f_SIMU'][:N_simu,i], color='y', linestyle='-', marker='.', label='f + delta_f', alpha=0.5)
+    for i in range(3):
+        ax[i,0].plot(t_span_simu, plot_data['force_mea_SIMU'][:N_simu,i] + plot_data['delta_f_SIMU'][:N_simu,i], color='y', linestyle='-', marker='.', label='f + delta_f', alpha=0.5)
     if(SHOW):
         plt.show() 
     return fig, ax

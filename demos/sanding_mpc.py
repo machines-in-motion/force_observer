@@ -440,7 +440,7 @@ for i in range(sim_data.N_simu):
         else: a_mea_SIMU = np.zeros(nv)
     else:
         if(i>config["HORIZON"] ):
-            a_mea_SIMU_list = (sim_data.state_mea_SIMU[i+1-T_MHE:i+1, nv:] - sim_data.state_mea_SIMU[i-T_MHE:i, nv:]) / env.dt
+            a_mea_SIMU_list = (sim_data.state_mea_SIMU[i+2-T_MHE:i+2, nv:] - sim_data.state_mea_SIMU[i+1-T_MHE:i+1, nv:]) / env.dt
         else:
             a_mea_SIMU_list = np.zeros((T_MHE, nv))
 
@@ -450,11 +450,11 @@ for i in range(sim_data.N_simu):
         if config["HORIZON"] ==0:
             F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
         else:
-            q_mea_SIMU_list = sim_data.state_mea_SIMU[i-T_MHE+1:i+1, :nv]
-            v_mea_SIMU_list = sim_data.state_mea_SIMU[i-T_MHE+1:i+1, nv:]
+            q_mea_SIMU_list = sim_data.state_mea_SIMU[i-T_MHE+2:i+2, :nv]
+            v_mea_SIMU_list = sim_data.state_mea_SIMU[i-T_MHE+2:i+2, nv:]
             tau_mea_SIMU_list = sim_data.tau_mea_SIMU[i-T_MHE+1:i+1]
             fz_mea_SIMU_list = sim_data.force_mea_SIMU[i-T_MHE+1:i+1, 2:3]
-            delta_f = np.zeros(1)
+            # delta_f = np.zeros(1)
             # delta_f = sim_data.delta_f_SIMU[i-T_MHE+1, 2:3]
             F, delta_f = force_estimator.estimate(q_mea_SIMU_list, v_mea_SIMU_list, a_mea_SIMU_list, tau_mea_SIMU_list, delta_f, fz_mea_SIMU_list)
 
