@@ -79,19 +79,19 @@ void exposeEstimator() {
       .add_property("pinocchio", bp::make_getter(&ForceEstimatorData::pinocchio, bp::return_internal_reference<>()), "pinocchio data")
       .add_property("F", bp::make_getter(&ForceEstimatorData::F, bp::return_value_policy<bp::return_by_value>()), "measured contact force")
       .add_property("delta_f", bp::make_getter(&ForceEstimatorData::delta_f, bp::return_value_policy<bp::return_by_value>()), "contact force offset estimate")
-      .add_property("J", bp::make_getter(&ForceEstimatorData::J, bp::return_internal_reference<>()), "full contact Jacobian")
-      .add_property("J1", bp::make_getter(&ForceEstimatorData::J1, bp::return_internal_reference<>()), "Jacobian 1")
-      .add_property("J2", bp::make_getter(&ForceEstimatorData::J2, bp::return_internal_reference<>()), "Jacobian 2")
-      .add_property("alpha0", bp::make_getter(&ForceEstimatorData::alpha0, bp::return_internal_reference<>()), "Contact acceleration drift")
-      .add_property("nu", bp::make_getter(&ForceEstimatorData::nu, bp::return_internal_reference<>()), "Contact velocity")
-      .add_property("M", bp::make_getter(&ForceEstimatorData::M, bp::return_internal_reference<>()), "Generalized inertia matrix")
-      .add_property("h", bp::make_getter(&ForceEstimatorData::h, bp::return_internal_reference<>()), "Nonlinear terms of RNEA")
-      .add_property("b", bp::make_getter(&ForceEstimatorData::b, bp::return_internal_reference<>()), "QP param")
-      .add_property("A", bp::make_getter(&ForceEstimatorData::A, bp::return_internal_reference<>()), "QP param")
-      .add_property("g", bp::make_getter(&ForceEstimatorData::g, bp::return_internal_reference<>()), "QP param")
-      .add_property("C", bp::make_getter(&ForceEstimatorData::C, bp::return_internal_reference<>()), "QP param")
-      .add_property("l", bp::make_getter(&ForceEstimatorData::l, bp::return_internal_reference<>()), "QP param")
-      .add_property("u", bp::make_getter(&ForceEstimatorData::u, bp::return_internal_reference<>()), "QP param");
+      .add_property("J", bp::make_getter(&ForceEstimatorData::J, bp::return_value_policy<bp::return_by_value>()), "full contact Jacobian")
+      .add_property("J1", bp::make_getter(&ForceEstimatorData::J1, bp::return_value_policy<bp::return_by_value>()), "Jacobian 1")
+      .add_property("J2", bp::make_getter(&ForceEstimatorData::J2, bp::return_value_policy<bp::return_by_value>()), "Jacobian 2")
+      .add_property("alpha0", bp::make_getter(&ForceEstimatorData::alpha0, bp::return_value_policy<bp::return_by_value>()), "Contact acceleration drift")
+      .add_property("nu", bp::make_getter(&ForceEstimatorData::nu, bp::return_value_policy<bp::return_by_value>()), "Contact velocity")
+      .add_property("M", bp::make_getter(&ForceEstimatorData::M, bp::return_value_policy<bp::return_by_value>()), "Generalized inertia matrix")
+      .add_property("h", bp::make_getter(&ForceEstimatorData::h, bp::return_value_policy<bp::return_by_value>()), "Nonlinear terms of RNEA")
+      .add_property("b", bp::make_getter(&ForceEstimatorData::b, bp::return_value_policy<bp::return_by_value>()), "QP param")
+      .add_property("A", bp::make_getter(&ForceEstimatorData::A, bp::return_value_policy<bp::return_by_value>()), "QP param")
+      .add_property("g", bp::make_getter(&ForceEstimatorData::g, bp::return_value_policy<bp::return_by_value>()), "QP param")
+      .add_property("C", bp::make_getter(&ForceEstimatorData::C, bp::return_value_policy<bp::return_by_value>()), "QP param")
+      .add_property("l", bp::make_getter(&ForceEstimatorData::l, bp::return_value_policy<bp::return_by_value>()), "QP param")
+      .add_property("u", bp::make_getter(&ForceEstimatorData::u, bp::return_value_policy<bp::return_by_value>()), "QP param");
 }
 
 }  // namespace mim

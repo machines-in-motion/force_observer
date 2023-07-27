@@ -73,6 +73,8 @@ void ForceEstimator::estimate(
     pinocchio::updateFramePlacements(pinocchio_, d->pinocchio);
     d->h = d->pinocchio.nle;
     d->M = d->pinocchio.M;
+    // Copy upper triangular part into lower triangular part to get symmetric inertia matrix 
+    d->M.triangularView<Eigen::StrictlyLower>() = d->M.transpose().triangularView<Eigen::StrictlyLower>();
 
     if(nc_ == 1){
         d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_).toVector().segment(mask_, nc_);

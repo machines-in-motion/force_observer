@@ -3,10 +3,9 @@ import example_robot_data as robex
 import numpy as np
 np.set_printoptions(precision=4, linewidth=180)
 import crocoddyl
-from ContactModel import DAMRigidContact
-from ContactModel1d_3d import DAMRigidContact1D3D
+from demos.ContactModel import DAMRigidContact
+from demos.ContactModel1d_3d import DAMRigidContact1D3D
 import sobec
-
 
 nc = 1
 nc_delta_f = 3
@@ -186,3 +185,5 @@ assert(np.linalg.norm(DAD_sobec.Lxu - DAD2.Lxu)<=TOL)
 assert(np.linalg.norm(DAD_sobec.Luu - DAD2.Luu)<=TOL)   
 assert(np.linalg.norm(DAD_sobec.df_dx - DAD2.df_dx[:nc])<=TOL)   
 assert(np.linalg.norm(DAD_sobec.df_du - DAD2.df_du[:nc])<=TOL)   
+
+print("OK !")
