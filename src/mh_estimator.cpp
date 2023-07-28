@@ -49,7 +49,9 @@ MHForceEstimator::MHForceEstimator(
         if(ind >= nc_){
             H_.block(ind + nv_ + nc_, ind - nc_, nc_, nc_) = R_.asDiagonal();
         } 
-        H_.block(ind + nv_ + nc_, (t+2) * (nv_ + nc_)-nc_, nc_, nc_) = R_.asDiagonal(); 
+        if((t+2) * (nv_ + nc_)-nc_ < n_tot_){
+            H_.block(ind + nv_ + nc_, (t+2) * (nv_ + nc_)-nc_, nc_, nc_) = R_.asDiagonal(); 
+        }
     }
     H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
 
@@ -103,7 +105,7 @@ void MHForceEstimator::estimate(
         d->b.segment(ind, nv_) = d->h - tau_list[t]; 
         d->b.segment(ind+nv_, nc_) = -d->alpha0;
         d->A.block(ind, ind, nv_, nv_) = -d->M;
-        d->A.block(ind, ind+nv_, nv_, nv_) = d->J1.transpose();
+        d->A.block(ind, ind+nv_, nv_, nc_) = d->J1.transpose();
         d->A.block(ind+nv_, ind, nc_, nv_) = d->J1;
         d->g.segment(ind, nv_) = -Q_.cwiseProduct(a_list[t]);
         d->g.segment(ind+nv_, nc_) = -R_.cwiseProduct(F_mes_list[t]);
@@ -213,7 +215,9 @@ void MHForceEstimator::set_R(const Eigen::VectorXd& inR) {
         if(ind >= nc_){
             H_.block(ind + nv_ + nc_, ind - nc_, nc_, nc_) = R_.asDiagonal(); 
         }
-        H_.block(ind + nv_ + nc_, (t+2) * (nv_ + nc_)-nc_, nc_, nc_) = R_.asDiagonal(); 
+        if((t+2) * (nv_ + nc_)-nc_ < n_tot_){
+            H_.block(ind + nv_ + nc_, (t+2) * (nv_ + nc_)-nc_, nc_, nc_) = R_.asDiagonal(); 
+        }
     }
 }
 

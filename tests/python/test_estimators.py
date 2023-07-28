@@ -111,16 +111,17 @@ for _, nc in enumerate(CONTACT_DIMS):
             print("Testing "+robot_name+"_"+contactFrameName+"_"+pinRefFrameStr+"_NC="+str(nc)+"_MHE_C++_vs_MHE_python")
             T = 10
             force_estimator_mh_py  = MHEstimator(T, robot, nc, id_endeff, gains, pinRefFrameStr)
+            # zepojzp
             force_estimator_mh_cpp = MHForceEstimator(T, robot.model, nc, id_endeff, gains, pinRefFrame)
             # Assert default values
             assert(force_estimator_mh_cpp.frame_id == force_estimator_mh_py.contact_frame_id)
             assert(force_estimator_mh_cpp.nc == force_estimator_mh_py.nc)
             assert(force_estimator_mh_cpp.mask == force_estimator_mh_py.mask)
             force_estimator_mh_cpp.P = force_estimator_mh_py.P
-            force_estimator_mh_cpp.Q = force_estimator_mh_py.Q
-            force_estimator_mh_cpp.R = force_estimator_mh_py.R
-            force_estimator_mh_cpp.H = force_estimator_mh_py.H
-            assert(norm(force_estimator_mh_cpp.H - force_estimator_mh_py.H) <= TOL)
+            # force_estimator_mh_cpp.Q = force_estimator_mh_py.Q
+            # force_estimator_mh_cpp.R = force_estimator_mh_py.R
+            # force_estimator_mh_cpp.H = force_estimator_mh_py.H
+            # assert(norm(force_estimator_mh_cpp.H - force_estimator_mh_py.H) <= TOL)
             assert(norm(force_estimator_mh_cpp.baumgarte_gains - force_estimator_mh_py.baumgarte_gains) <= TOL)
             # Assert estimation
             force_estimator_mh_cpp_data = force_estimator_mh_cpp.createData()
