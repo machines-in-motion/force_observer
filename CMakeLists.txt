@@ -53,14 +53,14 @@ endif()
 
 # Main Library
 set(${PROJECT_NAME}_HEADERS
-  include/${PROJECT_NAME}/gepadd.hpp
   include/${PROJECT_NAME}/python.hpp
   include/${PROJECT_NAME}/estimator.hpp
+  include/${PROJECT_NAME}/mh_estimator.hpp
   )
 
 set(${PROJECT_NAME}_SOURCES
-  src/gepadd.cpp
   src/estimator.cpp
+  src/mh_estimator.cpp
   )
 
 add_library(${PROJECT_NAME} SHARED ${${PROJECT_NAME}_SOURCES} ${${PROJECT_NAME}_HEADERS})
