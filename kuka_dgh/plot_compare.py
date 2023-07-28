@@ -41,24 +41,24 @@ s = SimpleDataPlotter()
 
 data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
 label1 = 'no_delta_f'
-label2 = 'delta_f_Q=R=2e-2'
-label3 = 'delta_f_Q=R=2e-2_lat_fric'
+label2 = 'fric_only'
+label3 = 'delta_f_Q_fric'
 
-SAVE = True
+SAVE = False
 
 print("Load data 1...")
 r1 = DataReader(data_path+'config_REAL_2023-07-14T11:36:25.882687_no_delta_f.mds')  
 print("Load data 2...")
-r2 = DataReader(data_path+'config_REAL_2023-07-14T11:29:42.638373_delta_f_Q=R=2e-2.mds') 
+r2 = DataReader('/home/ajordana/Desktop/delta_f_real_exp/filter/'+'config_REAL_2023-07-20T17:40:00.571261delta_f_Q=R=4e-3_fric.mds') 
 print("Load data 3...")
-r3 = DataReader(data_path+'config_REAL_2023-07-14T13:21:48.860470delta_f_Q=R=2e-2_lat_fric.mds')
+r3 = DataReader('/home/ajordana/Desktop/delta_f_real_exp/filter/'+'config_REAL_2023-07-20T18:36:11.700721delta_f_fric_best.mds')
 
 
 # Load config file
 CONFIG_NAME = 'config.yml'
 config      = path_utils.load_yaml_file(CONFIG_NAME)
 
-FILTER = 10
+FILTER = 100
 from core_mpc import analysis_utils 
 
 

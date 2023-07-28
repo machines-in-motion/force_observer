@@ -8,6 +8,7 @@ import pinocchio as pin
 import matplotlib.pyplot as plt 
 from core_mpc import path_utils
 from core_mpc.pin_utils import get_p_
+from core_mpc import analysis_utils 
 
 from robot_properties_kuka.config import IiwaConfig, IiwaReducedConfig
 
@@ -50,15 +51,16 @@ SAVE = False
 # Create data Plottger
 s = SimpleDataPlotter()
 
+FILTER = 100
 
 
 if(SIM):
-    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_SIM_2023-07-14T14:47:05.836463'
+    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding_SIM/'
+    data_name = 'config_SIM_2023-07-17T16:47:20.132442'
     
 else:
-    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_REAL_2023-07-14T14:18:43.276150delta_f_Q=R=2e-2_mass'
+    data_path = '/home/ajordana/Desktop/delta_f_real_exp/filter/'
+    data_name = 'config_REAL_2023-07-20T18:27:19.239501delta_f_fric_reg'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -75,7 +77,11 @@ ax[3].plot(r.data['t_run'], label='t_run')
 ax[1].plot(N*[1./config['plan_freq']], label= 'mpc')
 ax[3].plot(N*[1./config['plan_freq']], label= 'mpc')
 # plt.show()
+# plt.figure(0)
+# plt.plot(1000*r.data['time_df'])
 
+if(FILTER > 0):
+    r.data['contact_force_3d_measured'][:N] = analysis_utils.moving_average_filter(r.data['contact_force_3d_measured'][:N].copy(), FILTER)
 
 
 s.plot_joint_pos( [r.data['joint_positions'][:,controlled_joint_ids], r.data['x_des'][:,:nq]], # r.data['x'][:,:nq], r.data['x1'][:,:nq]], 
@@ -89,9 +95,9 @@ s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x
                   ylims=[-model.velocityLimit, +model.velocityLimit] )
 
 
-# s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids]],
-#                   ['mea', ], # 'pred0', 'pred1'], 
-#                   ['r'] )
+s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids]],
+                  ['mea', ], # 'pred0', 'pred1'], 
+                  ['r'] )
 
 plt.figure()
 plt.plot(np.array(r.data['delta_f']))
@@ -159,6 +165,7 @@ fig_f, _ = s.plot_soft_contact_force([
                           ['r', 'b', 'k', 'g'],
                           linestyle=['solid', 'dotted', 'solid', 'solid'])
                         #   ylims=[[-50,-50, 0], [50, 50, 100]])
+
 
 if(SAVE):
     fig_f.savefig(data_path+data_name+'_force.png')

@@ -292,8 +292,8 @@ class ClassicalMPCContact:
         self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
         self.data_estimator = self.estimator.createData()
         self.delta_f = 0.
-        self.estimator.Q = 1e-2 * np.ones(7)
-        self.estimator.R = 1e-2 * np.ones(1)
+        self.estimator.Q = 4e-3 * np.ones(7)
+        self.estimator.R = 2e-2 * np.ones(1)
 
 
         self.node_id_reach = -1
@@ -424,12 +424,15 @@ class ClassicalMPCContact:
         time_to_ramp    = int(thread.ti - self.T_RAMP)
         time_to_circle  = int(thread.ti - self.T_CIRCLE)
 
+        t0 = time.time()
         if time_to_ramp > 0:
             fz = np.array([self.contact_force_3d_measured[2]])
             self.estimator.estimate(self.data_estimator, q, v, self.a, self.tau_old, np.array([self.delta_f]), fz)
-            self.delta_f = self.data_estimator.delta_f
+            self.delta_f = np.clip(self.data_estimator.delta_f, self.delta_f - 0.2, self.delta_f + 0.2)
             # Safety clipping
             self.delta_f = np.clip(self.delta_f, -40, 40)
+        self.time_df = time.time() - t0
+
 
         if(time_to_reach == 0): 
             print("Entering reaching phase")
