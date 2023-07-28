@@ -1,6 +1,7 @@
 set(${PY_NAME}_SOURCES
-  # gepadd.cpp
   estimator.cpp
+  mh_estimator.cpp
+  mh_varying_estimator.cpp
   main.cpp
   )
 
