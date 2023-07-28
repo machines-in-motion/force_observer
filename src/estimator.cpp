@@ -52,7 +52,7 @@ ForceEstimator::ForceEstimator(
     if(baumgarte_gains_[0] > 1e-6){
         std::cout << "Error: the proportional gain of Baugmarte should be 0 !" << std::endl;
     }
-    std::cout << "Initialized force estimator." << std::endl;
+    // std::cout << "Initialized force estimator." << std::endl;
 }
 
 ForceEstimator::~ForceEstimator(){}
@@ -73,6 +73,8 @@ void ForceEstimator::estimate(
     pinocchio::updateFramePlacements(pinocchio_, d->pinocchio);
     d->h = d->pinocchio.nle;
     d->M = d->pinocchio.M;
+    // Copy upper triangular part into lower triangular part to get symmetric inertia matrix 
+    d->M.triangularView<Eigen::StrictlyLower>() = d->M.transpose().triangularView<Eigen::StrictlyLower>();
 
     if(nc_ == 1){
         d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_).toVector().segment(mask_, nc_);
