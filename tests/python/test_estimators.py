@@ -44,6 +44,7 @@ for _, nc in enumerate(CONTACT_DIMS):
             v = np.random.rand(robot.model.nv)*0.01 
             # Careful ! In python estimator, zero acc is passed to forward kinematics (not the case in C++ estimator)
             a = np.zeros(robot.model.nv) 
+            # a = np.random.rand(robot.model.nv) 
             tau = np.random.rand(robot.model.nv) 
             f = np.random.rand(nc)
             df = np.zeros(nc)
@@ -56,9 +57,7 @@ for _, nc in enumerate(CONTACT_DIMS):
 
 
 
-            # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-            # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-            # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
+
             ####################################
             # Estimator vs EstimatorEquivalent #
             ####################################
@@ -71,14 +70,10 @@ for _, nc in enumerate(CONTACT_DIMS):
             force_estimator_eq_py.P = force_estimator_py.P
             force_estimator_eq_py.Q = force_estimator_py.Q
             force_estimator_eq_py.R = force_estimator_py.R
-            force_estimator_eq_py.H = force_estimator_py.H
             # Test that they give the same results
             _, delta_f_py    = force_estimator_py.estimate(q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
             _, delta_f_eq_py = force_estimator_eq_py.estimate(q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
-            # assert(norm(delta_f_py - delta_f_eq_py) <= TOL)
-            # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-            # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-            # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
+            assert(norm(delta_f_py - delta_f_eq_py) <= TOL)
 
 
 

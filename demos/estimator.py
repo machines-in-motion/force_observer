@@ -64,7 +64,7 @@ class Estimator():
 
     def estimate(self, q, v, a, tau, df_prior, F_mes):
         pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q, v)
-        pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v,np.zeros(self.nv)) # a ?
+        pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v, np.zeros(self.nv)) # a ?
         pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
         M = self.pin_robot.mass(q)
         h = self.pin_robot.nle(q, v)
@@ -97,10 +97,8 @@ class Estimator():
         g[-self.nc_delta_f:] = - self.P @ df_prior
 
         # solve it
-        
+
         self.qp.init(self.H, g, A, b, self.C, self.l, self.u)
-
-
 
         t1 = time.time()
         self.qp.solve()
@@ -108,8 +106,6 @@ class Estimator():
         # print("iter ", self.qp.results.info.iter)
         # print("primal ", self.qp.results.info.pri_res)
         # print("dual ", self.qp.results.info.dua_res)
-
-
 
         # self.qp.settings.initial_guess = (
         #     proxsuite.proxqp.InitialGuess.WARM_START_WITH_PREVIOUS_RESULT
@@ -138,6 +134,9 @@ class EstimatorEquivalent():
         self.pin_robot = pin_robot
         self.nc = nc
         self.nc_delta_f = nc_delta_f
+
+        assert nc == nc_delta_f
+
         if pinRefRame == 'LOCAL':
             self.pinRefRame = pin.LOCAL
         elif pinRefRame == 'LOCAL_WORLD_ALIGNED':
@@ -161,8 +160,13 @@ class EstimatorEquivalent():
         self.contact_frame_id = frameId
         self.H = np.zeros((self.n_tot, self.n_tot))
         self.H[:self.nv, :self.nv]  = self.Q
-        self.H[self.nv:self.nv+self.nc, self.nv:self.nv+self.nc]  = self.R 
-        self.H[-self.nc_delta_f:, -self.nc_delta_f:]  = self.P 
+        self.H[self.nv: self.nv + self.nc, self.nv: self.nv + self.nc]  = self.R 
+        self.H[-self.nc_delta_f:, -self.nc_delta_f:]  = self.P + self.R 
+
+        self.H[self.nv: self.nv + self.nc, -self.nc_delta_f:] = - self.R
+        self.H[-self.nc_delta_f:, self.nv: self.nv + self.nc] = - self.R
+
+
         self.C = None
         self.u = None
         self.l = None
@@ -174,7 +178,7 @@ class EstimatorEquivalent():
 
     def estimate(self, q, v, a, tau, df_prior, F_mes):
         pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q, v)
-        pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v, a) 
+        pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q, v, np.zeros(self.nv)) # a ?
         pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
         M = self.pin_robot.mass(q)
         h = self.pin_robot.nle(q, v)
@@ -194,9 +198,10 @@ class EstimatorEquivalent():
         self.A[self.nv:self.nv+self.nc, :self.nv] = J1.copy()
         self.g = np.zeros(self.n_tot)
         self.g[:self.nv] = -self.Q @ a
-        self.g[self.nv:self.nv+self.nc] = -self.R @ F_mes
-        self.g[-self.nc_delta_f:] = -self.P @ df_prior
-        self.g[-self.nc_delta_f:] += -self.R @ F_mes
+        self.g[self.nv:self.nv+self.nc] = - self.R @ F_mes
+        self.g[-self.nc_delta_f:] = - self.P @ df_prior
+        self.g[-self.nc_delta_f:] += self.R @ F_mes
+
         self.qp.init(self.H, self.g, self.A, self.b, self.C, self.l, self.u)
         self.qp.solve()
         return self.qp.results.x[self.nv:self.nv+self.nc], self.qp.results.x[-self.nc_delta_f:]
