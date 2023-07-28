@@ -148,6 +148,7 @@ class MHForceEstimator{
   boost::shared_ptr<MHForceEstimatorData> createData();
 
   // getters 
+  std::size_t get_T() const;
   pinocchio::Model& get_pinocchio() const;
   std::size_t get_nv() const;
   std::size_t get_nc() const;

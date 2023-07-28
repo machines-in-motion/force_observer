@@ -52,7 +52,7 @@ ForceEstimator::ForceEstimator(
     if(baumgarte_gains_[0] > 1e-6){
         std::cout << "Error: the proportional gain of Baugmarte should be 0 !" << std::endl;
     }
-    std::cout << "Initialized force estimator." << std::endl;
+    // std::cout << "Initialized force estimator." << std::endl;
 }
 
 ForceEstimator::~ForceEstimator(){}

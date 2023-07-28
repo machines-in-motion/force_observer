@@ -49,6 +49,7 @@ void exposeMHEstimator() {
       .def("createData", &MHForceEstimator::createData,
            bp::args("self"), "Create the Force estimator data.")
 
+      .add_property("T", bp::make_function(&MHForceEstimator::get_T, bp::return_value_policy<bp::return_by_value>()), "Horizon size")
       .add_property("pinocchio", bp::make_function(&MHForceEstimator::get_pinocchio, bp::return_value_policy<bp::return_by_value>()), "multibody model (i.e. pinocchio model)")
       .add_property("nv", bp::make_function(&MHForceEstimator::get_nv, bp::return_value_policy<bp::return_by_value>()), "Size of the joint velocity vector")
       .add_property("nc", bp::make_function(&MHForceEstimator::get_nc, bp::return_value_policy<bp::return_by_value>()), "Size of the contact model")

@@ -41,19 +41,22 @@ MHForceEstimator::MHForceEstimator(
     Q_ = 1e-2*Eigen::VectorXd::Ones(nv_);
     R_ = 1e-2*Eigen::VectorXd::Ones(nc_);
     H_ = Eigen::MatrixXd::Zero(n_tot_, n_tot_);
+
+    // What I believe to be the correct H (symmetric)
     for(std::size_t t=0; t < T_; t++){
+        // diagonal terms
         std::size_t ind = t * (nv_ + nc_);
-        H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
-        H_.block(ind + nv_, ind + nv_, nc_, nc_) = R_.asDiagonal(); 
-        H_.block(ind + nv_ + nc_, ind + nv_ + nc_, nc_, nc_) = R_.asDiagonal(); 
-        if(ind >= nc_){
-            H_.block(ind + nv_ + nc_, ind - nc_, nc_, nc_) = R_.asDiagonal();
-        } 
-        if((t+2) * (nv_ + nc_)-nc_ < n_tot_){
-            H_.block(ind + nv_ + nc_, (t+2) * (nv_ + nc_)-nc_, nc_, nc_) = R_.asDiagonal(); 
+        if(ind < T_-1){
+            H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
         }
+        H_.block(ind + nv_, ind + nv_, nc_, nc_) = R_.asDiagonal(); 
+        // last row
+        H_.bottomRows(nc_).block(0, ind + nv_, nc_, nc_) = R_.asDiagonal(); 
+        // last col
+        H_.rightCols(nc_).block(ind + nv_, 0, nc_, nc_) = R_.asDiagonal();
     }
     H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
+    H_.bottomRightCorner(nc_, nc_) += R_.asDiagonal();
 
     // QP solver
     qp_ = boost::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
@@ -61,7 +64,7 @@ MHForceEstimator::MHForceEstimator(
     if(baumgarte_gains_[0] > 1e-6){
         std::cout << "Error: the proportional gain of Baugmarte should be 0 !" << std::endl;
     }
-    std::cout << "Initialized force estimator." << std::endl;
+    // std::cout << "Initialized force estimator." << std::endl;
 }
 
 MHForceEstimator::~MHForceEstimator(){}
@@ -100,7 +103,7 @@ void MHForceEstimator::estimate(
         d->alpha0 -= baumgarte_gains_[1] * d->nu;
 
         std::size_t ind =  t * (nv_ + nc_);
-        
+
         // Construct QP
         d->b.segment(ind, nv_) = d->h - tau_list[t]; 
         d->b.segment(ind+nv_, nc_) = -d->alpha0;
@@ -109,16 +112,20 @@ void MHForceEstimator::estimate(
         d->A.block(ind+nv_, ind, nc_, nv_) = d->J1;
         d->g.segment(ind, nv_) = -Q_.cwiseProduct(a_list[t]);
         d->g.segment(ind+nv_, nc_) = -R_.cwiseProduct(F_mes_list[t]);
-        d->g.segment(ind+nv_+nc_, nc_) = -R_.cwiseProduct(F_mes_list[t]);
+        d->g.segment(ind+nv_+nc_, nc_) += -R_.cwiseProduct(F_mes_list[t]);
     }
 
-    d->g.tail(nc_)= - P_.cwiseProduct(df_prior);
+    d->g.tail(nc_)= -P_.cwiseProduct(df_prior);
     
     qp_->init(H_, d->g, d->A, d->b, d->C, d->l, d->u); //std::nullopt, std::nullopt, std::nullopt); nullopt with C++17 only !
 
     qp_->solve();
     // std::cout << "optimal x: " << qp_->results.x << std::endl;
     d->delta_f = qp_->results.x.bottomRows(nc_);
+}
+
+std::size_t MHForceEstimator::get_T() const {
+    return T_;
 }
 
 pinocchio::Model& MHForceEstimator::get_pinocchio() const{
