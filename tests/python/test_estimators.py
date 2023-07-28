@@ -12,7 +12,6 @@ np.set_printoptions(precision=4, linewidth=180)
 
 # Estimators params
 gains = np.zeros(2)
-# nc    = 1
 
 # Unittest tolerance
 TOL   = 1e-3

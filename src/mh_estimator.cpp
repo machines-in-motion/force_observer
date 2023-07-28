@@ -203,29 +203,35 @@ void MHForceEstimator::set_ref(const pinocchio::ReferenceFrame ref) {
 void MHForceEstimator::set_P(const Eigen::VectorXd& inP) {
     P_ = inP;
     H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
+    H_.bottomRightCorner(nc_, nc_) += R_.asDiagonal();
 }
 
 void MHForceEstimator::set_Q(const Eigen::VectorXd& inQ) {
     Q_ = inQ;
     for(std::size_t t=0; t < T_; t++){
         std::size_t ind = t * (nv_ + nc_);
-        H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
+        if(ind < T_-1){
+            H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
+        }
     }
 }
 
 void MHForceEstimator::set_R(const Eigen::VectorXd& inR) {
     R_ = inR;
     for(std::size_t t=0; t < T_; t++){
+        // diagonal terms
         std::size_t ind = t * (nv_ + nc_);
+        if(ind < T_-1){
+            H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
+        }
         H_.block(ind + nv_, ind + nv_, nc_, nc_) = R_.asDiagonal(); 
-        H_.block(ind + nv_ + nc_, ind + nv_ + nc_, nc_, nc_) = R_.asDiagonal(); 
-        if(ind >= nc_){
-            H_.block(ind + nv_ + nc_, ind - nc_, nc_, nc_) = R_.asDiagonal(); 
-        }
-        if((t+2) * (nv_ + nc_)-nc_ < n_tot_){
-            H_.block(ind + nv_ + nc_, (t+2) * (nv_ + nc_)-nc_, nc_, nc_) = R_.asDiagonal(); 
-        }
+        // last row
+        H_.bottomRows(nc_).block(0, ind + nv_, nc_, nc_) = R_.asDiagonal(); 
+        // last col
+        H_.rightCols(nc_).block(ind + nv_, 0, nc_, nc_) = R_.asDiagonal();
     }
+    H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
+    H_.bottomRightCorner(nc_, nc_) += R_.asDiagonal();
 }
 
 void MHForceEstimator::set_mask(const std::size_t mask) {

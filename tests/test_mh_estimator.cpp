@@ -19,7 +19,7 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     pinocchio::FrameIndex frameId = model.getFrameId("contact");
     Eigen::Vector2d gains = Eigen::Vector2d::Zero();
     pinocchio::ReferenceFrame pinRef = pinocchio::LOCAL;
-    std::size_t T = 2;
+    std::size_t T = 10;
     mim::estimator::MHForceEstimator forceEstimator = mim::estimator::MHForceEstimator(T, model, nc, frameId, gains, pinRef);
     double TOL = 1e-6;
 
