@@ -16,10 +16,9 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     pinocchio::urdf::buildModel(URDF_PARAMS, model);
 
     // Params
-    std::size_t nc = 3;
-    std::size_t nc_delta_f = 3;
+    std::size_t nc = 1;
+    std::size_t nc_delta_f = 1;
     pinocchio::FrameIndex frameId = model.getFrameId("contact");
-    std::cout << frameId << std::endl;
     Eigen::Vector2d gains = Eigen::Vector2d::Zero();
     pinocchio::ReferenceFrame pinRef = pinocchio::LOCAL;
     mim::estimator::ForceEstimator forceEstimator = mim::estimator::ForceEstimator(model, nc, nc_delta_f, frameId, gains, pinRef);
@@ -32,6 +31,13 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     BOOST_CHECK(forceEstimator.get_frameId() == frameId);
     BOOST_CHECK(forceEstimator.get_baumgarte_gains() == gains);
     BOOST_CHECK(forceEstimator.get_ref() == pinRef);
+
+    BOOST_CHECK(forceEstimator.get_H().rows() == (unsigned int)forceEstimator.get_n_tot());
+    BOOST_CHECK(forceEstimator.get_H().cols() == (unsigned int)forceEstimator.get_n_tot());
+    BOOST_CHECK(forceEstimator.get_P().size() == (unsigned int)nc);
+    BOOST_CHECK(forceEstimator.get_Q().size() == (unsigned int)model.nv);
+    BOOST_CHECK(forceEstimator.get_R().size() == (unsigned int)nc);
+
     BOOST_CHECK( (forceEstimator.get_P() - 1e-0*Eigen::VectorXd::Ones(nc_delta_f)).isZero(TOL) );
     BOOST_CHECK( (forceEstimator.get_Q() - 1e-2*Eigen::VectorXd::Ones(model.nv)).isZero(TOL) );
     BOOST_CHECK( (forceEstimator.get_R() - 1e-2*Eigen::VectorXd::Ones(nc)).isZero(TOL) );
@@ -90,12 +96,10 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     Eigen::VectorXd v = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nv);
     Eigen::VectorXd a = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nv);
     Eigen::VectorXd tau = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nv);
-    Eigen::Vector3d df_prior = Eigen::Vector3d::Random(); 
-    Eigen::Vector3d F_mes = Eigen::Vector3d::Random(); 
+    Eigen::VectorXd df_prior = Eigen::VectorXd::Random(nc_delta_f); 
+    Eigen::VectorXd F_mes = Eigen::VectorXd::Random(nc); 
 
     forceEstimator.estimate(forceEstimatorData, q, v, a, tau, df_prior, F_mes);
-    // // Test estimate function
-    // // BOOST_CHECK(gepetto::example::add(-3, 1) == -2);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

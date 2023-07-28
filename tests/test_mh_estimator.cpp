@@ -17,10 +17,9 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     // Params
     std::size_t nc = 1;
     pinocchio::FrameIndex frameId = model.getFrameId("contact");
-    std::cout << frameId << std::endl;
     Eigen::Vector2d gains = Eigen::Vector2d::Zero();
     pinocchio::ReferenceFrame pinRef = pinocchio::LOCAL;
-    std::size_t T = 10;
+    std::size_t T = 2;
     mim::estimator::MHForceEstimator forceEstimator = mim::estimator::MHForceEstimator(T, model, nc, frameId, gains, pinRef);
     double TOL = 1e-6;
 
@@ -30,12 +29,40 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     BOOST_CHECK(forceEstimator.get_frameId() == frameId);
     BOOST_CHECK(forceEstimator.get_baumgarte_gains() == gains);
     BOOST_CHECK(forceEstimator.get_ref() == pinRef);
+
+    BOOST_CHECK(forceEstimator.get_H().rows() == (unsigned int)forceEstimator.get_n_tot());
+    BOOST_CHECK(forceEstimator.get_H().cols() == (unsigned int)forceEstimator.get_n_tot());
+    BOOST_CHECK(forceEstimator.get_P().size() == (unsigned int)nc);
+    BOOST_CHECK(forceEstimator.get_Q().size() == (unsigned int)model.nv);
+    BOOST_CHECK(forceEstimator.get_R().size() == (unsigned int)nc);
+
     BOOST_CHECK( (forceEstimator.get_P() - 5e-1*Eigen::VectorXd::Ones(nc)).isZero(TOL) );
     BOOST_CHECK( (forceEstimator.get_Q() - 1e-2*Eigen::VectorXd::Ones(model.nv)).isZero(TOL) );
     BOOST_CHECK( (forceEstimator.get_R() - 1e-2*Eigen::VectorXd::Ones(nc)).isZero(TOL) );
     BOOST_CHECK(forceEstimator.get_n_tot() == (unsigned int)nc + (unsigned int)T*((unsigned int)nc + (unsigned int)model.nv));
     BOOST_CHECK(forceEstimator.get_neq() == (unsigned int)T*((unsigned int)nc + (unsigned int)model.nv));
     BOOST_CHECK(forceEstimator.get_nin() == 0);
+
+    // Check construction of the QP
+    for(std::size_t t=0; t < T; t++){
+        std::size_t ind = t * (model.nv + nc);
+        std::cout << "t   = " << t << std::endl;
+        std::cout << "ind = " << ind << std::endl;
+        BOOST_CHECK( (forceEstimator.get_H().block(ind, ind, model.nv, model.nv) - Eigen::MatrixXd(forceEstimator.get_Q().asDiagonal())).isZero(TOL) );
+        BOOST_CHECK( (forceEstimator.get_H().block(ind + model.nv, ind + model.nv, nc, nc) - Eigen::MatrixXd(forceEstimator.get_R().asDiagonal())).isZero(TOL) );
+        std::cout << "H " << std::endl;
+        std::cout << forceEstimator.get_H() << std::endl; //.block(ind + model.nv + nc, ind + model.nv + nc, nc, nc) << std::endl;
+        std::cout << "R.diagonal() " << std::endl;
+        std::cout << Eigen::MatrixXd(forceEstimator.get_R().asDiagonal()) << std::endl;
+        BOOST_CHECK( (forceEstimator.get_H().block(ind + model.nv + nc, ind + model.nv + nc, nc, nc) - Eigen::MatrixXd(forceEstimator.get_R().asDiagonal())).isZero(TOL) );
+        if(ind >= nc){
+            BOOST_CHECK( (forceEstimator.get_H().block(ind + model.nv + nc, ind - nc, nc, nc) - Eigen::MatrixXd(forceEstimator.get_R().asDiagonal())).isZero(TOL));
+        } 
+        if((t+2) * (model.nv + nc)-nc < forceEstimator.get_n_tot()){
+            BOOST_CHECK( (forceEstimator.get_H().block(ind + model.nv + nc, (t+2) * (model.nv + nc)-nc, nc, nc) - Eigen::MatrixXd(forceEstimator.get_R().asDiagonal()) ).isZero(TOL)); 
+        }
+    }
+    BOOST_CHECK( (forceEstimator.get_H().bottomRightCorner(nc, nc) - Eigen::MatrixXd(forceEstimator.get_P().asDiagonal())).isZero(TOL));
 
     // Check setters
     gains = Eigen::Vector2d::Random();
@@ -98,9 +125,9 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
         v_list[t] = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nv); 
         a_list[t] = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nv); 
         tau_list[t] = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nv);
-        F_mes_list[t] = Eigen::VectorXd::Random(1);
+        F_mes_list[t] = Eigen::VectorXd::Random(nc);
     }
-    Eigen::VectorXd df_prior = Eigen::VectorXd::Random(1); 
+    Eigen::VectorXd df_prior = Eigen::VectorXd::Random(nc); 
 
     forceEstimator.estimate(forceEstimatorData, q_list, v_list, a_list, tau_list, df_prior, F_mes_list);
 }

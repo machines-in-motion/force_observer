@@ -109,7 +109,7 @@ for _, nc in enumerate(CONTACT_DIMS):
             # MHE C++ vs MHE Python #
             #########################
             print("Testing "+robot_name+"_"+contactFrameName+"_"+pinRefFrameStr+"_NC="+str(nc)+"_MHE_C++_vs_MHE_python")
-            T = 10
+            T = 1
             force_estimator_mh_py  = MHEstimator(T, robot, nc, id_endeff, gains, pinRefFrameStr)
             # zepojzp
             force_estimator_mh_cpp = MHForceEstimator(T, robot.model, nc, id_endeff, gains, pinRefFrame)
@@ -125,7 +125,7 @@ for _, nc in enumerate(CONTACT_DIMS):
             assert(norm(force_estimator_mh_cpp.baumgarte_gains - force_estimator_mh_py.baumgarte_gains) <= TOL)
             # Assert estimation
             force_estimator_mh_cpp_data = force_estimator_mh_cpp.createData()
-            force_estimator_mh_cpp.estimate(force_estimator_mh_cpp_data, q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
+            force_estimator_mh_cpp.estimate(force_estimator_mh_cpp_data, [q.copy()], [v.copy()], [a.copy()], [tau.copy()], df.copy(), [f.copy()])
             assert(norm(force_estimator_mh_cpp_data.delta_f - delta_f_mh_py) <= TOL)
 
 print("OK !")

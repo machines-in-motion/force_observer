@@ -114,7 +114,7 @@ void MHForceEstimator::estimate(
 
     d->g.tail(nc_)= - P_.cwiseProduct(df_prior);
     
-    qp_->init(H_, d->g, d->A, d->b, d->C, d->l, d->u);
+    qp_->init(H_, d->g, d->A, d->b, d->C, d->l, d->u); //std::nullopt, std::nullopt, std::nullopt); nullopt with C++17 only !
 
     qp_->solve();
     // std::cout << "optimal x: " << qp_->results.x << std::endl;
