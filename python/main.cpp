@@ -3,4 +3,5 @@
 BOOST_PYTHON_MODULE(force_observer_pywrap) { 
     mim::estimator::exposeEstimator(); 
     mim::estimator::exposeMHEstimator(); 
+    mim::estimator::exposeMHVaryingEstimator(); 
 }

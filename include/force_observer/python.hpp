@@ -6,12 +6,14 @@
 
 #include "force_observer/estimator.hpp"
 #include "force_observer/mh_estimator.hpp"
+#include "force_observer/mh_varying_estimator.hpp"
 
 
 namespace mim{
 namespace estimator{
     void exposeEstimator();
     void exposeMHEstimator();
+    void exposeMHVaryingEstimator();
 } // namespace mim
 } // namespace estimator
 

@@ -2,4 +2,6 @@
 from .force_observer_pywrap import ForceEstimator, \
                                    ForceEstimatorData, \
                                    MHForceEstimator, \
-                                   MHForceEstimatorData
+                                   MHForceEstimatorData, \
+                                   MHVaryingForceEstimator, \
+                                   MHVaryingForceEstimatorData
