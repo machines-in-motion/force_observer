@@ -47,7 +47,7 @@ for _, nc in enumerate(CONTACT_DIMS):
             # a = np.random.rand(robot.model.nv) 
             tau = np.random.rand(robot.model.nv) 
             f = np.random.rand(nc)
-            df = np.zeros(nc)
+            df = np.random.rand(nc)
             nq = robot.model.nq
             nv = robot.model.nv
             id_endeff = robot.model.getFrameId(contactFrameName)
@@ -90,7 +90,6 @@ for _, nc in enumerate(CONTACT_DIMS):
             force_estimator_mh_py.P = force_estimator_eq_py.P
             force_estimator_mh_py.Q = force_estimator_eq_py.Q
             force_estimator_mh_py.R = force_estimator_eq_py.R
-            force_estimator_mh_py.H = force_estimator_eq_py.H
             # Test that they give the same results
             _, delta_f_eq_py    = force_estimator_eq_py.estimate(q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
             _, delta_f_mh_py    = force_estimator_mh_py.estimate([q.copy()], [v.copy()], [a.copy()], [tau.copy()], df.copy(), [f.copy()])
@@ -98,6 +97,41 @@ for _, nc in enumerate(CONTACT_DIMS):
             assert(norm(force_estimator_mh_py.b - force_estimator_eq_py.b) <= TOL)
             assert(norm(force_estimator_mh_py.A - force_estimator_eq_py.A) <= TOL)
             assert(norm(delta_f_eq_py - delta_f_mh_py) <= TOL)
+
+
+
+
+
+
+
+
+            ##########################################################################
+            # MHEstimator (T=10) with a constant trajectory vs EstimatorEquivalent             #
+            ##########################################################################
+            print("  >> test_MHEstimator_T=10_with_a_constant_trajectory_vs_EstimatorEquivalent")
+            # Create estimators
+            T = 10
+            force_estimator_eq_py = EstimatorEquivalent(robot, nc, nc, id_endeff, gains, pinRefFrameStr)
+            force_estimator_mh_py = MHEstimator(T, robot, nc, id_endeff, gains, pinRefFrameStr)
+            # Make sure they have the same params
+            force_estimator_mh_py.P = force_estimator_eq_py.P
+            force_estimator_mh_py.Q = force_estimator_eq_py.Q
+            # balance weigth of T = 10
+            force_estimator_mh_py.R = force_estimator_eq_py.R / T
+            force_estimator_mh_py.define_parameters()
+            # Test that they give the same results
+            _, delta_f_eq_py    = force_estimator_eq_py.estimate(q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
+            _, delta_f_mh_py    = force_estimator_mh_py.estimate([q.copy()] * T, [v.copy()] * T, [a.copy()] * T, [tau.copy()] * T, df.copy(), [f.copy()] * T)
+            assert(norm(delta_f_eq_py - delta_f_mh_py) <= TOL)
+
+
+
+
+
+
+
+
+
 
 
 

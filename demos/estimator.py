@@ -207,6 +207,136 @@ class EstimatorEquivalent():
         return self.qp.results.x[self.nv:self.nv+self.nc], self.qp.results.x[-self.nc_delta_f:]
 
 
+# Implementation with Df in cost
+class MHEstimator():
+    '''
+    Computes the forward dynamics under rigid contact model 6D + force estimate
+    '''
+    def __init__(self, T, pin_robot, nc, frameId, baumgarte_gains, pinRefRame='LOCAL'):
+
+
+        self.pin_robot = pin_robot
+        self.nc = nc
+
+        if pinRefRame == 'LOCAL':
+            self.pinRefRame = pin.LOCAL
+        elif pinRefRame == 'LOCAL_WORLD_ALIGNED':
+            self.pinRefRame = pin.LOCAL_WORLD_ALIGNED
+        else: 
+            assert False 
+
+        if(self.nc == 1):
+            self.mask = 2
+
+
+        self.nv = self.pin_robot.model.nv
+
+        self.R = 1e-2 * np.eye(self.nc)
+        self.Q = 1e-2 * np.eye(self.nv)
+        self.P = 1e0 * np.eye(self.nc)
+
+
+        self.T = T
+        self.contact_frame_id = frameId
+        self.baumgarte_gains = baumgarte_gains
+
+
+        self.define_parameters()
+
+    def define_parameters(self):
+
+        self.n_tot = self.T * (self.nv + self.nc) + self.nc
+        n_eq = self.T * (self.nv + self.nc)
+        n_in = 0
+        self.n_eq = n_eq
+        self.n_in = n_in
+        self.qp = proxsuite.proxqp.sparse.QP(self.n_tot, n_eq, n_in)
+
+        
+        self.A = np.zeros((n_eq, self.n_tot))
+        self.b = np.zeros(n_eq)
+
+        self.H = np.zeros((self.n_tot, self.n_tot))
+
+        # Here is the H I believe to be the correct one
+        for t in range(self.T):
+            ind =  t * (self.nv + self.nc)
+            # diagonal
+            if(ind < self.n_tot-1): 
+                self.H[ind:ind+self.nv, ind:ind+self.nv] = self.Q
+            self.H[ind+self.nv:ind+self.nv+self.nc, ind+self.nv:ind+self.nv+self.nc]  = self.R 
+            # last row
+            self.H[-self.nc:, ind+self.nv:ind+self.nv+self.nc]  = - self.R 
+            # last col
+            self.H[ind+self.nv:ind+self.nv+self.nc, -self.nc:]  = - self.R 
+        #  bottom right corner
+        self.H[-self.nc:, -self.nc:]  = self.P + self.T * self.R
+
+        # Test whether H is symmetric
+        assert(np.allclose(self.H, self.H.T, rtol=1e-3, atol=1e-3))
+        self.g = np.zeros(self.n_tot)
+
+        self.C = None
+        self.u = None
+        self.l = None
+
+
+        assert self.baumgarte_gains[0] == 0
+
+        
+
+    def estimate(self, q_list, v_list, a_list, tau_list, df_prior, F_mes_list):
+        self.g = np.zeros(self.n_tot)
+        for t in range(self.T):
+            pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q_list[t], v_list[t])
+            pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q_list[t], v_list[t], a_list[t])
+            pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
+            M = self.pin_robot.mass(q_list[t]).copy()
+            h = self.pin_robot.nle(q_list[t], v_list[t]).copy()
+            if(self.nc == 1):
+                alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[self.mask:self.mask+1]
+                nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[self.mask:self.mask+1]
+                J = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame)[self.mask:self.mask+1]
+            else:
+                alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[:self.nc]
+                nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[:self.nc]
+                J = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame)[:self.nc]
+            alpha0 -= self.baumgarte_gains[1] * nu
+
+            ind =  t * (self.nv + self.nc)
+            # RHS
+            self.b[ind:ind+self.nv + self.nc] = np.concatenate([h - tau_list[t], -alpha0], axis=0).copy()
+            # diagonal
+            self.A[ind:ind+self.nv, ind:ind+self.nv] = - M.copy()
+            # above diagonal
+            self.A[ind:ind+self.nv, ind+self.nv:ind+self.nv+self.nc] = J.T.copy()
+            # below diagonal
+            self.A[ind+self.nv:ind+self.nv+self.nc, ind:ind+self.nv] = J.copy()
+            # Linear cost term
+            # acc cross terms
+            self.g[ind:ind+self.nv] = -self.Q @ a_list[t].copy()
+            # force cross terms
+            self.g[ind+self.nv:ind+self.nv+self.nc] = -self.R @ F_mes_list[t].copy()
+            #  delta_f cross terms with measured forces
+            self.g[self.n_tot-self.nc:self.n_tot] += self.R @ F_mes_list[t].copy()
+
+        #  delta_f cross term with prior
+        self.g[self.n_tot-self.nc:self.n_tot] += -self.P @ df_prior.copy()
+
+        self.qp.init(self.H, self.g, self.A, self.b, self.C, self.l, self.u)
+
+
+
+        t1 = time.time()
+
+        self.qp.solve()
+
+
+        return None, self.qp.results.x[-self.nc:]
+
+
+
+
 # Implementation with Df in constraint
 
 # class MHEstimator():
@@ -323,130 +453,9 @@ class EstimatorEquivalent():
 
 
 
-# Implementation with Df in cost
-class MHEstimator():
-    '''
-    Computes the forward dynamics under rigid contact model 6D + force estimate
-    '''
-    def __init__(self, T, pin_robot, nc, frameId, baumgarte_gains, pinRefRame='LOCAL'):
-
-
-        self.pin_robot = pin_robot
-        self.nc = nc
-
-        if pinRefRame == 'LOCAL':
-            self.pinRefRame = pin.LOCAL
-        elif pinRefRame == 'LOCAL_WORLD_ALIGNED':
-            self.pinRefRame = pin.LOCAL_WORLD_ALIGNED
-        else: 
-            assert False 
-
-        if(self.nc == 1):
-            self.mask = 2
-
-
-        self.nv = self.pin_robot.model.nv
-
-        self.R = 1e-2 * np.eye(self.nc)
-        self.Q = 1e-2 * np.eye(self.nv)
-        self.P = 5e-1 * np.eye(self.nc)
-
-        self.n_tot = T * (self.nv + self.nc) + self.nc
-        n_eq = T * (self.nv + self.nc)
-        n_in = 0
-        self.n_eq = n_eq
-        self.n_in = n_in
-        self.qp = proxsuite.proxqp.sparse.QP(self.n_tot, n_eq, n_in)
-
-        self.contact_frame_id = frameId
-
-        self.A = np.zeros((n_eq, self.n_tot))
-        self.b = np.zeros(n_eq)
-
-        self.H = np.zeros((self.n_tot, self.n_tot))
-
-        # Here is the H I believe to be the correct one
-        for t in range(T):
-            ind =  t * (self.nv + self.nc)
-            # diagonal
-            if(ind < self.n_tot-1): 
-                self.H[ind:ind+self.nv, ind:ind+self.nv] = self.Q
-            self.H[ind+self.nv:ind+self.nv+self.nc, ind+self.nv:ind+self.nv+self.nc]  = self.R 
-            # last row
-            self.H[-self.nc:, ind+self.nv:ind+self.nv+self.nc]  = self.R 
-            # last col
-            self.H[ind+self.nv:ind+self.nv+self.nc, -self.nc:]  = self.R 
-        #  bottom right corner
-        self.H[-self.nc:, -self.nc:]  = self.P + self.R
-
-        # Test whether H is symmetric
-        assert(np.allclose(self.H, self.H.T, rtol=1e-3, atol=1e-3))
-        self.g = np.zeros(self.n_tot)
-
-        self.C = None
-        self.u = None
-        self.l = None
-
-        self.baumgarte_gains = baumgarte_gains
-
-        assert self.baumgarte_gains[0] == 0
-
-        self.T = T
-
-    def estimate(self, q_list, v_list, a_list, tau_list, df_prior, F_mes_list):
-        self.g = np.zeros(self.n_tot)
-        for t in range(self.T):
-            pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q_list[t], v_list[t])
-            pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q_list[t], v_list[t], a_list[t])
-            pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
-            M = self.pin_robot.mass(q_list[t]).copy()
-            h = self.pin_robot.nle(q_list[t], v_list[t]).copy()
-            if(self.nc == 1):
-                alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[self.mask:self.mask+1]
-                nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[self.mask:self.mask+1]
-                J = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame)[self.mask:self.mask+1]
-            else:
-                alpha0 = pin.getFrameAcceleration(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[:self.nc]
-                nu = pin.getFrameVelocity(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame).vector[:self.nc]
-                J = pin.getFrameJacobian(self.pin_robot.model, self.pin_robot.data, self.contact_frame_id, self.pinRefRame)[:self.nc]
-            alpha0 -= self.baumgarte_gains[1] * nu
-
-            ind =  t * (self.nv + self.nc)
-            # RHS
-            self.b[ind:ind+self.nv + self.nc] = np.concatenate([h - tau_list[t], -alpha0], axis=0).copy()
-            # diagonal
-            self.A[ind:ind+self.nv, ind:ind+self.nv] = - M.copy()
-            # above diagonal
-            self.A[ind:ind+self.nv, ind+self.nv:ind+self.nv+self.nc] = J.T.copy()
-            # below diagonal
-            self.A[ind+self.nv:ind+self.nv+self.nc, ind:ind+self.nv] = J.copy()
-            # Linear cost term
-            # acc cross terms
-            self.g[ind:ind+self.nv] = -self.Q @ a_list[t].copy()
-            # force cross terms
-            self.g[ind+self.nv:ind+self.nv+self.nc] = -self.R @ F_mes_list[t].copy()
-            #  delta_f cross terms with measured forces
-            self.g[self.n_tot-self.nc:self.n_tot] += -self.R @ F_mes_list[t].copy()
-
-        #  delta_f cross term with prior
-        self.g[self.n_tot-self.nc:self.n_tot] += -self.P @ df_prior.copy()
-    
-        self.qp.init(self.H, self.g, self.A, self.b, self.C, self.l, self.u)
-
-
-
-        t1 = time.time()
-
-        self.qp.solve()
-
-
-        return None, self.qp.results.x[-self.nc:]
-
 
 
 # Implementation with varying Delta F
-
-
 class Varying_DF_MHEstimator():
     '''
     Computes the forward dynamics under rigid contact model 6D + force estimate
