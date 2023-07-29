@@ -30,12 +30,12 @@ void exposeMHEstimator() {
           ":param ref: Pinocchio reference frame of the contact model."))
 
       .def<void (MHForceEstimator::*)(const boost::shared_ptr<MHForceEstimatorData>&,
-                                    std::vector<Eigen::VectorXd>,
-                                    std::vector<Eigen::VectorXd>,
-                                    std::vector<Eigen::VectorXd>,
-                                    std::vector<Eigen::VectorXd>,
                                     const Eigen::Ref<const Eigen::VectorXd>&,
-                                    std::vector<Eigen::VectorXd>)>(
+                                    const Eigen::Ref<const Eigen::VectorXd>&,
+                                    const Eigen::Ref<const Eigen::VectorXd>&,
+                                    const Eigen::Ref<const Eigen::VectorXd>&,
+                                    const Eigen::Ref<const Eigen::VectorXd>&,
+                                    const Eigen::Ref<const Eigen::VectorXd>&)>(
           "estimate", &MHForceEstimator::estimate, bp::args("self", "data", "q_list", "v_list", "a_list", "tau_list", "df_prior", "F_mes_list"),
           "Computes the force offset estimate.\n\n"
           ":param data: force estimator data\n"

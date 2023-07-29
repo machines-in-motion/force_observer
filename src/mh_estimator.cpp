@@ -37,26 +37,28 @@ MHForceEstimator::MHForceEstimator(
     } 
 
     // Default weights
-    P_ = 5e-1*Eigen::VectorXd::Ones(nc_);
+    P_ = 1e0*Eigen::VectorXd::Ones(nc_);
     Q_ = 1e-2*Eigen::VectorXd::Ones(nv_);
     R_ = 1e-2*Eigen::VectorXd::Ones(nc_);
     H_ = Eigen::MatrixXd::Zero(n_tot_, n_tot_);
 
-    // What I believe to be the correct H (symmetric)
+    
     for(std::size_t t=0; t < T_; t++){
         // diagonal terms
         std::size_t ind = t * (nv_ + nc_);
-        if(ind < T_-1){
-            H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
-        }
+        H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
+        
         H_.block(ind + nv_, ind + nv_, nc_, nc_) = R_.asDiagonal(); 
         // last row
-        H_.bottomRows(nc_).block(0, ind + nv_, nc_, nc_) = R_.asDiagonal(); 
+        H_.bottomRows(nc_).block(0, ind + nv_, nc_, nc_) = (- R_).asDiagonal(); 
         // last col
-        H_.rightCols(nc_).block(ind + nv_, 0, nc_, nc_) = R_.asDiagonal();
+        H_.rightCols(nc_).block(ind + nv_, 0, nc_, nc_) = (- R_).asDiagonal();
     }
+    std::cout <<  "H" <<  H_.bottomRightCorner(nc_, nc_) << std::endl;
     H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
-    H_.bottomRightCorner(nc_, nc_) += R_.asDiagonal();
+    std::cout <<  "H" <<  H_.bottomRightCorner(nc_, nc_) << std::endl;
+    H_.bottomRightCorner(nc_, nc_) += (T_ * R_).asDiagonal();
+    std::cout <<  "H" <<  H_.bottomRightCorner(nc_, nc_) << std::endl;
 
     // QP solver
     qp_ = boost::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
@@ -71,18 +73,19 @@ MHForceEstimator::~MHForceEstimator(){}
 
 void MHForceEstimator::estimate(
                 const boost::shared_ptr<MHForceEstimatorData>& data, 
-                std::vector<Eigen::VectorXd> q_list,
-                std::vector<Eigen::VectorXd> v_list,
-                std::vector<Eigen::VectorXd> a_list,
-                std::vector<Eigen::VectorXd> tau_list,
+                const Eigen::Ref<const Eigen::VectorXd>& q_list,
+                const Eigen::Ref<const Eigen::VectorXd>& v_list,
+                const Eigen::Ref<const Eigen::VectorXd>& a_list,
+                const Eigen::Ref<const Eigen::VectorXd>& tau_list,
                 const Eigen::Ref<const Eigen::VectorXd>& df_prior,
-                std::vector<Eigen::VectorXd> F_mes_list){
+                const Eigen::Ref<const Eigen::VectorXd>& F_mes_list){
     Data* d = static_cast<Data*>(data.get());
     
     for(std::size_t t=0; t < T_; t++){
+
         // Compute required dynamic quantities
-        pinocchio::computeAllTerms(pinocchio_, d->pinocchio, q_list[t], v_list[t]);
-        pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q_list[t], v_list[t], a_list[t]);
+        pinocchio::computeAllTerms(pinocchio_, d->pinocchio, q_list.segment(t * nv_, nv_), v_list.segment(t * nv_, nv_));
+        pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q_list.segment(t * nv_, nv_), v_list.segment(t * nv_, nv_), a_list.segment(t * nv_, nv_));
         pinocchio::updateFramePlacements(pinocchio_, d->pinocchio);
         d->h = d->pinocchio.nle;
         d->M = d->pinocchio.M;
@@ -105,14 +108,14 @@ void MHForceEstimator::estimate(
         std::size_t ind =  t * (nv_ + nc_);
 
         // Construct QP
-        d->b.segment(ind, nv_) = d->h - tau_list[t]; 
+        d->b.segment(ind, nv_) = d->h - tau_list.segment(t * nv_, nv_); 
         d->b.segment(ind+nv_, nc_) = -d->alpha0;
         d->A.block(ind, ind, nv_, nv_) = -d->M;
         d->A.block(ind, ind+nv_, nv_, nc_) = d->J1.transpose();
         d->A.block(ind+nv_, ind, nc_, nv_) = d->J1;
-        d->g.segment(ind, nv_) = -Q_.cwiseProduct(a_list[t]);
-        d->g.segment(ind+nv_, nc_) = -R_.cwiseProduct(F_mes_list[t]);
-        d->g.segment(ind+nv_+nc_, nc_) += -R_.cwiseProduct(F_mes_list[t]);
+        d->g.segment(ind, nv_) = -Q_.cwiseProduct(a_list.segment(t * nv_, nv_));
+        d->g.segment(ind+nv_, nc_) = -R_.cwiseProduct(F_mes_list.segment(t * nv_, nv_));
+        d->g.segment(ind+nv_+nc_, nc_) += -R_.cwiseProduct(F_mes_list.segment(t * nv_, nv_));
     }
 
     d->g.tail(nc_)= -P_.cwiseProduct(df_prior);

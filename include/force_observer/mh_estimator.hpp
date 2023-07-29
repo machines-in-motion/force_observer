@@ -133,12 +133,12 @@ class MHForceEstimator{
    * @param[in] F_mes    Measured force \f$\mathbf{u}\in\mathbb{R}^{nc}\f$
    */
   void estimate(const boost::shared_ptr<MHForceEstimatorData>& data, 
-                std::vector<Eigen::VectorXd> q_list,
-                std::vector<Eigen::VectorXd> v_list,
-                std::vector<Eigen::VectorXd> a_list,
-                std::vector<Eigen::VectorXd> tau_list,
+                const Eigen::Ref<const VectorXd>& q_list,
+                const Eigen::Ref<const VectorXd>& v_list,
+                const Eigen::Ref<const VectorXd>& a_list,
+                const Eigen::Ref<const VectorXd>& tau_list,
                 const Eigen::Ref<const VectorXd>& df_prior,
-                std::vector<Eigen::VectorXd> F_mes_list);
+                const Eigen::Ref<const VectorXd>& F_mes_list);
 
     /**
    * @brief Create the force estimator data
