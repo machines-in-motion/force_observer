@@ -54,11 +54,11 @@ MHForceEstimator::MHForceEstimator(
         // last col
         H_.rightCols(nc_).block(ind + nv_, 0, nc_, nc_) = (- R_).asDiagonal();
     }
-    std::cout <<  "H" <<  H_.bottomRightCorner(nc_, nc_) << std::endl;
     H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
-    std::cout <<  "H" <<  H_.bottomRightCorner(nc_, nc_) << std::endl;
     H_.bottomRightCorner(nc_, nc_) += (T_ * R_).asDiagonal();
-    std::cout <<  "H" <<  H_.bottomRightCorner(nc_, nc_) << std::endl;
+
+
+    // std::cout <<  "H" <<  H_.bottomRightCorner(nc_, nc_) << std::endl;
 
     // QP solver
     qp_ = boost::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
@@ -80,7 +80,7 @@ void MHForceEstimator::estimate(
                 const Eigen::Ref<const Eigen::VectorXd>& df_prior,
                 const Eigen::Ref<const Eigen::VectorXd>& F_mes_list){
     Data* d = static_cast<Data*>(data.get());
-    
+    d->g.setZero();
     for(std::size_t t=0; t < T_; t++){
 
         // Compute required dynamic quantities
@@ -113,12 +113,16 @@ void MHForceEstimator::estimate(
         d->A.block(ind, ind, nv_, nv_) = -d->M;
         d->A.block(ind, ind+nv_, nv_, nc_) = d->J1.transpose();
         d->A.block(ind+nv_, ind, nc_, nv_) = d->J1;
-        d->g.segment(ind, nv_) = -Q_.cwiseProduct(a_list.segment(t * nv_, nv_));
-        d->g.segment(ind+nv_, nc_) = -R_.cwiseProduct(F_mes_list.segment(t * nv_, nv_));
-        d->g.segment(ind+nv_+nc_, nc_) += -R_.cwiseProduct(F_mes_list.segment(t * nv_, nv_));
-    }
 
-    d->g.tail(nc_)= -P_.cwiseProduct(df_prior);
+        // acc cross terms
+        d->g.segment(ind, nv_) = -Q_.cwiseProduct(a_list.segment(t * nv_, nv_));
+        // force cross terms
+        d->g.segment(ind+nv_, nc_) = -R_.cwiseProduct(F_mes_list.segment(t * nc_, nc_));
+        //  delta_f cross terms with measured forces
+        d->g.tail(nc_) += R_.cwiseProduct(F_mes_list.segment(t * nc_, nc_));
+    }
+    // delta_f cross term with prior
+    d->g.tail(nc_) += -P_.cwiseProduct(df_prior);
     
     qp_->init(H_, d->g, d->A, d->b, d->C, d->l, d->u); //std::nullopt, std::nullopt, std::nullopt); nullopt with C++17 only !
 

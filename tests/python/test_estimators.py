@@ -18,6 +18,7 @@ TOL   = 1e-3
 
 # Test cases
 ROBOTS = ['talos_arm', 'kinova']
+ROBOTS = ['talos_arm']
 FRAMES = ['wrist_left_ft_tool_link', 'j2s6s200_joint_finger_tip_1']
 
 FRAMES_REF_STR = ['LOCAL', 'LOCAL_WORLD_ALIGNED']
@@ -183,24 +184,51 @@ for _, nc in enumerate(CONTACT_DIMS):
             # MHForceEstimator C++ vs MHEstimator Python #
             ##############################################
             print("  >> test_MHForceEstimator_CPP_vs_MHEstimator_PYTHON")
-            T = 5
             force_estimator_mh_py  = MHEstimator(T, robot, nc, id_endeff, gains, pinRefFrameStr)
-            # # zepojzp
-            # force_estimator_mh_cpp = MHForceEstimator(T, robot.model, nc, id_endeff, gains, pinRefFrame)
-            # # Assert default values
-            # assert(force_estimator_mh_cpp.frame_id == force_estimator_mh_py.contact_frame_id)
-            # assert(force_estimator_mh_cpp.nc == force_estimator_mh_py.nc)
-            # if(nc==1): assert(force_estimator_mh_cpp.mask == force_estimator_mh_py.mask)
-            # force_estimator_mh_cpp.P = force_estimator_mh_py.P
-            # # force_estimator_mh_cpp.Q = force_estimator_mh_py.Q
-            # # force_estimator_mh_cpp.R = force_estimator_mh_py.R
-            # # force_estimator_mh_cpp.H = force_estimator_mh_py.H
-            # # assert(norm(force_estimator_mh_cpp.H - force_estimator_mh_py.H) <= TOL)
-            # assert(norm(force_estimator_mh_cpp.baumgarte_gains - force_estimator_mh_py.baumgarte_gains) <= TOL)
-            # # Assert estimation
-            # force_estimator_mh_cpp_data = force_estimator_mh_cpp.createData()
-            # force_estimator_mh_cpp.estimate(force_estimator_mh_cpp_data, [q.copy()], [v.copy()], [a.copy()], [tau.copy()], df.copy(), [f.copy()])
-            # assert(norm(force_estimator_mh_cpp_data.delta_f - delta_f_mh_py) <= TOL)
+            # 
+            force_estimator_mh_cpp = MHForceEstimator(T, robot.model, nc, id_endeff, gains, pinRefFrame)
+            # Assert default values
+            assert(force_estimator_mh_cpp.frame_id == force_estimator_mh_py.contact_frame_id)
+            assert(force_estimator_mh_cpp.nc == force_estimator_mh_py.nc)
+            if(nc==1): assert(force_estimator_mh_cpp.mask == force_estimator_mh_py.mask)
+
+
+            # Make sure they have the same params
+            assert((np.diag(force_estimator_mh_py.P) == force_estimator_mh_cpp.P).all())
+            assert((np.diag(force_estimator_mh_py.Q) == force_estimator_mh_cpp.Q).all())
+            assert((np.diag(force_estimator_mh_py.R) == force_estimator_mh_cpp.R).all())
+
+            # Match matrix
+            assert(norm(force_estimator_mh_cpp.H - force_estimator_mh_py.H) <= TOL)
+            assert(norm(force_estimator_mh_cpp.baumgarte_gains - force_estimator_mh_py.baumgarte_gains) <= TOL)
+            # Assert estimation
+            force_estimator_mh_cpp_data = force_estimator_mh_cpp.createData()
+            q_list = [] 
+            v_list = [] 
+            a_list = [] 
+            tau_list = [] 
+            f_list = [] 
+            for i in range(T):
+                q_list += list(q)
+                v_list += list(v)
+                a_list += list(a)
+                tau_list += list(tau)
+                f_list += list(f)
+            force_estimator_mh_cpp.estimate(force_estimator_mh_cpp_data, np.array(q_list), np.array(v_list), np.array(a_list), np.array(tau_list), df.copy(), np.array(f_list))
+            _, delta_f_mh_py    = force_estimator_mh_py.estimate([q.copy()] * T, [v.copy()] * T, [a.copy()] * T, [tau.copy()] * T, df.copy(), [f.copy()] * T)
+
+            assert(norm(force_estimator_mh_cpp_data.delta_f - delta_f_mh_py) <= TOL)
+
+
+
+
+
+
+
+
+
+
+
 
 print("OK !")
 
