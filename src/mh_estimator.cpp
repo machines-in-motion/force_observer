@@ -56,12 +56,13 @@ MHForceEstimator::MHForceEstimator(
     }
     H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
     H_.bottomRightCorner(nc_, nc_) += (T_ * R_).asDiagonal();
+    Hsp_ = H_.sparseView();
 
 
-    // std::cout <<  "H" <<  H_.bottomRightCorner(nc_, nc_) << std::endl;
+    // std::cout <<  "A" <<  A << std::endl;
 
-    // QP solver
-    qp_ = boost::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
+    qp_ = boost::make_shared<sparse::QP<double, long long>>(sparse::QP<double, long long>(n_tot_, neq_, nin_));
+
 
     if(baumgarte_gains_[0] > 1e-6){
         std::cout << "Error: the proportional gain of Baugmarte should be 0 !" << std::endl;
@@ -86,6 +87,8 @@ void MHForceEstimator::estimate(
         // Compute required dynamic quantities
         pinocchio::computeAllTerms(pinocchio_, d->pinocchio, q_list.segment(t * nv_, nv_), v_list.segment(t * nv_, nv_));
         pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q_list.segment(t * nv_, nv_), v_list.segment(t * nv_, nv_), a_list.segment(t * nv_, nv_));
+        // pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q_list.segment(t * nv_, nv_), v_list.segment(t * nv_, nv_));
+
         pinocchio::updateFramePlacements(pinocchio_, d->pinocchio);
         d->h = d->pinocchio.nle;
         d->M = d->pinocchio.M;
@@ -123,11 +126,14 @@ void MHForceEstimator::estimate(
     }
     // delta_f cross term with prior
     d->g.tail(nc_) += -P_.cwiseProduct(df_prior);
-    
-    qp_->init(H_, d->g, d->A, d->b, d->C, d->l, d->u); //std::nullopt, std::nullopt, std::nullopt); nullopt with C++17 only !
+
+    Asp_ = d->A.sparseView();
+    Csp_ = d->C.sparseView();
+
+    qp_->init(Hsp_, d->g, Asp_, d->b, Csp_, d->l, d->u); //std::nullopt, std::nullopt, std::nullopt); nullopt with C++17 only !
 
     qp_->solve();
-    // std::cout << "optimal x: " << qp_->results.x << std::endl;
+    // std::cout << "ITER: " << qp_->results.info.iter << std::endl;
     d->delta_f = qp_->results.x.bottomRows(nc_);
 }
 
@@ -210,17 +216,17 @@ void MHForceEstimator::set_ref(const pinocchio::ReferenceFrame ref) {
 void MHForceEstimator::set_P(const Eigen::VectorXd& inP) {
     P_ = inP;
     H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
-    H_.bottomRightCorner(nc_, nc_) += R_.asDiagonal();
+    Hsp_ = H_.sparseView();
 }
 
 void MHForceEstimator::set_Q(const Eigen::VectorXd& inQ) {
     Q_ = inQ;
     for(std::size_t t=0; t < T_; t++){
+        // diagonal terms
         std::size_t ind = t * (nv_ + nc_);
-        if(ind < T_-1){
-            H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
-        }
+        H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
     }
+    Hsp_ = H_.sparseView();
 }
 
 void MHForceEstimator::set_R(const Eigen::VectorXd& inR) {
@@ -228,17 +234,14 @@ void MHForceEstimator::set_R(const Eigen::VectorXd& inR) {
     for(std::size_t t=0; t < T_; t++){
         // diagonal terms
         std::size_t ind = t * (nv_ + nc_);
-        if(ind < T_-1){
-            H_.block(ind, ind, nv_, nv_)  = Q_.asDiagonal();
-        }
         H_.block(ind + nv_, ind + nv_, nc_, nc_) = R_.asDiagonal(); 
         // last row
-        H_.bottomRows(nc_).block(0, ind + nv_, nc_, nc_) = R_.asDiagonal(); 
+        H_.bottomRows(nc_).block(0, ind + nv_, nc_, nc_) = (- R_).asDiagonal(); 
         // last col
-        H_.rightCols(nc_).block(ind + nv_, 0, nc_, nc_) = R_.asDiagonal();
+        H_.rightCols(nc_).block(ind + nv_, 0, nc_, nc_) = (- R_).asDiagonal();
     }
-    H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
-    H_.bottomRightCorner(nc_, nc_) += R_.asDiagonal();
+    H_.bottomRightCorner(nc_, nc_) += (T_ * R_).asDiagonal();
+    Hsp_ = H_.sparseView();
 }
 
 void MHForceEstimator::set_mask(const std::size_t mask) {

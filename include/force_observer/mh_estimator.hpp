@@ -13,7 +13,7 @@
 #include "pinocchio/multibody/model.hpp"
 
 #include <proxsuite/helpers/optional.hpp> // for c++14
-#include <proxsuite/proxqp/dense/dense.hpp>
+#include <proxsuite/proxqp/sparse/sparse.hpp>
 
 using namespace proxsuite::proxqp;
 using proxsuite::nullopt; // c++17 simply use std::nullopt
@@ -196,7 +196,13 @@ class MHForceEstimator{
     VectorXd R_;                                    //!< Force weight
     MatrixXd H_;                                    //!< QP param         
 
-    boost::shared_ptr<dense::QP<double>> qp_;                          //!< QP solver
+    Eigen::SparseMatrix<double> Hsp_;               //!< Sparce QP param      
+    Eigen::SparseMatrix<double> Asp_;               //!< Sparce QP param    
+    Eigen::SparseMatrix<double> Csp_;               //!< Sparce QP param 
+
+
+
+    boost::shared_ptr<sparse::QP<double, long long>> qp_;                          //!< QP solver
 };
 
 
