@@ -12,7 +12,7 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 from multiprocessing import Pipe, Process
 from robot_properties_kuka.config import IiwaConfig
 
-from force_observer import ForceEstimator
+from force_observer import ForceEstimator, MHForceEstimator
 
 
 NO_PIPE = True
@@ -289,11 +289,23 @@ class ClassicalMPCContact:
         # ForceEstimator
         frame_of_interest = config['frame_of_interest']
         id_endeff = robot.model.getFrameId(frame_of_interest)
-        self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+        if config['DF_HORIZON'] == 0:
+            self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+        else:
+            self.estimator = MHForceEstimator(config['DF_HORIZON'], self.robot.model, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+
         self.data_estimator = self.estimator.createData()
         self.delta_f = 0.
         self.estimator.Q = 4e-3 * np.ones(7)
         self.estimator.R = 2e-2 * np.ones(1)
+
+        self.buffer_length = max(1, config['DF_HORIZON'])
+        self.buffer_q   = np.zeros(self.buffer_length * self.nv)
+        self.buffer_v   = np.zeros(self.buffer_length * self.nv)
+        self.buffer_a   = np.zeros(self.buffer_length * self.nv)
+        self.buffer_tau = np.zeros(self.buffer_length * self.nv)
+        self.buffer_f   = np.zeros(self.buffer_length)
+        self.tau_old = np.zeros(self.nv)
 
 
         self.node_id_reach = -1
@@ -424,10 +436,28 @@ class ClassicalMPCContact:
         time_to_ramp    = int(thread.ti - self.T_RAMP)
         time_to_circle  = int(thread.ti - self.T_CIRCLE)
 
+
+
+        # Delta F estimation:
+        
+
+        self.buffer_q[self.nv:]   = self.buffer_q[:-self.nv]
+        self.buffer_v[self.nv:]   = self.buffer_v[:-self.nv]
+        self.buffer_a[self.nv:]   = self.buffer_a[:-self.nv]
+        self.buffer_tau[self.nv:]   = self.buffer_tau[:-self.nv]
+        self.buffer_f[1:]   = self.buffer_f[:-1]
+
+
+
+        self.buffer_q[:self.nv]   = q
+        self.buffer_v[:self.nv]   = v
+        self.buffer_a[:self.nv]   = self.a
+        self.buffer_tau[:self.nv] = self.tau_old
+        self.buffer_f[:1]         = np.array([self.contact_force_3d_measured[2]])
+
         t0 = time.time()
         if time_to_ramp > 0:
-            fz = np.array([self.contact_force_3d_measured[2]])
-            self.estimator.estimate(self.data_estimator, q, v, self.a, self.tau_old, np.array([self.delta_f]), fz)
+            self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, np.array([self.delta_f]), self.buffer_f)
             self.delta_f = np.clip(self.data_estimator.delta_f, self.delta_f - 0.2, self.delta_f + 0.2)
             # Safety clipping
             self.delta_f = np.clip(self.delta_f, -40, 40)
