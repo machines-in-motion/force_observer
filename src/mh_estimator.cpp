@@ -27,6 +27,7 @@ MHForceEstimator::MHForceEstimator(
     }
     T_ = T;
     nv_ = pinocchio_.nv;
+    nq_ = pinocchio_.nq;
     n_tot_ = T_ * (nv_ + nc_) + nc_;
     neq_ = T_ * (nv_ + nc_);
     nin_ = 0.;
@@ -85,9 +86,9 @@ void MHForceEstimator::estimate(
     for(std::size_t t=0; t < T_; t++){
 
         // Compute required dynamic quantities
-        pinocchio::computeAllTerms(pinocchio_, d->pinocchio, q_list.segment(t * nv_, nv_), v_list.segment(t * nv_, nv_));
-        pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q_list.segment(t * nv_, nv_), v_list.segment(t * nv_, nv_), a_list.segment(t * nv_, nv_));
-        // pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q_list.segment(t * nv_, nv_), v_list.segment(t * nv_, nv_));
+        pinocchio::computeAllTerms(pinocchio_, d->pinocchio, q_list.segment(t * nq_, nq_), v_list.segment(t * nv_, nv_));
+        // pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q_list.segment(t * nq_, nq_), v_list.segment(t * nv_, nv_), a_list.segment(t * nv_, nv_));
+        pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q_list.segment(t * nq_, nq_), v_list.segment(t * nv_, nv_));
 
         pinocchio::updateFramePlacements(pinocchio_, d->pinocchio);
         d->h = d->pinocchio.nle;
@@ -96,13 +97,13 @@ void MHForceEstimator::estimate(
         d->M.triangularView<Eigen::StrictlyLower>() = d->M.transpose().triangularView<Eigen::StrictlyLower>();
 
         if(nc_ == 1){
-            d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_).toVector().segment(mask_, nc_);
-            d->nu = pinocchio::getFrameVelocity(pinocchio_, d->pinocchio, frameId_).toVector().segment(mask_, nc_);
+            d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_, ref_).toVector().segment(mask_, nc_);
+            d->nu = pinocchio::getFrameVelocity(pinocchio_, d->pinocchio, frameId_, ref_).toVector().segment(mask_, nc_);
             pinocchio::getFrameJacobian(pinocchio_, d->pinocchio, frameId_, ref_, d->J);
             d->J1 = d->J.row(mask_);
         } else {
-            d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_).toVector().head(nc_);
-            d->nu = pinocchio::getFrameVelocity(pinocchio_, d->pinocchio, frameId_).toVector().head(nc_);
+            d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_, ref_).toVector().head(nc_);
+            d->nu = pinocchio::getFrameVelocity(pinocchio_, d->pinocchio, frameId_, ref_).toVector().head(nc_);
             pinocchio::getFrameJacobian(pinocchio_, d->pinocchio, frameId_, ref_, d->J);
             d->J1 = d->J.topRows(nc_);
         }

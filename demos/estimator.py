@@ -99,7 +99,9 @@ class Estimator():
         # solve it
 
         self.qp.init(self.H, g, A, b, self.C, self.l, self.u)
-
+        self.A = A 
+        self.g = g 
+        self.b = b
         t1 = time.time()
         self.qp.solve()
         # print("time ", time.time() - t1)
@@ -289,7 +291,7 @@ class MHEstimator():
         self.g = np.zeros(self.n_tot)
         for t in range(self.T):
             pin.computeAllTerms(self.pin_robot.model, self.pin_robot.data, q_list[t], v_list[t])
-            pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q_list[t], v_list[t], a_list[t])
+            pin.forwardKinematics(self.pin_robot.model, self.pin_robot.data, q_list[t], v_list[t], np.zeros(self.nv)) # a_list[t])
             pin.updateFramePlacements(self.pin_robot.model, self.pin_robot.data)
             M = self.pin_robot.mass(q_list[t]).copy()
             h = self.pin_robot.nle(q_list[t], v_list[t]).copy()

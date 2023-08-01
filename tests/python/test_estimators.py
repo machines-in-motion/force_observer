@@ -18,8 +18,10 @@ TOL   = 1e-3
 
 # Test cases
 ROBOTS = ['talos_arm', 'kinova']
-ROBOTS = ['talos_arm']
 FRAMES = ['wrist_left_ft_tool_link', 'j2s6s200_joint_finger_tip_1']
+
+ROBOTS = ['kinova', 'talos_arm']
+FRAMES = ['j2s6s200_joint_finger_tip_1', 'wrist_left_ft_tool_link']
 
 FRAMES_REF_STR = ['LOCAL', 'LOCAL_WORLD_ALIGNED']
 FRAMES_REF     = [pin.LOCAL, pin.LOCAL_WORLD_ALIGNED]
@@ -41,9 +43,8 @@ for _, nc in enumerate(CONTACT_DIMS):
             contactFrameName = FRAMES[idr]
             # Initial conditions
             q = pin.randomConfiguration(robot.model) 
-            # Test C++ vs python fails when high velocities : different alpha0 and nu python vs C++ , maybe numpy numerical precision is the issue?
-            v = np.random.rand(robot.model.nv)*0.01 
-            a = np.random.rand(robot.model.nv) * 0
+            v = np.random.rand(robot.model.nv) 
+            a = np.random.rand(robot.model.nv) 
             tau = np.random.rand(robot.model.nv) 
             f = np.random.rand(nc)
             df = np.random.rand(nc)
@@ -51,7 +52,7 @@ for _, nc in enumerate(CONTACT_DIMS):
             nv = robot.model.nv
             id_endeff = robot.model.getFrameId(contactFrameName)
 
-            print("TEST CASE "+robot_name+"_"+contactFrameName+"_"+pinRefFrameStr+"_NC="+str(nc))
+            print("\nTEST CASE "+robot_name+"_"+contactFrameName+"_"+pinRefFrameStr+"_NC="+str(nc))
 
 
 
@@ -66,9 +67,9 @@ for _, nc in enumerate(CONTACT_DIMS):
             force_estimator_py    = Estimator(robot, nc, nc, id_endeff, gains, pinRefFrameStr)
             force_estimator_eq_py = EstimatorEquivalent(robot, nc, nc, id_endeff, gains, pinRefFrameStr)
             # Make sure they have the same params
-            force_estimator_eq_py.P = force_estimator_py.P
-            force_estimator_eq_py.Q = force_estimator_py.Q
-            force_estimator_eq_py.R = force_estimator_py.R
+            assert((np.diag(force_estimator_eq_py.P) == np.diag(force_estimator_py.P)).all())
+            assert((np.diag(force_estimator_eq_py.Q) == np.diag(force_estimator_py.Q)).all())
+            assert((np.diag(force_estimator_eq_py.R) == np.diag(force_estimator_py.R)).all())
             # Test that they give the same results
             _, delta_f_py    = force_estimator_py.estimate(q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
             _, delta_f_eq_py = force_estimator_eq_py.estimate(q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
@@ -94,6 +95,11 @@ for _, nc in enumerate(CONTACT_DIMS):
             # Assert estimation
             force_estimator_cpp_data = force_estimator_cpp.createData()
             force_estimator_cpp.estimate(force_estimator_cpp_data, q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
+            
+            assert(norm(force_estimator_cpp.H - force_estimator_py.H) <= TOL)
+            assert(norm(force_estimator_cpp_data.g - force_estimator_py.g) <= TOL)
+            assert(norm(force_estimator_cpp_data.A - force_estimator_py.A) <= TOL)
+            assert(norm(force_estimator_cpp_data.b - force_estimator_py.b) <= TOL)            
             assert(norm(force_estimator_cpp_data.delta_f - delta_f_py) <= TOL)
 
 
@@ -140,33 +146,6 @@ for _, nc in enumerate(CONTACT_DIMS):
             _, delta_f_eq_py    = force_estimator_eq_py.estimate(q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
             _, delta_f_mh_py    = force_estimator_mh_py.estimate([q.copy()] * T, [v.copy()] * T, [a.copy()] * T, [tau.copy()] * T, df.copy(), [f.copy()] * T)
             assert(norm(delta_f_eq_py - delta_f_mh_py) <= TOL)
-
-
-
-
-
-            # # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-            # # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-            # # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-            # #############################################
-            # # Varying_DF_MHEstimator (T=1) vs Estimator #
-            # #############################################
-            # print("  >> test_Varying_DF_MHEstimator_T=1_vs_Estimator")
-            # force_estimator_mh_varying_py = Varying_DF_MHEstimator(1, robot, nc, id_endeff, gains, pinRefFrameStr)
-            # # Make sure they have the same params
-            # force_estimator_mh_varying_py.P = force_estimator_py.P
-            # force_estimator_mh_varying_py.Q = force_estimator_py.Q
-            # force_estimator_mh_varying_py.R = force_estimator_py.R
-            # force_estimator_mh_varying_py.H = force_estimator_py.H
-            # _, delta_f_mh_varying_py = force_estimator_mh_varying_py.estimate([q.copy()], [v.copy()], [a.copy()], [tau.copy()], [df.copy()], [f.copy()])
-            # assert(norm(delta_f_py - delta_f_mh_varying_py) <= TOL)
-            # # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-            # # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-            # # DOES NOT PASS FOR SOME REASON TO BE INVESTIGATED
-
-
-
-
 
 
             ##############################################

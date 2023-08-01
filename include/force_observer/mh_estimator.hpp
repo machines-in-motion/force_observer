@@ -186,7 +186,8 @@ class MHForceEstimator{
     pinocchio::ReferenceFrame ref_;                 //!< Pinocchio reference frame    
 
     std::size_t n_tot_;                             //!< Total QP dimension
-    std::size_t nv_;                                //!< Joint vel dimension 
+    std::size_t nq_;                                //!< Joint configuration dimension 
+    std::size_t nv_;                                //!< Joint velocity dimension 
     std::size_t neq_;                               //!< Number of equality constraints in the QP 
     std::size_t nin_;                               //!< Number of inequality constraints in the QP
     std::size_t mask_;                              //!< Mask of the 1D constraint (only for nc=1)

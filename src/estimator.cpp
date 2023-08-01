@@ -69,7 +69,8 @@ void ForceEstimator::estimate(
     
     // Compute required dynamic quantities
     pinocchio::computeAllTerms(pinocchio_, d->pinocchio, q, v);
-    pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q, v, a);
+    // pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q, v, a);
+    pinocchio::forwardKinematics(pinocchio_, d->pinocchio, q, v);
     pinocchio::updateFramePlacements(pinocchio_, d->pinocchio);
     d->h = d->pinocchio.nle;
     d->M = d->pinocchio.M;
@@ -77,13 +78,13 @@ void ForceEstimator::estimate(
     d->M.triangularView<Eigen::StrictlyLower>() = d->M.transpose().triangularView<Eigen::StrictlyLower>();
 
     if(nc_ == 1){
-        d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_).toVector().segment(mask_, nc_);
-        d->nu = pinocchio::getFrameVelocity(pinocchio_, d->pinocchio, frameId_).toVector().segment(mask_, nc_);
+        d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_, ref_).toVector().segment(mask_, nc_);
+        d->nu = pinocchio::getFrameVelocity(pinocchio_, d->pinocchio, frameId_, ref_).toVector().segment(mask_, nc_);
         pinocchio::getFrameJacobian(pinocchio_, d->pinocchio, frameId_, ref_, d->J);
         d->J1 = d->J.row(mask_);
     } else {
-        d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_).toVector().head(nc_);
-        d->nu = pinocchio::getFrameVelocity(pinocchio_, d->pinocchio, frameId_).toVector().head(nc_);
+        d->alpha0 = pinocchio::getFrameAcceleration(pinocchio_, d->pinocchio, frameId_, ref_).toVector().head(nc_);
+        d->nu = pinocchio::getFrameVelocity(pinocchio_, d->pinocchio, frameId_, ref_).toVector().head(nc_);
         pinocchio::getFrameJacobian(pinocchio_, d->pinocchio, frameId_, ref_, d->J);
         d->J1 = d->J.topRows(nc_);
     }
@@ -97,7 +98,7 @@ void ForceEstimator::estimate(
     // Construct QP
     d->b.topRows(nv_) = d->h - tau; 
     d->b.bottomRows(nc_) = -d->alpha0;
-    d->A.topLeftCorner(nv_, nv_) = d->M;
+    d->A.topLeftCorner(nv_, nv_) = - d->M;
     d->A.block(0, nv_, nv_, nc_) = d->J1.transpose();
     d->A.block(0, nv_+nc_, nv_, nc_delta_f_) = d->J2.transpose();
     d->A.block(nv_, 0, nc_, nv_) = d->J1;
