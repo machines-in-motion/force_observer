@@ -18,7 +18,6 @@ from force_observer import ForceEstimator, MHForceEstimator
 NO_PIPE = True
 
 
-
 def solveOCP(q, v, ddp, nb_iter, node_id_reach, target_reach, node_id_contact, node_id_track, node_id_circle, force_weight, TASK_PHASE, target_force, target_velocity):
         t = time.time()
         # Update initial state + warm-start
@@ -55,7 +54,8 @@ def solveOCP(q, v, ddp, nb_iter, node_id_reach, target_reach, node_id_contact, n
                 for k in range( node_id_contact, ddp.problem.T+1, 1 ):  
                     m[k].differential.costs.costs["translation"].active = True
                     m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                    m[k].differential.costs.costs["translation"].weight = 2.
+                    m[k].differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
+                    m[k].differential.costs.costs["translation"].weight = 60. 
                     m[k].differential.costs.costs['rotation'].active = True
                     m[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
                     # activate contact and force cost
@@ -71,19 +71,10 @@ def solveOCP(q, v, ddp, nb_iter, node_id_reach, target_reach, node_id_contact, n
             if(node_id_circle <= ddp.problem.T and node_id_circle >= 0):
                 # Updates nodes between node_id and terminal node
                 for k in range( node_id_circle, ddp.problem.T+1, 1 ):
-                    m[k].differential.costs.costs["translation"].active = True
                     m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                    m[k].differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
-                    m[k].differential.costs.costs["translation"].weight = 60. 
-                    m[k].differential.costs.costs['rotation'].active = True
-                    m[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
-                    # activate contact and force cost
-                    m[k].differential.contacts.changeContactStatus("contact", True)
+                    # update force ref
                     if(k!=ddp.problem.T):
-                        fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
-                        m[k].differential.costs.costs["force"].active = True
-                        m[k].differential.costs.costs["force"].weight = force_weight
-                        m[k].differential.costs.costs["force"].cost.residual.reference = fref
+                        m[k].differential.costs.costs["force"].cost.residual.reference = fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
         jf = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f
         jMf = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf
@@ -458,9 +449,9 @@ class ClassicalMPCContact:
         t0 = time.time()
         if time_to_ramp > 0:
             self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, np.array([self.delta_f]), self.buffer_f)
-            self.delta_f = np.clip(self.data_estimator.delta_f, self.delta_f - 0.2, self.delta_f + 0.2)
-            # Safety clipping
-            self.delta_f = np.clip(self.delta_f, -40, 40)
+            # Safety clipping (using np.core is 4 times faster than np.clip)
+            self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 0.2), self.delta_f - 0.2)
+            self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
         self.time_df = time.time() - t0
 
 

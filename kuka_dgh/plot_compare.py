@@ -40,25 +40,25 @@ print(controlled_joint_ids)
 s = SimpleDataPlotter()
 
 data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-label1 = 'no_delta_f'
-label2 = 'fric_only'
-label3 = 'delta_f_Q_fric'
+label1 = 'friction_only'
+label2 = 'friction_+_DF_H=0'
+label3 = 'friction_+_DF_H=1'
 
 SAVE = False
 
 print("Load data 1...")
-r1 = DataReader(data_path+'config_REAL_2023-07-14T11:36:25.882687_no_delta_f.mds')  
+r1 = DataReader(data_path+'config_REAL_2023-08-01T16:56:32.506377_friction_only.mds')  
 print("Load data 2...")
-r2 = DataReader('/home/ajordana/Desktop/delta_f_real_exp/filter/'+'config_REAL_2023-07-20T17:40:00.571261delta_f_Q=R=4e-3_fric.mds') 
+r2 = DataReader(data_path+'config_REAL_2023-08-01T16:58:17.383956_friction_+_DF_H=0.mds') 
 print("Load data 3...")
-r3 = DataReader('/home/ajordana/Desktop/delta_f_real_exp/filter/'+'config_REAL_2023-07-20T18:36:11.700721delta_f_fric_best.mds')
+r3 = DataReader(data_path+'config_REAL_2023-08-01T17:04:21.765391_friction_+_DF_H=1.mds')
 
 
 # Load config file
 CONFIG_NAME = 'config.yml'
 config      = path_utils.load_yaml_file(CONFIG_NAME)
 
-FILTER = 100
+FILTER = 10
 from core_mpc import analysis_utils 
 
 
@@ -199,29 +199,30 @@ fig_p2, _ = s.plot_ee_pos( [
 fig, ax = plt.subplots(4, 1, sharex='col') 
 ax[0].plot(r1.data['count']-1, label='count_'+label1)
 ax[0].plot(r2.data['count']-1, label='count_'+label2)
+ax[0].plot(r3.data['count']-1, label='count_'+label3)
 
 ax[1].plot(r1.data['t_child'], label='child'+label1)
 ax[1].plot(r2.data['t_child'], label='child'+label2)
-
-ax[1].plot(r1.data['t_child_1'], label='child_1 (not solve)'+label1)
-ax[1].plot(r2.data['t_child_1'], label='child_1 (not solve)'+label2)
+ax[1].plot(r3.data['t_child'], label='child'+label3)
 
 ax[2].plot(r1.data['ddp_iter'], label='iter'+label1)
 ax[2].plot(r2.data['ddp_iter'], label='iter'+label2)
+ax[2].plot(r3.data['ddp_iter'], label='iter'+label3)
 
 ax[3].plot(r1.data['t_run'], label='t_run'+label1)
-ax[3].plot(r1.data['t_run'], label='t_run'+label2)
-plt.legend()
+ax[3].plot(r2.data['t_run'], label='t_run'+label2)
+ax[3].plot(r3.data['t_run'], label='t_run'+label3)
+ax[0].legend(); ax[1].legend(); ax[2].legend(); ax[3].legend()
 
 
 print("------------------------------------")
 print("------------------------------------")
-print(label1+" Pxy error norm = ", np.linalg.norm(p_mea1[N_START:N,:2] - target_position[N_START:N,:2]))
+print(label1+" Pxy error norm = ", np.linalg.norm(p_mea1[N_START:N,:2] - target_position[N_START:N,:2]) )
 print(label2+" Pxy error norm = ", np.linalg.norm(p_mea2[N_START:N,:2] - target_position2[N_START:N,:2]))
 print(label3+" Pxy error norm = ", np.linalg.norm(p_mea3[N_START:N,:2] - target_position3[N_START:N,:2]))
-print(label1+" Fz error norm = ", np.linalg.norm(r1.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:,2]))
-print(label2+" Fz error norm = ", np.linalg.norm(r2.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:,2]))
-print(label3+" Fz error norm = ", np.linalg.norm(r3.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:,2]))
+print(label1+" Fz mean abs error = ", np.mean(np.abs(r1.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:,2])))
+print(label2+" Fz mean abs error = ", np.mean(np.abs(r2.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:,2])))
+print(label3+" Fz mean abs error = ", np.mean(np.abs(r3.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:,2])))
 print("------------------------------------")
 print("------------------------------------")
 

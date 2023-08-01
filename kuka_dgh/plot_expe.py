@@ -55,30 +55,28 @@ FILTER = 100
 
 
 if(SIM):
-    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding_SIM/'
-    data_name = 'config_SIM_2023-07-17T16:47:20.132442'
+    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding_no_filter/'
+    data_name = 'config_SIM_2023-08-01T13:58:50.797096.mds'
     
 else:
-    data_path = '/home/ajordana/Desktop/delta_f_real_exp/filter/'
-    data_name = 'config_REAL_2023-07-20T18:27:19.239501delta_f_fric_reg'
+    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding_no_filter/'
+    data_name = 'config_REAL_2023-08-01T16:26:44.658684_friction+df(no-acc-in-FK)_ter.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
 
-r = DataReader(data_path+data_name+'.mds')
+r = DataReader(data_path+data_name)
 N = r.data['tau'].shape[0]
 
 fig, ax = plt.subplots(4, 1, sharex='col') 
-ax[0].plot(r.data['count']-1, label='count')
-ax[1].plot(r.data['t_child'], label='child')
-ax[1].plot(r.data['t_child_1'], label='child_1 (not solve)')
-ax[2].plot(r.data['ddp_iter'], label='iter')
-ax[3].plot(r.data['t_run'], label='t_run')
+ax[0].plot(r.data['t_child'], label='t_solve')
+ax[0].plot(N*[1./config['plan_freq']], label= 'mpc')
+ax[1].plot(r.data['time_df'], label='DF_time')
 ax[1].plot(N*[1./config['plan_freq']], label= 'mpc')
+ax[2].plot(r.data['ddp_iter'], label='ddp iter')
+ax[3].plot(r.data['t_run'], label='t_run')
 ax[3].plot(N*[1./config['plan_freq']], label= 'mpc')
-# plt.show()
-# plt.figure(0)
-# plt.plot(1000*r.data['time_df'])
+ax[0].legend(); ax[1].legend(); ax[2].legend(); ax[3].legend()
 
 if(FILTER > 0):
     r.data['contact_force_3d_measured'][:N] = analysis_utils.moving_average_filter(r.data['contact_force_3d_measured'][:N].copy(), FILTER)
