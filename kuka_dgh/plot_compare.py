@@ -41,24 +41,24 @@ s = SimpleDataPlotter()
 
 data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
 label1 = 'friction_only'
-label2 = 'friction_+_DF_H=0'
-label3 = 'friction_+_DF_H=1'
+label2 = 'friction_only_tune'
+label3 = 'friction_+_DF_H=0_tune'
 
 SAVE = False
 
 print("Load data 1...")
 r1 = DataReader(data_path+'config_REAL_2023-08-01T16:56:32.506377_friction_only.mds')  
 print("Load data 2...")
-r2 = DataReader(data_path+'config_REAL_2023-08-01T16:58:17.383956_friction_+_DF_H=0.mds') 
+r2 = DataReader(data_path+'config_REAL_2023-08-01T19:39:00.819617_friction_only_tune.mds') 
 print("Load data 3...")
-r3 = DataReader(data_path+'config_REAL_2023-08-01T17:04:21.765391_friction_+_DF_H=1.mds')
+r3 = DataReader(data_path+'config_REAL_2023-08-01T19:34:54.970120_friction_only_+_DF_H=0_tune.mds')
 
 
 # Load config file
 CONFIG_NAME = 'config.yml'
 config      = path_utils.load_yaml_file(CONFIG_NAME)
 
-FILTER = 10
+FILTER = 100
 from core_mpc import analysis_utils 
 
 
@@ -197,9 +197,9 @@ fig_p2, _ = s.plot_ee_pos( [
 
 
 fig, ax = plt.subplots(4, 1, sharex='col') 
-ax[0].plot(r1.data['count']-1, label='count_'+label1)
-ax[0].plot(r2.data['count']-1, label='count_'+label2)
-ax[0].plot(r3.data['count']-1, label='count_'+label3)
+ax[0].plot(r1.data['time_df'], label='time_df'+label1)
+ax[0].plot(r2.data['time_df'], label='time_df'+label2)
+ax[0].plot(r3.data['time_df'], label='time_df'+label3)
 
 ax[1].plot(r1.data['t_child'], label='child'+label1)
 ax[1].plot(r2.data['t_child'], label='child'+label2)

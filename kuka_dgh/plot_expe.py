@@ -51,7 +51,7 @@ SAVE = False
 # Create data Plottger
 s = SimpleDataPlotter()
 
-FILTER = 100
+FILTER = 1
 
 
 if(SIM):
@@ -59,8 +59,8 @@ if(SIM):
     data_name = 'config_SIM_2023-08-01T13:58:50.797096.mds'
     
 else:
-    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding_no_filter/'
-    data_name = 'config_REAL_2023-08-01T16:26:44.658684_friction+df(no-acc-in-FK)_ter.mds'
+    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
+    data_name = 'config_REAL_2023-08-01T19:34:54.970120_friction_only_+_DF_H=0_tune.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -150,19 +150,21 @@ target_force_3d[:,2] = r.data['target_force'][:,0]
 force_delta_f = np.zeros((N, 3))
 force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.array(r.data['delta_f'])[:,0]
 
+target = np.zeros((N, 3))
+target[:, 2] = 50.
 
 # Plot forces
 fig_f, _ = s.plot_soft_contact_force([
                            r.data['contact_force_3d_measured'], 
                            target_force_3d,
-                        #    force_delta_f,
+                           target,
                            r.data['fpred']],
                           ['Measured', 'Reference',
-                        #    'Measured+df', 
+                           'target', 
                            'Predicted'], 
                           ['r', 'b', 'k', 'g'],
-                          linestyle=['solid', 'dotted', 'solid', 'solid'])
-                        #   ylims=[[-50,-50, 0], [50, 50, 100]])
+                          linestyle=['solid', 'dotted', 'solid', 'solid'],
+                          ylims=[[-50,-50, 0], [50, 50, 70]])
 
 
 if(SAVE):

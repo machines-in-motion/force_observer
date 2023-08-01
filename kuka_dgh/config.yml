@@ -24,9 +24,9 @@ T_RAMP: 6.
 T_CIRCLE: 7.
 
 # General
-dt: 0.003                       # OCP integration step 
-N_h: 5                          # Horizon length in nodes
-maxiter: 2
+dt: 0.006                       # OCP integration step 
+N_h: 4                          # Horizon length in nodes
+maxiter: 3
 # q0: [0., 0.34, 0., -0.75, 0., 0., 0.]               # Initial robot joint configuration
 q0: [0., 1.0471975511965976, 0., -1.1344640137963142, 0.2,  0.7853981633974483]               # Initial robot joint configuration
 dq0: [0.,0.,0.,0.,0.,0.]                         # Initial robot joint velocity
@@ -53,7 +53,7 @@ pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '1Dz'
 
 USE_LATERAL_FRICTION: True
-USE_DELTA_F: True
+USE_DELTA_F: False
 DF_HORIZON: 0  # Horizon of the estimation (0 calls the estimators implementation without horizon)
 # note that df horizon 0 is different from 1 because the forward kyn in MHE does use the acceleration.
 

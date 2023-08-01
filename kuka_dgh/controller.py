@@ -169,6 +169,10 @@ class ClassicalMPCContact:
         self.fext0 = pin_utils.get_external_joint_torques(contact_placement, f0, robot)  
         # logger.warning(self.fext0)
         self.ddp = OptimalControlProblemClassical(robot, self.config).initialize(self.x0, callbacks=False)
+        self.ddp.regMax = 1e6
+        self.ddp.reg_max = 1e6
+        self.ddp.termination_tol = 1e-4
+        
         # !!! Deactivate all costs & contact models initially !!!
         models = list(self.ddp.problem.runningModels) + [self.ddp.problem.terminalModel]
         for k,m in enumerate(models):
