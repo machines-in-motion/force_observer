@@ -15,10 +15,8 @@ from robot_properties_kuka.config import IiwaConfig
 from force_observer import ForceEstimator, MHForceEstimator
 
 
-NO_PIPE = True
 
-
-def solveOCP(q, v, ddp, nb_iter, node_id_reach, target_reach, node_id_contact, node_id_track, node_id_circle, force_weight, TASK_PHASE, target_force, target_velocity):
+def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_force, target_velocity):
         t = time.time()
         # Update initial state + warm-start
         x = np.concatenate([q, v])
@@ -30,51 +28,39 @@ def solveOCP(q, v, ddp, nb_iter, node_id_reach, target_reach, node_id_contact, n
         m = list(ddp.problem.runningModels) + [ddp.problem.terminalModel]
         # Update OCP for reaching phase
         if(TASK_PHASE == 1):
-            # If node id is valid
-            if(node_id_reach <= ddp.problem.T and node_id_reach >= 0):
-                # Updates nodes between node_id and terminal node 
-                for k in range( node_id_reach, ddp.problem.T+1, 1 ):
-                    m[k].differential.costs.costs["translation"].active = True
-                    m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+            for k in range(ddp.problem.T+1):
+                m[k].differential.costs.costs["translation"].active = True
+                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
         # Update OCP for "increase weights" phase
         if(TASK_PHASE == 2):
-            # If node id is valid
-            if(node_id_track <= ddp.problem.T and node_id_track >= 0):
-                # Updates nodes between node_id and terminal node 
-                for k in range( node_id_track, ddp.problem.T+1, 1 ):
-                    w = min(2.*(k + 1. - node_id_track) , 5)
-                    m[k].differential.costs.costs["translation"].active = True
-                    m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                    m[k].differential.costs.costs["translation"].weight = w
+            for k in range(ddp.problem.T+1):
+                w = min(2.*(k + 1.) , 5)
+                m[k].differential.costs.costs["translation"].active = True
+                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+                m[k].differential.costs.costs["translation"].weight = w
         # Update OCP for contact phase
         if(TASK_PHASE == 3):
-            # If node id is valid
-            if(node_id_contact <= ddp.problem.T and node_id_contact >= 0):
-                # Updates nodes between node_id and terminal node 
-                for k in range( node_id_contact, ddp.problem.T+1, 1 ):  
-                    m[k].differential.costs.costs["translation"].active = True
-                    m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                    m[k].differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
-                    m[k].differential.costs.costs["translation"].weight = 60. 
-                    m[k].differential.costs.costs['rotation'].active = True
-                    m[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
-                    # activate contact and force cost
-                    m[k].differential.contacts.changeContactStatus("contact", True)
-                    if(k!=ddp.problem.T):
-                        fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
-                        m[k].differential.costs.costs["force"].active = True
-                        m[k].differential.costs.costs["force"].weight = force_weight
-                        m[k].differential.costs.costs["force"].cost.residual.reference = fref
+            for k in range(ddp.problem.T+1):  
+                m[k].differential.costs.costs["translation"].active = True
+                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+                m[k].differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
+                m[k].differential.costs.costs["translation"].weight = 60. 
+                m[k].differential.costs.costs['rotation'].active = True
+                m[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
+                # activate contact and force cost
+                m[k].differential.contacts.changeContactStatus("contact", True)
+                if(k!=ddp.problem.T):
+                    fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
+                    m[k].differential.costs.costs["force"].active = True
+                    m[k].differential.costs.costs["force"].weight = force_weight
+                    m[k].differential.costs.costs["force"].cost.residual.reference = fref
         # Update OCP for circle phase
         if(TASK_PHASE == 4):
-            # If node id is valid
-            if(node_id_circle <= ddp.problem.T and node_id_circle >= 0):
-                # Updates nodes between node_id and terminal node
-                for k in range( node_id_circle, ddp.problem.T+1, 1 ):
-                    m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                    # update force ref
-                    if(k!=ddp.problem.T):
-                        m[k].differential.costs.costs["force"].cost.residual.reference = fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
+            for k in range(ddp.problem.T+1):
+                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+                # update force ref
+                if(k!=ddp.problem.T):
+                    m[k].differential.costs.costs["force"].cost.residual.reference = fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
         jf = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f
         jMf = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf
@@ -118,10 +104,6 @@ class ClassicalMPCContact:
         else: 
             self.ft_sensor_wrench = self.head._sensor__force_plate_force[0]
 
-        if(NO_PIPE == False):
-            self.parent_conn, self.child_conn = Pipe()
-            self.sent = False
-
         self.nq = self.robot.model.nq
         self.nv = self.robot.model.nv
 
@@ -164,6 +146,7 @@ class ClassicalMPCContact:
         self.dt_simu = 1./self.config['simu_freq']
         self.ocp_to_sim_ratio = 1. / ( self.config['simu_freq'] * self.dt_ocp )
         self.sim_to_plan_ratio = self.config['simu_freq']/self.config['plan_freq']
+        self.OCP_TO_SIMU_ratio = int(self.dt_ocp/self.dt_simu)
         # Create OCP
         self.oMc = contact_placement
         self.fext0 = pin_utils.get_external_joint_torques(contact_placement, f0, robot)  
@@ -234,9 +217,9 @@ class ClassicalMPCContact:
         # Task phases management & cost parameters
         F_MIN = 5.
         F_MAX = self.config['frameForceRef'][2]
-        N_total = int((self.config['T_tot'] - self.config['T_CONTACT'])/self.dt_ocp + self.Nh)
+        N_total = int((self.config['T_tot'] - self.config['T_CONTACT'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio)
 
-        N_ramp = int((self.config['T_RAMP'] - self.config['T_CONTACT']) / self.dt_ocp)
+        N_ramp = int((self.config['T_RAMP'] - self.config['T_CONTACT']) / self.dt_simu)
         self.target_force_traj = np.zeros((N_total, 3))
         self.target_force_traj[:N_ramp, 2] = [F_MIN + (F_MAX - F_MIN)*i/N_ramp for i in range(N_ramp)]
         self.target_force_traj[N_ramp:, 2] = F_MAX
@@ -247,21 +230,21 @@ class ClassicalMPCContact:
         self.force_weight = self.config['frameForceWeight']
 
         # Circle trajectory 
-        N_total_pos = int((self.config['T_tot'] - self.config['T_REACH'])/self.dt_ocp + self.Nh)
-        N_circle = int((self.config['T_tot'] - self.config['T_CIRCLE'])/self.dt_ocp) + self.Nh
+        N_total_pos = int((self.config['T_tot'] - self.config['T_REACH'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio)
+        N_circle = int((self.config['T_tot'] - self.config['T_CIRCLE'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio )
         self.target_position_traj = np.zeros( (N_total_pos, 3) )
         self.target_velocity_traj = np.zeros( (N_total_pos, 3) )
         # absolute desired position
         self.oPc_offset = np.asarray(self.config['oPc_offset'])
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
-        radius = 0.07 ; omega = 3.
+        radius = 0.07 ; omega = 3
         # radius = 0.0 ; omega = 3.
 
-        self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_ocp*omega)), 
-                                                              self.pdes[1] - radius * np.sin(i*self.dt_ocp*omega),
+        self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
+                                                              self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
                                                               self.pdes[2]]) for i in range(N_circle)]
-        self.target_velocity_traj[0:N_circle, :] = [np.array([radius * omega * np.cos(i*self.dt_ocp*omega), 
-                                                              radius * omega * np.sin(i*self.dt_ocp*omega),
+        self.target_velocity_traj[0:N_circle, :] = [np.array([radius * omega * np.cos(i*self.dt_simu*omega), 
+                                                              radius * omega * np.sin(i*self.dt_simu*omega),
                                                               0.]) for i in range(N_circle)]
         self.target_position_traj[N_circle:, :] = self.target_position_traj[N_circle-1,:]
         self.target_velocity_traj[N_circle:, :] = np.zeros(3)
@@ -314,12 +297,11 @@ class ClassicalMPCContact:
         self.T_CONTACT = int(self.config['T_CONTACT']/self.dt_simu)
         self.T_RAMP = int(self.config['T_RAMP']/self.dt_simu)
         self.T_CIRCLE = int(self.config['T_CIRCLE']/self.dt_simu)
-        self.OCP_TO_SIMU_CYCLES = 1./(self.dt_simu / self.dt_ocp)
         logger.debug("Size of MPC horizon in simu cycles = "+str(self.NH_SIMU))
         logger.debug("Start of reaching phase in simu cycles = "+str(self.T_REACH))
         logger.debug("Start of contact phase in simu cycles = "+str(self.T_CONTACT))
         logger.debug("Start of circle phase in simu cycles = "+str(self.T_CIRCLE))
-        logger.debug("OCP to SIMU time ratio = "+str(self.OCP_TO_SIMU_CYCLES))
+        logger.debug("OCP to SIMU time ratio = "+str(self.OCP_TO_SIMU_ratio))
 
  
 
@@ -330,51 +312,16 @@ class ClassicalMPCContact:
         self.ddp.xs = [self.x0 for i in range(self.Nh+1)]
         self.ddp.us = [self.u0 for i in range(self.Nh)]
         self.is_plan_updated = False
-        # No pipe
-        if(NO_PIPE):
-            self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1 = solveOCP(self.joint_positions[self.controlled_joint_ids], 
-                                                                                            self.joint_velocities[self.controlled_joint_ids], 
-                                                                                            self.ddp, 
-                                                                                            self.nb_iter,
-                                                                                            self.node_id_reach, 
-                                                                                            self.target_position, 
-                                                                                            self.node_id_contact, 
-                                                                                            self.node_id_track,
-                                                                                            self.node_id_circle, 
-                                                                                            self.force_weight,
-                                                                                            self.TASK_PHASE,
-                                                                                            self.target_force, 
-                                                                                            self.target_velocity)
 
-        # With pipe
-        else:
-            self.subp = Process(target=rt_SolveOCP, args=(self.child_conn, 
-                                                        self.ddp, 
-                                                        self.nb_iter,
-                                                        self.node_id_reach, 
-                                                        self.target_position,
-                                                        self.node_id_contact, 
-                                                        self.node_id_track,
-                                                        self.node_id_circle,
-                                                        self.force_weight,
-                                                        self.TASK_PHASE,
-                                                        self.target_force,
-                                                        self.target_velocity))
-            self.subp.start()
-            # Read sensors and publish real state 
-            self.parent_conn.send((self.joint_positions[self.controlled_joint_ids], 
-                                self.joint_velocities[self.controlled_joint_ids], 
-                                self.node_id_reach, 
-                                self.target_position, 
-                                self.node_id_contact, 
-                                self.node_id_track,
-                                self.node_id_circle,
-                                self.force_weight,
-                                self.TASK_PHASE,
-                                self.target_force,
-                                self.target_velocity,
-                                self.nb_iter))
-            self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1  = self.parent_conn.recv()
+        self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1 = solveOCP(self.joint_positions[self.controlled_joint_ids], 
+                                                                                        self.joint_velocities[self.controlled_joint_ids], 
+                                                                                        self.ddp, 
+                                                                                        self.nb_iter,
+                                                                                        self.target_position, 
+                                                                                        self.force_weight,
+                                                                                        self.TASK_PHASE,
+                                                                                        self.target_force, 
+                                                                                        self.target_velocity)
 
         if(self.pinRef != pin.LOCAL):
             self.fpred = self.lwaMc.rotation @ self.fpred
@@ -461,23 +408,11 @@ class ClassicalMPCContact:
 
         if(time_to_reach == 0): 
             print("Entering reaching phase")
-        # If tracking phase enters the MPC horizon, start updating models from the end with tracking models      
-        if(0 <= time_to_reach and time_to_reach <= self.NH_SIMU):
             self.TASK_PHASE = 1
-            # If current time matches an OCP node 
-            if(int(self.T_REACH - thread.ti)%self.OCP_TO_SIMU_CYCLES == 0):
-                # Select IAM
-                self.node_id_reach = self.Nh + int((self.T_REACH - thread.ti)/self.OCP_TO_SIMU_CYCLES)
 
         if(time_to_track == 0): 
             print("Entering tracking phase")
-        # If "increase weights" phase enters the MPC horizon, start updating models from the end with tracking models      
-        if(0 <= time_to_track and time_to_track <= self.NH_SIMU):
             self.TASK_PHASE = 2
-            # If current time matches an OCP node 
-            if(int(self.T_TRACK - thread.ti)%self.OCP_TO_SIMU_CYCLES == 0):
-                # Select IAM
-                self.node_id_track = self.Nh + int((self.T_TRACK - thread.ti)/self.OCP_TO_SIMU_CYCLES)
 
         if(time_to_contact == 0): 
             # Record end-effector position at the time of the contact switch
@@ -487,41 +422,28 @@ class ClassicalMPCContact:
             self.target_position_y = self.target_position[:,1] 
             self.target_position_z = self.target_position[:,2]
             print("Entering contact phase")
-            # self.target_position = self.robot.data.oMf[self.frameId].translation
-        # If contact phase enters horizon start updating models from the the end with contact models
-        if(0 <= time_to_contact and time_to_contact <= self.NH_SIMU):
             self.TASK_PHASE = 3
-            # If current time matches an OCP node 
-            if(int(self.T_CONTACT - thread.ti)%self.OCP_TO_SIMU_CYCLES == 0):
-                # Select IAM
-                self.node_id_contact = self.Nh + int((self.T_CONTACT - thread.ti)/self.OCP_TO_SIMU_CYCLES)
 
-        if(0 <= time_to_contact and time_to_contact%self.OCP_TO_SIMU_CYCLES == 0):
+
+        if 0 <= time_to_contact:
             # set force refs over current horizon
-            ti  = int((thread.ti - self.T_CONTACT)/self.OCP_TO_SIMU_CYCLES)
-            tf  = ti + self.Nh+1
-            self.target_force = self.coef_target_force * self.target_force_traj[ti:tf, 2]
+            ti  = time_to_contact
+            tf  = ti + (self.Nh+1)*self.OCP_TO_SIMU_ratio
+            self.target_force = self.coef_target_force * self.target_force_traj[ti:tf:self.OCP_TO_SIMU_ratio, 2]
             if self.config['USE_DELTA_F']:
                 self.target_force += self.delta_f
 
-
         if(time_to_circle == 0): 
-            print("Entering circle phase")
-        # If circle tracking phase enters the MPC horizon, start updating models from the end with tracking models      
-        if(0 <= time_to_circle and time_to_circle <= self.NH_SIMU):
             self.TASK_PHASE = 4
-            # If current time matches an OCP node 
-            if(time_to_circle%self.OCP_TO_SIMU_CYCLES == 0):
-                # Select IAM
-                self.node_id_circle = self.Nh - int(time_to_circle/self.OCP_TO_SIMU_CYCLES)
+            print("Entering circle phase")
 
-        if(0 <= time_to_circle and time_to_circle%self.OCP_TO_SIMU_CYCLES == 0):
+        if(0 <= time_to_circle):
             # set position refs over current horizon
-            ti  = int(time_to_circle/self.OCP_TO_SIMU_CYCLES)
-            tf  = ti + self.Nh+1
+            ti  = time_to_circle
+            tf  = ti + (self.Nh+1)*self.OCP_TO_SIMU_ratio
             # Target in (x,y)  = circle trajectory + offset to start from current position instead of absolute target
             offset_xy = self.position_at_contact_switch[:2] - self.pdes[:2]
-            self.target_position[:,:2] = self.target_position_traj[ti:tf,:2] + offset_xy
+            self.target_position[:,:2] = self.target_position_traj[ti:tf:self.OCP_TO_SIMU_ratio,:2] + offset_xy
             # Target in z is fixed to the anchor at switch (equals absolute target if RESET_ANCHOR = False)
             # No position tracking in z : redundant with zero activation weight on z
             self.target_position[:,2]  = self.robot.data.oMf[self.contactFrameId].translation[2].copy()
@@ -530,7 +452,7 @@ class ClassicalMPCContact:
             self.target_position_y = self.target_position[:,1] 
             self.target_position_z = self.target_position[:,2]
             # Record target signals                
-            self.target_velocity[:,:2] = self.target_velocity_traj[ti:tf,:2] 
+            self.target_velocity[:,:2] = self.target_velocity_traj[ti:tf:self.OCP_TO_SIMU_ratio,:2] 
             self.target_velocity[:,2]  = 0.
             self.target_velocity_x = self.target_velocity[:,0] 
             self.target_velocity_y = self.target_velocity[:,1] 
@@ -542,51 +464,20 @@ class ClassicalMPCContact:
         # If planning cycle, fetch OCP solution
         self.t_child, self.t_child_1 = 0, 0
         if thread.ti % int(self.sim_to_plan_ratio) == 0:         
-            # No pipe
-            if(NO_PIPE):
-                self.count = 0
-                self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1 = solveOCP(q, v, 
-                                                                    self.ddp,
-                                                                    self.nb_iter,
-                                                                    self.node_id_reach, 
-                                                                    self.target_position, 
-                                                                    self.node_id_contact, 
-                                                                    self.node_id_track, 
-                                                                    self.node_id_circle,
-                                                                    self.force_weight, 
-                                                                    self.TASK_PHASE,
-                                                                    self.target_force, 
-                                                                    self.target_velocity)
-            # With pipe
-            else:
-                if thread.ti != 0 and not self.sent:
-                    self.is_plan_updated = False
-                    self.parent_conn.send((q, v, 
-                                                self.node_id_reach, 
-                                                self.target_position, 
-                                                self.node_id_contact, 
-                                                self.node_id_track,
-                                                self.node_id_circle,
-                                                self.force_weight,
-                                                self.TASK_PHASE,
-                                                self.target_force,
-                                                self.target_velocity, 
-                                                self.nb_iter)) 
-                    self.sent = True
+
+            self.count = 0
+            self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1 = solveOCP(q, v, 
+                                                                self.ddp,
+                                                                self.nb_iter,
+                                                                self.target_position, 
+                                                                self.force_weight, 
+                                                                self.TASK_PHASE,
+                                                                self.target_force, 
+                                                                self.target_velocity)
 
             if(self.pinRef != pin.LOCAL):
                 self.fpred = self.lwaMc.rotation @ self.fpred
                 
-        if not NO_PIPE and self.parent_conn.poll() and not self.is_plan_updated:
-            self.count = 0
-            self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1 = self.parent_conn.recv()
-            # record predictions here if necessary 
-            self.sent = False
-
-            # Increment planning counter
-            self.nb_plan += 1
-            self.is_plan_updated = True
-
 
         # # # # # # # # 
         # Send policy #
