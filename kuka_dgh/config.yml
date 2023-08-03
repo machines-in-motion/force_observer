@@ -53,7 +53,7 @@ pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '1Dz'
 
 USE_LATERAL_FRICTION: True
-USE_DELTA_F: False
+USE_DELTA_F: True
 DF_HORIZON: 0  # Horizon of the estimation (0 calls the estimators implementation without horizon)
 # note that df horizon 0 is different from 1 because the forward kyn in MHE does use the acceleration.
 

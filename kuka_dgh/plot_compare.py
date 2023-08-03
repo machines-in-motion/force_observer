@@ -40,25 +40,25 @@ print(controlled_joint_ids)
 s = SimpleDataPlotter()
 
 data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-label1 = 'friction_only'
+label1 = 'friction_+_DF_H=0_tune'
 label2 = 'friction_only_tune'
-label3 = 'friction_+_DF_H=0_tune'
+label3 = 'friction_+_DF_H=0_tune_new_ref'
 
 SAVE = False
 
 print("Load data 1...")
-r1 = DataReader(data_path+'config_REAL_2023-08-01T16:56:32.506377_friction_only.mds')  
+r1 = DataReader(data_path+'config_REAL_2023-08-01T19:34:54.970120_friction_only_+_DF_H=0_tune.mds')
 print("Load data 2...")
 r2 = DataReader(data_path+'config_REAL_2023-08-01T19:39:00.819617_friction_only_tune.mds') 
 print("Load data 3...")
-r3 = DataReader(data_path+'config_REAL_2023-08-01T19:34:54.970120_friction_only_+_DF_H=0_tune.mds')
+r3 = DataReader(data_path+'config_REAL_2023-08-02T12:20:56.603908_friction_+_df_new_ref.mds')  
 
 
 # Load config file
 CONFIG_NAME = 'config.yml'
 config      = path_utils.load_yaml_file(CONFIG_NAME)
 
-FILTER = 100
+FILTER = 1
 from core_mpc import analysis_utils 
 
 
@@ -193,6 +193,14 @@ fig_p2, _ = s.plot_ee_pos( [
                             'solid', 
                             'dotted'
                             ])
+
+
+s.plot_joint_tau([r1.data['tau'][:,controlled_joint_ids] + r1.data['tau_gravity'][:,controlled_joint_ids],
+                   r2.data['tau'][:,controlled_joint_ids] + r2.data['tau_gravity'][:,controlled_joint_ids],
+                   r3.data['tau'][:,controlled_joint_ids] + r3.data['tau_gravity'][:,controlled_joint_ids]],
+              ['Desired (+g(q))'+label1, 'Desired (+g(q))'+label2, 'Desired (+g(q))'+label3], 
+              [[0.,0.,0.,0.], 'b', 'g', 'r'],
+              ylims=[-model.effortLimit, +model.effortLimit] )
 
 
 
