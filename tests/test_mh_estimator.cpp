@@ -110,22 +110,21 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     BOOST_CHECK( forceEstimatorData->l.isZero(TOL) );
     BOOST_CHECK( forceEstimatorData->u.isZero(TOL) );
 
-    std::vector<Eigen::VectorXd> q_list;   
-    std::vector<Eigen::VectorXd> v_list;   
-    std::vector<Eigen::VectorXd> a_list;   
-    std::vector<Eigen::VectorXd> tau_list; 
-    std::vector<Eigen::VectorXd> F_mes_list; 
-    q_list.resize(T);
-    v_list.resize(T);
-    a_list.resize(T);
-    tau_list.resize(T);
-    F_mes_list.resize(T);
+    std::size_t nq = forceEstimator.get_pinocchio().nq;
+    std::size_t nv = forceEstimator.get_pinocchio().nv;
+
+    Eigen::VectorXd q_list = Eigen::VectorXd::Zero(nq * T);   
+    Eigen::VectorXd v_list = Eigen::VectorXd::Zero(nv * T);   
+    Eigen::VectorXd a_list = Eigen::VectorXd::Zero(nv * T);   
+    Eigen::VectorXd tau_list = Eigen::VectorXd::Zero(nv * T);   
+    Eigen::VectorXd F_mes_list = Eigen::VectorXd::Zero(nc * T);   
+
     for(std::size_t t = 0; t<T; t++){
-        q_list[t] = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nq); 
-        v_list[t] = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nv); 
-        a_list[t] = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nv); 
-        tau_list[t] = Eigen::VectorXd::Random(forceEstimator.get_pinocchio().nv);
-        F_mes_list[t] = Eigen::VectorXd::Random(nc);
+        q_list.segment(t * nq, nq) = Eigen::VectorXd::Random(nq); 
+        v_list.segment(t * nv, nv) = Eigen::VectorXd::Random(nv); 
+        a_list.segment(t * nv, nv) = Eigen::VectorXd::Random(nv); 
+        tau_list.segment(t * nv, nv) = Eigen::VectorXd::Random(nv);
+        F_mes_list.segment(t * nc, nc) = Eigen::VectorXd::Random(nc);
     }
     Eigen::VectorXd df_prior = Eigen::VectorXd::Random(nc); 
 
