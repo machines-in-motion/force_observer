@@ -237,7 +237,7 @@ class ClassicalMPCContact:
         # absolute desired position
         self.oPc_offset = np.asarray(self.config['oPc_offset'])
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
-        radius = 0.07 ; omega = 6
+        radius = 0.07 ; omega = 3
         # radius = 0.0 ; omega = 3.
 
         self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
@@ -273,9 +273,6 @@ class ClassicalMPCContact:
             self.estimator = MHForceEstimator(config['DF_HORIZON'], self.robot.model, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
 
         self.data_estimator = self.estimator.createData()
-        self.delta_f = 0.
-        self.estimator.Q = 4e-3 * np.ones(7)
-        self.estimator.R = 2e-2 * np.ones(1)
 
         self.buffer_length = max(1, config['DF_HORIZON'])
         self.buffer_q   = np.zeros(self.buffer_length * self.nv)
@@ -285,6 +282,11 @@ class ClassicalMPCContact:
         self.buffer_f   = np.zeros(self.buffer_length)
         self.tau_old = np.zeros(self.nv)
 
+        self.delta_f = 0.
+        self.estimator.Q = 4 * 4e-3 * np.ones(7)
+        self.estimator.R = 4 * 2e-2 * np.ones(1)
+
+        self.force_est = 0.
 
         self.node_id_reach = -1
         self.node_id_contact = -1
@@ -369,6 +371,9 @@ class ClassicalMPCContact:
             self.contact_force_3d_measured = f6d_world.linear.copy()
         
 
+        alpha = 0.95
+        self.force_est = alpha * self.force_est + (1-alpha) * self.contact_force_3d_measured
+        
         # # # # # # # # # 
         # # Update OCP  #
         # # # # # # # # # 
@@ -395,7 +400,9 @@ class ClassicalMPCContact:
         self.buffer_v[:self.nv]   = v
         self.buffer_a[:self.nv]   = self.a
         self.buffer_tau[:self.nv] = self.tau_old
-        self.buffer_f[:1]         = np.array([self.contact_force_3d_measured[2]])
+        self.buffer_f[:1]         = np.array([self.force_est[2]])
+
+        # delta_f_ = 0
 
         t0 = time.time()
         if time_to_ramp > 0:
@@ -403,8 +410,8 @@ class ClassicalMPCContact:
             # Safety clipping (using np.core is 4 times faster than np.clip)
             self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 0.2), self.delta_f - 0.2)
             self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
+            delta_f_ = self.delta_f[0]
         self.time_df = time.time() - t0
-
 
         if(time_to_reach == 0): 
             print("Entering reaching phase")
@@ -424,7 +431,6 @@ class ClassicalMPCContact:
             print("Entering contact phase")
             self.TASK_PHASE = 3
 
-
         if 0 <= time_to_contact:
             # set force refs over current horizon
             ti  = time_to_contact
@@ -432,6 +438,7 @@ class ClassicalMPCContact:
             self.target_force = self.coef_target_force * self.target_force_traj[ti:tf:self.OCP_TO_SIMU_ratio, 2]
             if self.config['USE_DELTA_F']:
                 self.target_force += self.delta_f
+                
 
         if(time_to_circle == 0): 
             self.TASK_PHASE = 4
@@ -507,7 +514,9 @@ class ClassicalMPCContact:
 
         if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-            self.tau -= Jac.T @ np.array([self.contact_force_3d_measured[0], self.contact_force_3d_measured[1], 0])
+            
+            
+            self.tau -= Jac.T @ np.array([self.force_est[0], self.force_est[1], 0.])
 
 
         # Compute gravity
