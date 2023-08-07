@@ -28,6 +28,7 @@ from classical_mpc.data import DDPDataHandlerClassical
 from utils.ocp_utils import OptimalControlProblemClassicalWithObserver
 from utils.mpc_utils import MPCDataHandlerClassicalWithEstimator
 from estimator import Estimator, MHEstimator
+from force_observer import ForceEstimator, MHForceEstimator
 
 import time
 import pinocchio as pin
@@ -163,18 +164,24 @@ if(PLOT_INIT):
   ddp_data = ddp_handler.extract_data(frame_of_interest, frame_of_interest)
   _, _ = ddp_handler.plot_ddp_results(ddp_data, markers=['.'], SHOW=True)
 
-
+if(config['pinRefFrame'] == 'LOCAL'):
+    pinRef = pin.LOCAL
+else:
+    pinRef = pin.LOCAL_WORLD_ALIGNED
 
 # Create estimator 
 if config['USE_HYBRID_DELTA_F']:
     force_estimator = Estimator(robot_simulator.pin_robot, 1, 3, id_endeff, config['contacts'][0]['contactModelGains'], config['contacts'][0]['pinocchioReferenceFrame'])
 else:
-    force_estimator = Estimator(robot_simulator.pin_robot, 1, 1, id_endeff, config['contacts'][0]['contactModelGains'], config['contacts'][0]['pinocchioReferenceFrame'])
+    force_estimator = ForceEstimator(robot_simulator.pin_robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), pinRef)
+    data_estimator = force_estimator.createData()
+    force_estimator.Q = 1e-1 * np.ones(7)
+    force_estimator.R = 1e-1 * np.ones(1)
 
 if config['HORIZON'] > 0:
     print("Horizon is larger than 1, nc=nc_deltaf")
     T_MHE = config['HORIZON']
-    force_estimator = MHEstimator(T_MHE, robot_simulator.pin_robot, 1, id_endeff, config['contacts'][0]['contactModelGains'], config['contacts'][0]['pinocchioReferenceFrame'])
+    force_estimator = MHEstimator(T_MHE, robot_simulator.pin_robot, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), config['contacts'][0]['pinocchioReferenceFrame'])
 
 
 
@@ -207,9 +214,10 @@ target_position = np.zeros((config['N_h']+1, 3))
 target_position[:,:] = pdes.copy()
 
 
-
-
-
+# integral effect parameters
+force_integral = 0.
+KF_I = 1000.
+alpha_f = 0.999
 
 
 
@@ -350,7 +358,7 @@ for i in range(sim_data.N_simu):
         # Solve OCP 
         if(config['USE_DELTA_F'])and (i >= T_CONTACT):
             for m in ddp.problem.runningModels:
-                m.differential.delta_f = delta_f
+                m.differential.delta_f = np.array([sim_data.delta_f_SIMU[i, 2]]) # delta_f
 
                 
         solveOCP(q, v, ddp, config['maxiter'], node_id_reach, target_position, node_id_contact, node_id_track, node_id_circle, force_weight, TASK_PHASE, target_force)
@@ -393,10 +401,18 @@ for i in range(sim_data.N_simu):
     if config["USE_LATERAL_FORCE"] and (i >= T_CIRCLE):
         Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, pin.LOCAL_WORLD_ALIGNED)[:3]
         F = np.array([f_mea_SIMU_world[0], f_mea_SIMU_world[1], 0])
-        lat_comp = - Jac.T @ F
+        lat_comp += - Jac.T @ F
+
+    if config["FORCE_INTEGRAL"] and (i >= T_CIRCLE):
+        Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, pin.LOCAL_WORLD_ALIGNED)[:3]
+        F = np.array([0., 0., force_integral])
+        lat_comp += Jac.T @ F
+
+
+
 
     # Step PyBullet simulator
-    Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, force_estimator.pinRefRame)[:3]
+    Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, pinRef)[:3]
 
     robot_simulator.send_joint_command(tau_mea_SIMU + lat_comp)
     
@@ -426,6 +442,10 @@ for i in range(sim_data.N_simu):
     # Record measurements of state, torque and forces 
     sim_data.record_simu_cycle_measured(i, x_mea_SIMU, x_mea_noise_SIMU, tau_mea_SIMU, f_mea_SIMU)
 
+
+    # compute integral
+    force_integral = alpha_f * force_integral + (fz_mea_SIMU[0] - target_force[0]) * sim_data.dt_simu
+
     # Compute force and position errors
     if(i >= T_CIRCLE):
         count+=1
@@ -448,7 +468,8 @@ for i in range(sim_data.N_simu):
     f_delta_f = np.array([0, 0, 0])
     if(np.linalg.norm(fz_mea_SIMU) > 1e-6):
         if config["HORIZON"] ==0:
-            F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
+            force_estimator.estimate(data_estimator, q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, fz_mea_SIMU)
+            delta_f = data_estimator.delta_f
         else:
             q_mea_SIMU_list = sim_data.state_mea_SIMU[i-T_MHE+2:i+2, :nv]
             v_mea_SIMU_list = sim_data.state_mea_SIMU[i-T_MHE+2:i+2, nv:]
