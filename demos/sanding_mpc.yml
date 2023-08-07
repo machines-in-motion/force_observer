@@ -4,7 +4,7 @@
 # MPC & sim parameters
 simu_freq: 1000               # Simulation frequency in Hz
 ctrl_freq: 1000                # Control frequency
-plan_freq: 500                # Planning frequency
+plan_freq: 1000                # Planning frequency
 T_tot: 8.                           # Simu duration (s)n (s)
 # Simulation options
 DELAY_SIM: False                 # Add delay in reference torques (low-level)
@@ -14,7 +14,7 @@ NOISE_TORQUES: False             # Add Gaussian noise on reference torques
 NOISE_STATE: False               # Add Gaussian noise on the measured state 
 STATIC_FRICTION: False           # Simulate static friction torque
 VISCOUS_FRICTION: False          # Simulate viscous friction torque
-TORQUE_TRACKING: True           # Low-level torque tracking with a PI controller
+TORQUE_TRACKING: False           # Low-level torque tracking with a PI controller
 SAVE_DATA: True                 # Save plot_data to npz
 RECORD_SOLVER_DATA: False       # Keep trace of Vxx, Riccati gains, reg, Jacobian etc. (more data to save)
 INIT_LOG: True                  # Initial logs summarizing parameters
@@ -27,9 +27,9 @@ TILT_PITCH_LOCAL_DEG: 0.      # Tilt angle of the contact surface
 RICCATI: False              
 
 
-HORIZON: 10
+HORIZON: 0
 USE_DELTA_F: True               # Use delta_f computed by estimator 
-USE_LATERAL_FORCE: False         # Use lateral friction
+USE_LATERAL_FORCE: True         # Use lateral friction
 USE_HYBRID_DELTA_F: False         # Use 3d delta_F with 1d contact model
 
 
@@ -42,9 +42,9 @@ T_CIRCLE: 4.
 
 
 # General
-dt: 0.003                                          # OCP integration step 
-N_h: 10                                             # Horizon length in nodes
-maxiter: 5                                         # Max number of iterations in DDP
+dt: 0.006                                          # OCP integration step 
+N_h: 4                                             # Horizon length in nodes
+maxiter: 4                                         # Max number of iterations in DDP
 q0: [0., 0.95, 0., -1.1344640137963142, 0.2,  0.7853981633974483, 0.]               # Initial robot joint configuration
 dq0: [0.,0.,0.,0.,0.,0., 0.]                         # Initial robot joint velocity
 
