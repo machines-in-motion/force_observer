@@ -28,10 +28,10 @@ RICCATI: False
 
 
 HORIZON: 0
-USE_DELTA_F: True               # Use delta_f computed by estimator 
+USE_DELTA_F: False               # Use delta_f computed by estimator 
 USE_LATERAL_FORCE: True         # Use lateral friction
-USE_HYBRID_DELTA_F: False         # Use 3d delta_F with 1d contact model
-
+USE_HYBRID_DELTA_F: False        # Use 3d delta_F with 1d contact model
+FORCE_INTEGRAL: True             # Add Jac.T @ Integral for force error
 
 
 T_REACH: 0.

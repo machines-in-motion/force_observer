@@ -214,9 +214,10 @@ target_position = np.zeros((config['N_h']+1, 3))
 target_position[:,:] = pdes.copy()
 
 
-
-
-
+# integral effect parameters
+force_integral = 0.
+KF_I = 1000.
+alpha_f = 0.999
 
 
 
@@ -400,7 +401,15 @@ for i in range(sim_data.N_simu):
     if config["USE_LATERAL_FORCE"] and (i >= T_CIRCLE):
         Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, pin.LOCAL_WORLD_ALIGNED)[:3]
         F = np.array([f_mea_SIMU_world[0], f_mea_SIMU_world[1], 0])
-        lat_comp = - Jac.T @ F
+        lat_comp += - Jac.T @ F
+
+    if config["FORCE_INTEGRAL"] and (i >= T_CIRCLE):
+        Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, pin.LOCAL_WORLD_ALIGNED)[:3]
+        F = np.array([0., 0., force_integral])
+        lat_comp += Jac.T @ F
+
+
+
 
     # Step PyBullet simulator
     Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, pinRef)[:3]
@@ -432,6 +441,10 @@ for i in range(sim_data.N_simu):
     x_mea_noise_SIMU = sensingModel.step(x_mea_SIMU)
     # Record measurements of state, torque and forces 
     sim_data.record_simu_cycle_measured(i, x_mea_SIMU, x_mea_noise_SIMU, tau_mea_SIMU, f_mea_SIMU)
+
+
+    # compute integral
+    force_integral = alpha_f * force_integral + (fz_mea_SIMU[0] - target_force[0]) * sim_data.dt_simu
 
     # Compute force and position errors
     if(i >= T_CIRCLE):
