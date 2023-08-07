@@ -287,6 +287,7 @@ class ClassicalMPCContact:
         self.estimator.R = 4 * 2e-2 * np.ones(1)
 
         self.force_est = 0.
+        self.acc_est = 0.
 
         self.node_id_reach = -1
         self.node_id_contact = -1
@@ -373,7 +374,8 @@ class ClassicalMPCContact:
 
         alpha = 0.95
         self.force_est = alpha * self.force_est + (1-alpha) * self.contact_force_3d_measured
-        
+        self.acc_est = alpha * self.acc_est + (1-alpha) * self.a
+
         # # # # # # # # # 
         # # Update OCP  #
         # # # # # # # # # 
@@ -398,7 +400,7 @@ class ClassicalMPCContact:
 
         self.buffer_q[:self.nv]   = q
         self.buffer_v[:self.nv]   = v
-        self.buffer_a[:self.nv]   = self.a
+        self.buffer_a[:self.nv]   = self.acc_est
         self.buffer_tau[:self.nv] = self.tau_old
         self.buffer_f[:1]         = np.array([self.force_est[2]])
 

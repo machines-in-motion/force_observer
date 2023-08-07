@@ -51,16 +51,18 @@ SAVE = False
 # Create data Plottger
 s = SimpleDataPlotter()
 
-FILTER = 100
+FILTER = 1
 
+N_START = int(config['T_CIRCLE'] * config['simu_freq']) 
+print("N_start = ", N_START)
 
 if(SIM):
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_SIM_2023-08-02T12:12:30.126349.mds'
+    data_name = 'config_SIM_2023-08-04T16:18:29.321304.mds'
     
 else:
     data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_REAL_2023-08-03T10:26:59.968378_demo.mds'
+    data_name = 'config_REAL_2023-08-04T17:52:28.163831_baseline_slow.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -93,9 +95,10 @@ s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x
                   ylims=[-model.velocityLimit, +model.velocityLimit] )
 
 
-s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids]],
-                  ['mea', ], # 'pred0', 'pred1'], 
-                  ['r'] )
+s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids],
+                   r.data['acc_est'][:,controlled_joint_ids]],
+                  ['a mea', 'a smooth' ], # 'pred0', 'pred1'], 
+                  ['r', 'c'] )
 
 plt.figure()
 plt.plot(np.array(r.data['delta_f']))
@@ -156,15 +159,19 @@ target[:, 2] = 50.
 # Plot forces
 fig_f, _ = s.plot_soft_contact_force([
                            r.data['contact_force_3d_measured'], 
+                           r.data['force_est'], 
                            target_force_3d,
                            target,
                            r.data['fpred']],
-                          ['Measured', 'Reference',
+                          ['Measured', 'Reference', 'force filter',
                            'target', 
                            'Predicted'], 
-                          ['r', 'b', 'k', 'g'],
-                          linestyle=['solid', 'dotted', 'solid', 'solid'],
+                          ['r', 'b', 'c', 'k', 'g'],
+                          linestyle=['solid', 'dotted', 'dotted', 'solid', 'solid'],
                           ylims=[[-50,-50, 0], [50, 50, 70]])
+
+print(" Fz mean abs error = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:,2])))
+
 
 
 if(SAVE):

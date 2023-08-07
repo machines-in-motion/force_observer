@@ -40,18 +40,18 @@ print(controlled_joint_ids)
 s = SimpleDataPlotter()
 
 data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-label1 = 'friction_+_DF_H=0_tune'
-label2 = 'friction_only_tune'
-label3 = 'friction_+_DF_H=0_tune_new_ref'
+label1 = 'friction_comp+Delta_F'
+label2 = 'friction_comp+No_delta_f'
+label3 = 'H=0_smooth'
 
 SAVE = False
 
 print("Load data 1...")
-r1 = DataReader(data_path+'config_REAL_2023-08-01T19:34:54.970120_friction_only_+_DF_H=0_tune.mds')
+r1 = DataReader(data_path+'config_REAL_2023-08-04T18:02:07.546952_H=0_a_smooth_FK_A.mds')  
 print("Load data 2...")
-r2 = DataReader(data_path+'config_REAL_2023-08-01T19:39:00.819617_friction_only_tune.mds') 
+r2 = DataReader(data_path+'config_REAL_2023-08-03T18:05:44.093924_no_DF.mds') 
 print("Load data 3...")
-r3 = DataReader(data_path+'config_REAL_2023-08-02T12:20:56.603908_friction_+_df_new_ref.mds')  
+r3 = DataReader(data_path+'config_REAL_2023-08-04T17:58:29.752052_H=0_a_smooth.mds')
 
 
 # Load config file
@@ -68,7 +68,7 @@ N = min(N, r3.data['tau'].shape[0])
 target_force_3d = np.zeros((N, 3))
 target_force_3d[:,-1] = config['frameForceRef'][2]
 
-N_START = int(config['T_CIRCLE'] * config['simu_freq'])
+N_START = int(config['T_CIRCLE'] * config['simu_freq']) 
 print("N_start = ", N_START)
 
 if(FILTER > 0):
@@ -228,9 +228,9 @@ print("------------------------------------")
 print(label1+" Pxy error norm = ", np.linalg.norm(p_mea1[N_START:N,:2] - target_position[N_START:N,:2]) )
 print(label2+" Pxy error norm = ", np.linalg.norm(p_mea2[N_START:N,:2] - target_position2[N_START:N,:2]))
 print(label3+" Pxy error norm = ", np.linalg.norm(p_mea3[N_START:N,:2] - target_position3[N_START:N,:2]))
-print(label1+" Fz mean abs error = ", np.mean(np.abs(r1.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:,2])))
-print(label2+" Fz mean abs error = ", np.mean(np.abs(r2.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:,2])))
-print(label3+" Fz mean abs error = ", np.mean(np.abs(r3.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:,2])))
+print(label1+" Fz mean abs error = ", np.mean(np.abs(r1.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N,2])))
+print(label2+" Fz mean abs error = ", np.mean(np.abs(r2.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N,2])))
+print(label3+" Fz mean abs error = ", np.mean(np.abs(r3.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N,2])))
 print("------------------------------------")
 print("------------------------------------")
 

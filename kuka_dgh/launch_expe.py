@@ -102,7 +102,7 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/ajordana/Desktop/delta_f_real_exp/sanding/"
-suffix = "_demo"
+suffix = "_H=0_a_smooth_FK_A"
 
 if SIM:
     thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+".mds")
@@ -111,5 +111,5 @@ if SIM:
     # thread_head.plot_timing()
 else:
     thread_head.start()
-    # thread_head.start_logging(20, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
-    thread_head.start_logging(30, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
+    thread_head.start_logging(20, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
+    # thread_head.start_logging(30, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
