@@ -216,7 +216,7 @@ target_position[:,:] = pdes.copy()
 
 # integral effect parameters
 force_integral = 0.
-KF_I = 1000.
+KF_I = 1.
 alpha_f = 0.999
 
 
@@ -406,7 +406,7 @@ for i in range(sim_data.N_simu):
     if config["FORCE_INTEGRAL"] and (i >= T_CIRCLE):
         Jac = pin.getFrameJacobian(robot_simulator.pin_robot.model, robot_simulator.pin_robot.data, id_endeff, pin.LOCAL_WORLD_ALIGNED)[:3]
         F = np.array([0., 0., force_integral])
-        lat_comp += Jac.T @ F
+        lat_comp += KF_I * Jac.T @ F
 
 
 
