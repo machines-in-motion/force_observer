@@ -289,6 +289,13 @@ class ClassicalMPCContact:
         self.force_est = 0.
         self.acc_est = 0.
 
+
+        # integral effect parameters
+        self.force_integral = np.array([0.])
+        self.KF_I = 4.
+        self.alpha_f = 0.99
+
+
         self.node_id_reach = -1
         self.node_id_contact = -1
         self.node_id_track = -1
@@ -372,9 +379,15 @@ class ClassicalMPCContact:
             self.contact_force_3d_measured = f6d_world.linear.copy()
         
 
+
+
         alpha = 0.95
         self.force_est = alpha * self.force_est + (1-alpha) * self.contact_force_3d_measured
         self.acc_est = alpha * self.acc_est + (1-alpha) * self.a
+
+        # compute integral
+        self.force_integral[0] = self.alpha_f * self.force_integral[0] + (self.force_est[2] - self.target_force[0]) * self.dt_simu
+        self.force_integral[0] = np.core.umath.maximum(np.core.umath.minimum(self.force_integral[0], 100), -100)
 
         # # # # # # # # # 
         # # Update OCP  #
@@ -441,6 +454,9 @@ class ClassicalMPCContact:
             if self.config['USE_DELTA_F']:
                 self.target_force += self.delta_f
                 
+        if self.config["FORCE_INTEGRAL"] and (0 <= time_to_contact):
+            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+            self.target_force -= self.KF_I * self.force_integral[0]
 
         if(time_to_circle == 0): 
             self.TASK_PHASE = 4
@@ -516,9 +532,11 @@ class ClassicalMPCContact:
 
         if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-            
-            
             self.tau -= Jac.T @ np.array([self.force_est[0], self.force_est[1], 0.])
+
+        # if self.config["FORCE_INTEGRAL"] and (0 <= time_to_contact):
+        #     Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+        #     self.tau += self.KF_I * Jac.T @ np.array([0., 0., self.force_integral[0]])
 
 
         # Compute gravity
