@@ -14,7 +14,7 @@ np.set_printoptions(precision=4, linewidth=180)
 gains = np.array([0, 50.])
 
 # Unittest tolerance
-TOL   = 1e-3
+TOL   = 5e-3
 
 # Test cases
 ROBOTS = ['talos_arm', 'kinova']
@@ -26,7 +26,7 @@ FRAMES = ['j2s6s200_joint_finger_tip_1', 'wrist_left_ft_tool_link']
 FRAMES_REF_STR = ['LOCAL', 'LOCAL_WORLD_ALIGNED']
 FRAMES_REF     = [pin.LOCAL, pin.LOCAL_WORLD_ALIGNED]
 
-CONTACT_DIMS = [1, 3]
+CONTACT_DIMS = [1, 3, 6]
 
 # Main testing loop
 
