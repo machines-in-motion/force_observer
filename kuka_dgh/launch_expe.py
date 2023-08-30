@@ -17,15 +17,16 @@ from force_feedback_dgh.demos.utils.find_contact_point import compute_sensor_fra
 
 
 
-from controller import ClassicalMPCContact
+# from controller import ClassicalMPCContact
+from controller36d import ClassicalMPCContact
 from core_mpc import path_utils, sim_utils
 from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
-SIM =  False
+SIM =  True
 
-DGM_PARAMS_PATH = "/home/ajordana/ws/workspace/install/robot_properties_kuka/lib/python3.8/site-packages/robot_properties_kuka/robot_properties_kuka/dynamic_graph_manager/dgm_parameters_iiwa.yaml"
-CONFIG_NAME = 'config'
+DGM_PARAMS_PATH = "/home/skleff/ws/workspace/install/robot_properties_kuka/lib/python3.8/site-packages/robot_properties_kuka/robot_properties_kuka/dynamic_graph_manager/dgm_parameters_iiwa.yaml"
+CONFIG_NAME = 'config36d'
 CONFIG_PATH = CONFIG_NAME+".yml"
 
 
@@ -101,11 +102,11 @@ else:
 
 thread_head.switch_controllers(ctrl)
 
-prefix = "/home/ajordana/Desktop/delta_f_real_exp/sanding/"
-suffix = "_H=0_a_smooth_FK_A"
+prefix = "/home/skleff/Desktop/delta_f_real_exp/3d/"
+suffix = "_test"
 
 if SIM:
-    thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+".mds")
+    thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
     thread_head.sim_run_timed(int(config['T_tot']*config['simu_freq']))
     thread_head.stop_logging()
     # thread_head.plot_timing()

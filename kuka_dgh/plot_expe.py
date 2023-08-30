@@ -39,7 +39,7 @@ model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
 controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
 print(controlled_joint_ids)
 # Load config file
-CONFIG_NAME = 'config'
+CONFIG_NAME = 'config36d'
 CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
 
@@ -57,12 +57,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_SIM_2023-08-04T16:18:29.321304.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
+    data_name = 'config_SIM_2023-08-30T13:58:11.160116Ki=10.mds'
     
 else:
-    data_path = '/home/ajordana/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'config_REAL_2023-08-04T17:52:28.163831_baseline_slow.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
+    data_name = 'config_REAL_2023-08-30T14:21:53.371786alpha_f=1_Ki=0.2.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -158,7 +158,7 @@ target[:, 2] = 50.
 
 # Plot forces
 fig_f, _ = s.plot_soft_contact_force([
-                           r.data['contact_force_3d_measured'], 
+                           r.data['contact_force_3d_measured'][:,:3], 
                            r.data['force_est'], 
                            target_force_3d,
                            target,
@@ -169,6 +169,9 @@ fig_f, _ = s.plot_soft_contact_force([
                           ['r', 'b', 'c', 'k', 'g'],
                           linestyle=['solid', 'dotted', 'dotted', 'solid', 'solid'],
                           ylims=[[-50,-50, 0], [50, 50, 70]])
+# plot force integral
+plt.figure()
+plt.plot(r.data['force_integral'])
 
 print(" Fz mean abs error = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:,2])))
 
