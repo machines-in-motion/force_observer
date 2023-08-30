@@ -2,21 +2,19 @@ import numpy as np
 import pinocchio as pin 
 
 import time
-import matplotlib.pyplot as plt 
 
 from classical_mpc.ocp import OptimalControlProblemClassical
 from core_mpc import pin_utils
 from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
-from multiprocessing import Pipe, Process
 from robot_properties_kuka.config import IiwaConfig
 
 from force_observer import ForceEstimator, MHForceEstimator
 
 
 
-def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_force, target_velocity):
+def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_force):
         t = time.time()
         # Update initial state + warm-start
         x = np.concatenate([q, v])
@@ -169,10 +167,7 @@ class ClassicalMPCContact:
         self.us = self.ddp.us ; self.xs = self.ddp.xs ; self.Ks = self.ddp.K 
         self.x = self.xs[0] ; self.tau_ff = self.us[0] ; self.K = self.Ks[0]
         self.tau = self.tau_ff.copy() ; self.tau_riccati = np.zeros(self.tau.shape)
-        self.tau_ext = self.fext0.copy()
-        self.x1 = self.xs[1]
         self.nb_ctrl = 0
-        self.nb_plan = 0
         self.fpred = np.zeros(3)
 
         # Initialize torque measurements 
@@ -233,7 +228,6 @@ class ClassicalMPCContact:
         N_total_pos = int((self.config['T_tot'] - self.config['T_REACH'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio)
         N_circle = int((self.config['T_tot'] - self.config['T_CIRCLE'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio )
         self.target_position_traj = np.zeros( (N_total_pos, 3) )
-        self.target_velocity_traj = np.zeros( (N_total_pos, 3) )
         # absolute desired position
         self.oPc_offset = np.asarray(self.config['oPc_offset'])
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
@@ -243,25 +237,15 @@ class ClassicalMPCContact:
         self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
                                                               self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
                                                               self.pdes[2]]) for i in range(N_circle)]
-        self.target_velocity_traj[0:N_circle, :] = [np.array([radius * omega * np.cos(i*self.dt_simu*omega), 
-                                                              radius * omega * np.sin(i*self.dt_simu*omega),
-                                                              0.]) for i in range(N_circle)]
         self.target_position_traj[N_circle:, :] = self.target_position_traj[N_circle-1,:]
-        self.target_velocity_traj[N_circle:, :] = np.zeros(3)
         # plt.plot(self.target_position_traj, label='pos')
-        # plt.plot(self.target_velocity_traj, label='vel')
         # plt.show()
         # Targets over one horizon (initially = absolute target position)
         self.target_position = np.zeros((self.Nh+1, 3)) 
-        self.target_velocity = np.zeros((self.Nh+1, 3)) 
         self.target_position[:,:] = self.pdes.copy() 
-        self.target_velocity[:,:] = np.zeros(3) 
         self.target_position_x = self.target_position[:,0] 
         self.target_position_y = self.target_position[:,1] 
         self.target_position_z = self.target_position[:,2]
-        self.target_velocity_x = self.target_velocity[:,0] 
-        self.target_velocity_y = self.target_velocity[:,1] 
-        self.target_velocity_z = self.target_velocity[:,2]
 
         
         # ForceEstimator
@@ -330,8 +314,7 @@ class ClassicalMPCContact:
                                                                                         self.target_position, 
                                                                                         self.force_weight,
                                                                                         self.TASK_PHASE,
-                                                                                        self.target_force, 
-                                                                                        self.target_velocity)
+                                                                                        self.target_force)
 
         if(self.pinRef != pin.LOCAL):
             self.fpred = self.lwaMc.rotation @ self.fpred
@@ -451,12 +434,11 @@ class ClassicalMPCContact:
             ti  = time_to_contact
             tf  = ti + (self.Nh+1)*self.OCP_TO_SIMU_ratio
             self.target_force = self.coef_target_force * self.target_force_traj[ti:tf:self.OCP_TO_SIMU_ratio, 2]
-            if self.config['USE_DELTA_F']:
+            if( self.config['USE_DELTA_F'] and self.config['COST_SHIFT']):
                 self.target_force += self.delta_f
-                
-        if self.config["FORCE_INTEGRAL"] and (0 <= time_to_contact):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-            self.target_force -= self.KF_I * self.force_integral[0]
+            if( self.config["FORCE_INTEGRAL"] and self.config['COST_SHIFT']):
+                Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+                self.target_force -= self.KF_I * self.force_integral[0]
 
         if(time_to_circle == 0): 
             self.TASK_PHASE = 4
@@ -476,12 +458,6 @@ class ClassicalMPCContact:
             self.target_position_x = self.target_position[:,0] 
             self.target_position_y = self.target_position[:,1] 
             self.target_position_z = self.target_position[:,2]
-            # Record target signals                
-            self.target_velocity[:,:2] = self.target_velocity_traj[ti:tf:self.OCP_TO_SIMU_ratio,:2] 
-            self.target_velocity[:,2]  = 0.
-            self.target_velocity_x = self.target_velocity[:,0] 
-            self.target_velocity_y = self.target_velocity[:,1] 
-            self.target_velocity_z = self.target_velocity[:,2]
 
         # # # # # # #  
         # Solve OCP #
@@ -497,8 +473,7 @@ class ClassicalMPCContact:
                                                                 self.target_position, 
                                                                 self.force_weight, 
                                                                 self.TASK_PHASE,
-                                                                self.target_force, 
-                                                                self.target_velocity)
+                                                                self.target_force)
 
             if(self.pinRef != pin.LOCAL):
                 self.fpred = self.lwaMc.rotation @ self.fpred
@@ -530,13 +505,17 @@ class ClassicalMPCContact:
 
         self.tau_old = self.tau.copy()
 
-        if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact):
+        if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau -= Jac.T @ np.array([self.force_est[0], self.force_est[1], 0.])
 
-        # if self.config["FORCE_INTEGRAL"] and (0 <= time_to_contact):
-        #     Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-        #     self.tau += self.KF_I * Jac.T @ np.array([0., 0., self.force_integral[0]])
+        if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
+            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+            self.tau -= Jac.T @ np.array([0., 0., float(self.delta_f)]) 
+                
+        if( self.config["FORCE_INTEGRAL"] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
+            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+            self.tau += self.KF_I * Jac.T @ np.array([0., 0., self.force_integral[0]])
 
 
         # Compute gravity
