@@ -31,11 +31,10 @@ ForceEstimator::ForceEstimator(
     // Set default mask if 1D model
     if(nc_ == 1){
         mask_ = 2;
-    } 
-
-    if(nc_ != nc_delta_f_){
-        std::cout << "Error: nc must be equal to nc_delta_f !" << std::endl;
-    }
+    } else {
+        if(nc_ != nc_delta_f_){
+            std::cout << "Error: nc must be equal to nc_delta_f !" << std::endl;
+    }}
 
     // Default weights
     P_ = 1e-0*Eigen::VectorXd::Ones(nc_delta_f_);
