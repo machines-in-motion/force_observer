@@ -39,10 +39,10 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
         # Update OCP for contact phase
         if(TASK_PHASE == 3):
             for k in range(ddp.problem.T+1):  
-                m[k].differential.costs.costs["translation"].active = True
-                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                m[k].differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
-                m[k].differential.costs.costs["translation"].weight = 60. 
+                # m[k].differential.costs.costs["translation"].active = True
+                # m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+                # m[k].differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
+                # m[k].differential.costs.costs["translation"].weight = 60. 
                 m[k].differential.costs.costs['rotation'].active = True
                 m[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
                 # activate contact and force cost
@@ -54,9 +54,12 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
         # Update OCP for circle phase
         if(TASK_PHASE == 4):
             for k in range(ddp.problem.T+1):
-                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+                # m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+                m[k].differential.contacts.changeContactStatus("contact", True)
                 # update force ref
                 if(k!=ddp.problem.T):
+                    m[k].differential.costs.costs["force"].active = True
+                    m[k].differential.costs.costs["force"].weight = force_weight
                     m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
         jf = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f
@@ -215,16 +218,23 @@ class ClassicalMPCContact:
             logger.warning("LOCAL_WORLD_ALIGNED contact force !")
             self.contact_force_6d_measured  = f6d_world.vector.copy()
             self.coef_target_force = +1.  
-             
+        
+        self.contact_force_3d_measured = self.contact_force_6d_measured[:3]
+        
         # Task phases management & cost parameters
-        F_MIN = 5.
-        F_MAX = self.config['frameForceRef'][2]
         N_total = int((self.config['T_tot'] - self.config['T_CONTACT'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio)
-
         N_ramp = int((self.config['T_RAMP'] - self.config['T_CONTACT']) / self.dt_simu)
         self.target_force_traj = np.zeros((N_total, 6))
-        self.target_force_traj[:N_ramp, 2] = [F_MIN + (F_MAX - F_MIN)*i/N_ramp for i in range(N_ramp)]
-        self.target_force_traj[N_ramp:, 2] = F_MAX
+            # Ref in Fz
+        FZ_MIN = 5.
+        FZ_MAX = self.config['frameForceRef'][2]
+        self.target_force_traj[:N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
+        self.target_force_traj[N_ramp:, 2] = FZ_MAX
+            # Ref in Fx
+        FX_MIN = 1.
+        FX_MAX = self.config['frameForceRef'][0]
+        self.target_force_traj[:N_ramp, 0] = [FX_MIN + (FX_MAX - FX_MIN)*i/N_ramp for i in range(N_ramp)]
+        self.target_force_traj[N_ramp:, 0] = FX_MAX
         # self.target_force_traj[N_sinus*self.Nh:, 2] = [F_MAX + 20.*np.round(np.sin(0.01 * (2*np.pi/self.Nh) * i/2 )  ) for i in range(N_total-N_sinus*self.Nh)]
         # plt.plot(self.target_force_traj)
         # plt.show()
@@ -374,6 +384,7 @@ class ClassicalMPCContact:
         else:
             self.contact_force_6d_measured = f6d_world.vector.copy()
         
+        self.contact_force_3d_measured = self.contact_force_6d_measured[:3]
 
 
 
@@ -403,7 +414,7 @@ class ClassicalMPCContact:
         self.buffer_q[self.nv:]   = self.buffer_q[:-self.nv]
         self.buffer_v[self.nv:]   = self.buffer_v[:-self.nv]
         self.buffer_a[self.nv:]   = self.buffer_a[:-self.nv]
-        self.buffer_tau[self.nv:]   = self.buffer_tau[:-self.nv]
+        self.buffer_tau[self.nv:] = self.buffer_tau[:-self.nv]
         self.buffer_f[self.nc:]   = self.buffer_f[:-self.nc]
 
 
@@ -412,7 +423,7 @@ class ClassicalMPCContact:
         self.buffer_v[:self.nv]   = v
         self.buffer_a[:self.nv]   = self.acc_est
         self.buffer_tau[:self.nv] = self.tau_old
-        self.buffer_f[:self.nc]         = self.force_est
+        self.buffer_f[:self.nc]   = self.force_est
 
         # delta_f_ = 0
 
