@@ -57,12 +57,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
-    data_name = 'config_SIM_2023-08-30T13:58:11.160116Ki=10.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/'
+    data_name = 'config36d_SIM_2023-08-31T10:33:53.985871_test.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
-    data_name = 'config_REAL_2023-08-30T14:21:53.371786alpha_f=1_Ki=0.2.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/'
+    data_name = 'config36d_REAL_2023-08-31T10:53:51.251608_delta_f.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -145,35 +145,36 @@ fig_p, _ = s.plot_ee_pos( [p_mea,
 
 
 target_force_3d = np.zeros((N, 3))
-target_force_3d[:,0] = r.data['target_force'][:,0]*0
-target_force_3d[:,1] = r.data['target_force'][:,0]*0
-target_force_3d[:,2] = r.data['target_force'][:,0]
+target_force_3d[:,0] = r.data['target_force_fx'][:,0]
+target_force_3d[:,1] = r.data['target_force_fy'][:,0]
+target_force_3d[:,2] = r.data['target_force_fz'][:,0]
 
 
 force_delta_f = np.zeros((N, 3))
 force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.array(r.data['delta_f'])[:,0]
 
 target = np.zeros((N, 3))
-target[:, 2] = 50.
+target[:, :3] = np.asarray(config['frameForceRef'])[:3]
 
 # Plot forces
 fig_f, _ = s.plot_soft_contact_force([
                            r.data['contact_force_3d_measured'][:,:3], 
                            r.data['force_est'], 
                            target_force_3d,
-                           target,
-                           r.data['fpred']],
-                          ['Measured', 'Reference', 'force filter',
-                           'target', 
-                           'Predicted'], 
-                          ['r', 'b', 'c', 'k', 'g'],
-                          linestyle=['solid', 'dotted', 'dotted', 'solid', 'solid'],
+                           r.data['fpred'][:,:3]],
+                          ['Measured', 
+                           'Filtered',
+                           'Predicted', 
+                           'Target'], 
+                          ['r', 'g', 'b', 'k'],
+                          linestyle=['solid', 'solid', 'dotted', 'dotted'],
                           ylims=[[-50,-50, 0], [50, 50, 70]])
 # plot force integral
 plt.figure()
 plt.plot(r.data['force_integral'])
 
-print(" Fz mean abs error = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:,2])))
+# print(" Fz mean abs error = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:,2])))
+print(" F3d mean abs error = ", np.mean(np.linalg.norm(np.abs(r.data['contact_force_3d_measured'][N_START:N, :] - target[N_START:, :]))))
 
 
 

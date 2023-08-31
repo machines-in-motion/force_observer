@@ -38,11 +38,7 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
                 m[k].differential.costs.costs["translation"].weight = w
         # Update OCP for contact phase
         if(TASK_PHASE == 3):
-            for k in range(ddp.problem.T+1):  
-                # m[k].differential.costs.costs["translation"].active = True
-                # m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                # m[k].differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
-                # m[k].differential.costs.costs["translation"].weight = 60. 
+            for k in range(ddp.problem.T+1):   
                 m[k].differential.costs.costs['rotation'].active = True
                 m[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
                 # activate contact and force cost
@@ -54,7 +50,6 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
         # Update OCP for circle phase
         if(TASK_PHASE == 4):
             for k in range(ddp.problem.T+1):
-                # m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
                 m[k].differential.contacts.changeContactStatus("contact", True)
                 # update force ref
                 if(k!=ddp.problem.T):
@@ -290,8 +285,8 @@ class ClassicalMPCContact:
         self.tau_old = np.zeros(self.nv)
 
         self.delta_f = np.zeros(self.nc)
-        self.estimator.Q = 4 * 4e-3 * np.ones(7)
-        self.estimator.R = 4 * 2e-2 * np.ones(self.nc)
+        self.estimator.Q = 4 * 8e-4 * np.ones(7)
+        self.estimator.R = 4 * 4e-3 * np.ones(self.nc)
 
         self.force_est = np.zeros(self.nc)
         self.acc_est = np.zeros(self.nv)
@@ -299,7 +294,7 @@ class ClassicalMPCContact:
 
         # integral effect parameters
         self.force_integral = np.array([0.]*self.nc)
-        self.KF_I = 4.*np.ones(self.nc)
+        self.KF_I = 10.*np.ones(self.nc)
         self.alpha_f = 0.99*np.ones(self.nc)
 
 
@@ -425,7 +420,6 @@ class ClassicalMPCContact:
         self.buffer_tau[:self.nv] = self.tau_old
         self.buffer_f[:self.nc]   = self.force_est
 
-        # delta_f_ = 0
 
         t0 = time.time()
         if time_to_ramp > 0:
@@ -434,7 +428,6 @@ class ClassicalMPCContact:
             for i in range(self.nc):
                 self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f[i], self.delta_f[i] + 0.2), self.delta_f[i] - 0.2)
                 self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.delta_f[i], 40), -40)
-            delta_f_ = self.delta_f
         self.time_df = time.time() - t0
 
         if(time_to_reach == 0): 
