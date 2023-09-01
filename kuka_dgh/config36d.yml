@@ -4,7 +4,7 @@
 # MPC & sim parameters
 simu_freq: 1000        # Simulation frequency in Hz
 plan_freq: 1000       # Planning frequency
-T_tot: 40             # Simu duration (s)-
+T_tot: 400             # Simu duration (s)-
 RICCATI: False 
 
 # Definition of the contact surface in the simulator
@@ -53,8 +53,8 @@ pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '3D'
 
 # USE_LATERAL_FRICTION: True
-USE_DELTA_F: True
-FORCE_INTEGRAL: False
+USE_DELTA_F: False
+FORCE_INTEGRAL: True
 COST_SHIFT: True
 DF_HORIZON: 0  # Horizon of the estimation (0 calls the estimators implementation without horizon)
 # note that df horizon 0 is different from 1 because the forward kyn in MHE does use the acceleration.
@@ -62,7 +62,7 @@ DF_HORIZON: 0  # Horizon of the estimation (0 calls the estimators implementatio
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
 # to select from the list : 'stateReg', 'ctrlReg', 'ctrlRegGrav', 'stateLim', 'ctrlLim'
 #                           'force', 'friction', 'translation', 'velocity', 'placement'
-WHICH_COSTS: ['force', 'translation', 'velocity', 'stateReg', 'ctrlRegGrav', 'rotation']  
+WHICH_COSTS: ['force', 'translation', 'velocity', 'stateReg', 'ctrlRegGrav']  
 
 # Cost function weights and activations
  # 'force' : end-effector frame force (translation + rotation)
@@ -72,7 +72,7 @@ frameForceRef: [0., 0., 50, 0., 0., 0.]
 frameForceFrameName: 'contact'
 
  # 'stateReg' : state regularization  
-stateRegWeights: [20., 20., 20., 10., 10., 10, 2., 2., 2., 2., 2., 2.]
+stateRegWeights: [0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 2., 2., 2., 2., 2., 2.]
 stateRegWeight: 0.02 
 stateRegWeightTerminal: 0.02
 stateRegRef: 'DEFAULT'
@@ -97,12 +97,12 @@ frameVelocityWeightTerminal: 1
 frameVelocityRef: 'DEFAULT'    
 frameVelocityFrameName: 'contact'
 
- # 'rotation' : end-effector frame orientation
-frameRotationWeights:  [1., 1., 1.]
-frameRotationWeight: 20. #0.05
-frameRotationWeightTerminal: 20. #0.1 #1.
-frameRotationRef: 'DEFAULT'
-frameRotationFrameName: 'contact'
+#  # 'rotation' : end-effector frame orientation
+# frameRotationWeights:  [1., 1., 1.]
+# frameRotationWeight: 2. #0.05
+# frameRotationWeightTerminal: 2. #0.1 #1.
+# frameRotationRef: 'DEFAULT'
+# frameRotationFrameName: 'contact'
 
 
 # armature

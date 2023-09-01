@@ -39,7 +39,7 @@ model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
 controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
 print(controlled_joint_ids)
 # Load config file
-CONFIG_NAME = 'config36d'
+CONFIG_NAME = 'config'
 CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
 
@@ -57,12 +57,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/'
-    data_name = 'config36d_SIM_2023-08-31T10:33:53.985871_test.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
+    data_name = 'config_SIM_2023-09-01T10:57:19.747014_mass_delta_f.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/'
-    data_name = 'config36d_REAL_2023-08-31T10:53:51.251608_delta_f.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
+    data_name = 'config_REAL_2023-09-01T11:33:29.600538_delta_f.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -89,16 +89,16 @@ s.plot_joint_pos( [r.data['joint_positions'][:,controlled_joint_ids], r.data['x_
                    ['r', 'b'], #[0.2, 0.2, 0.2, 0.5], 'b', 'g'])
                 #    markers=[None, None, '.', '.']) 
                    ylims=[model.lowerPositionLimit, model.upperPositionLimit] )
-s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x_des'][:,nq:nq+nv]], # r.data['x'][:,nq:nq+nv], r.data['x1'][:,nq:nq+nv]],
-                  ['mea', 'pred'], # 'pred0', 'pred1'], 
-                  ['r', 'b'], #[0.2, 0.2, 0.2, 0.5], 'b', 'g']) 
-                  ylims=[-model.velocityLimit, +model.velocityLimit] )
+# s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x_des'][:,nq:nq+nv]], # r.data['x'][:,nq:nq+nv], r.data['x1'][:,nq:nq+nv]],
+#                   ['mea', 'pred'], # 'pred0', 'pred1'], 
+#                   ['r', 'b'], #[0.2, 0.2, 0.2, 0.5], 'b', 'g']) 
+#                   ylims=[-model.velocityLimit, +model.velocityLimit] )
 
 
-s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids],
-                   r.data['acc_est'][:,controlled_joint_ids]],
-                  ['a mea', 'a smooth' ], # 'pred0', 'pred1'], 
-                  ['r', 'c'] )
+# s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids],
+#                    r.data['acc_est'][:,controlled_joint_ids]],
+#                   ['a mea', 'a smooth' ], # 'pred0', 'pred1'], 
+#                   ['r', 'c'] )
 
 plt.figure()
 plt.plot(np.array(r.data['delta_f']))
@@ -145,10 +145,12 @@ fig_p, _ = s.plot_ee_pos( [p_mea,
 
 
 target_force_3d = np.zeros((N, 3))
-target_force_3d[:,0] = r.data['target_force_fx'][:,0]
-target_force_3d[:,1] = r.data['target_force_fy'][:,0]
-target_force_3d[:,2] = r.data['target_force_fz'][:,0]
-
+# target_force_3d[:,0] = r.data['target_force_fx'][:,0]
+# target_force_3d[:,1] = r.data['target_force_fy'][:,0]
+# target_force_3d[:,2] = r.data['target_force_fz'][:,0]
+target_force_3d[:,0] = r.data['target_force'][:,0]*0.
+target_force_3d[:,1] = r.data['target_force'][:,0]*0.
+target_force_3d[:,2] = r.data['target_force'][:,0]
 
 force_delta_f = np.zeros((N, 3))
 force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.array(r.data['delta_f'])[:,0]
@@ -161,10 +163,10 @@ fig_f, _ = s.plot_soft_contact_force([
                            r.data['contact_force_3d_measured'][:,:3], 
                            r.data['force_est'], 
                            target_force_3d,
-                           r.data['fpred'][:,:3]],
+                           target],
                           ['Measured', 
                            'Filtered',
-                           'Predicted', 
+                           'Target (modified)', 
                            'Target'], 
                           ['r', 'g', 'b', 'k'],
                           linestyle=['solid', 'solid', 'dotted', 'dotted'],
@@ -173,8 +175,8 @@ fig_f, _ = s.plot_soft_contact_force([
 plt.figure()
 plt.plot(r.data['force_integral'])
 
-# print(" Fz mean abs error = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:,2])))
-print(" F3d mean abs error = ", np.mean(np.linalg.norm(np.abs(r.data['contact_force_3d_measured'][N_START:N, :] - target[N_START:, :]))))
+print(" Fz mean abs error = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:,2])))
+# print(" F3d mean abs error = ", np.mean(np.linalg.norm(np.abs(r.data['contact_force_3d_measured'][N_START:N, :] - target[N_START:, :]))))
 
 
 

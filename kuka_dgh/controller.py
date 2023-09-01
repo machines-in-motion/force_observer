@@ -267,8 +267,8 @@ class ClassicalMPCContact:
         self.tau_old = np.zeros(self.nv)
 
         self.delta_f = 0.
-        self.estimator.Q = 4 * 4e-3 * np.ones(7)
-        self.estimator.R = 4 * 2e-2 * np.ones(1)
+        self.estimator.Q = 3 * 4e-3 * np.ones(7)
+        self.estimator.R = 3 * 2e-2 * np.ones(1)
 
         self.force_est = 0.
         self.acc_est = 0.
@@ -276,8 +276,8 @@ class ClassicalMPCContact:
 
         # integral effect parameters
         self.force_integral = np.array([0.])
-        self.KF_I = 4.
-        self.alpha_f = 0.99
+        self.KF_I = 30.
+        self.alpha_f = 0.9995
 
 
         self.node_id_reach = -1
@@ -368,9 +368,9 @@ class ClassicalMPCContact:
         self.force_est = alpha * self.force_est + (1-alpha) * self.contact_force_3d_measured
         self.acc_est = alpha * self.acc_est + (1-alpha) * self.a
 
-        # compute integral
-        self.force_integral[0] = self.alpha_f * self.force_integral[0] + (self.force_est[2] - self.target_force[0]) * self.dt_simu
-        self.force_integral[0] = np.core.umath.maximum(np.core.umath.minimum(self.force_integral[0], 100), -100)
+        # # compute integral
+        # self.force_integral[0] = self.alpha_f * self.force_integral[0] + (self.force_est[2] - self.target_force[0]) * self.dt_simu
+        # self.force_integral[0] = np.core.umath.maximum(np.core.umath.minimum(self.force_integral[0], 100), -100)
 
         # # # # # # # # # 
         # # Update OCP  #
@@ -382,7 +382,11 @@ class ClassicalMPCContact:
         time_to_circle  = int(thread.ti - self.T_CIRCLE)
 
 
-
+        # compute integral
+        if 0 <= time_to_contact:
+            self.force_integral[0] = self.alpha_f * self.force_integral[0] + (self.force_est[2] - self.coef_target_force * self.target_force_traj[time_to_contact, 2]) * self.dt_simu
+            self.force_integral[0] = np.core.umath.maximum(np.core.umath.minimum(self.force_integral[0], 100), -100)
+                
         # Delta F estimation:
         
 
