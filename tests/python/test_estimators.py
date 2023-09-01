@@ -56,8 +56,6 @@ for _, nc in enumerate(CONTACT_DIMS):
 
 
 
-
-
             ####################################
             # Estimator vs EstimatorEquivalent #
             ####################################
@@ -137,14 +135,16 @@ for _, nc in enumerate(CONTACT_DIMS):
             force_estimator_eq_py = EstimatorEquivalent(robot, nc, nc, id_endeff, gains, pinRefFrameStr)
             force_estimator_mh_py = MHEstimator(T, robot, nc, id_endeff, gains, pinRefFrameStr)
             # Make sure they have the same params
-            force_estimator_mh_py.P = force_estimator_eq_py.P
-            force_estimator_mh_py.Q = force_estimator_eq_py.Q
-            # balance weigth of T = 10
-            force_estimator_mh_py.R = force_estimator_eq_py.R / T
+            force_estimator_mh_py.P = force_estimator_eq_py.P * T
+            force_estimator_mh_py.Q = force_estimator_eq_py.Q 
+            force_estimator_mh_py.R = force_estimator_eq_py.R 
             force_estimator_mh_py.define_parameters()
             # Test that they give the same results
             _, delta_f_eq_py    = force_estimator_eq_py.estimate(q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
             _, delta_f_mh_py    = force_estimator_mh_py.estimate([q.copy()] * T, [v.copy()] * T, [a.copy()] * T, [tau.copy()] * T, df.copy(), [f.copy()] * T)
+            # print(delta_f_eq_py - delta_f_mh_py)
+            # if norm(delta_f_eq_py - delta_f_mh_py) > TOL:
+            #     import pdb; pdb.set_trace()
             assert(norm(delta_f_eq_py - delta_f_mh_py) <= TOL)
 
 
@@ -187,6 +187,40 @@ for _, nc in enumerate(CONTACT_DIMS):
 
             assert(norm(force_estimator_mh_cpp_data.delta_f - delta_f_mh_py) <= TOL)
 
+
+            if nc != 6:
+
+                #############################################
+                # Hybrid: Estimator C++ vs Estimator Python #
+                #############################################
+                print("  >> test_HYBRID_ForceEstimator_CPP_vs_Estimator_PYTHON")
+
+                nc_delta_f = nc
+                # df = np.random.rand(nc_delta_f)
+                # f = np.random.rand(1)
+                df = np.zeros(nc_delta_f)
+                f = np.array([1])
+                # Test that we have same result as C++
+                force_estimator_cpp = ForceEstimator(robot.model, 1, nc_delta_f, id_endeff, gains, pinRefFrame)
+                force_estimator_py    = Estimator(robot, 1, nc_delta_f, id_endeff, gains, pinRefFrameStr)
+
+                # Assert default values
+                assert(force_estimator_cpp.frame_id == force_estimator_py.contact_frame_id)
+                assert(force_estimator_cpp.nc == force_estimator_py.nc)
+                assert(force_estimator_cpp.nc_delta_f == force_estimator_py.nc_delta_f)
+                if(nc==1): assert(force_estimator_cpp.mask == force_estimator_py.mask)
+                assert(norm(force_estimator_cpp.H - force_estimator_py.H) <= TOL)
+                assert(norm(force_estimator_cpp.baumgarte_gains - force_estimator_py.baumgarte_gains) <= TOL)
+                # Assert estimation
+                force_estimator_cpp_data = force_estimator_cpp.createData()
+                force_estimator_cpp.estimate(force_estimator_cpp_data, q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
+                _, delta_f_py    = force_estimator_py.estimate(q.copy(), v.copy(), a.copy(), tau.copy(), df.copy(), f.copy())
+
+                assert(norm(force_estimator_cpp.H - force_estimator_py.H) <= TOL)
+                assert(norm(force_estimator_cpp_data.g - force_estimator_py.g) <= TOL)
+                assert(norm(force_estimator_cpp_data.A - force_estimator_py.A) <= TOL)
+                assert(norm(force_estimator_cpp_data.b - force_estimator_py.b) <= TOL)            
+                assert(norm(force_estimator_cpp_data.delta_f - delta_f_py) <= TOL)
 
 
 
