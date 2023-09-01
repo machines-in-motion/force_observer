@@ -381,7 +381,7 @@ class ClassicalMPCContact:
             self.contact_force_6d_measured = f6d_world.vector.copy()
         
         if(thread.ti >= 7000 and thread.ti < 10000):
-            self.contact_force_6d_measured[2] += 10
+            self.contact_force_6d_measured[2] += 30
             
         self.contact_force_3d_measured = self.contact_force_6d_measured[:3]
 

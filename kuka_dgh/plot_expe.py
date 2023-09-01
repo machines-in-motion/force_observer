@@ -62,7 +62,7 @@ if(SIM):
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
-    data_name = 'config_REAL_2023-09-01T11:33:29.600538_delta_f.mds'
+    data_name = 'config_REAL_2023-09-01T15:47:01.680203_delta_f_fast_cost.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'

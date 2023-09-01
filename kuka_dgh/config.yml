@@ -58,6 +58,7 @@ FORCE_INTEGRAL: False
 COST_SHIFT: True
 DF_HORIZON: 0  # Horizon of the estimation (0 calls the estimators implementation without horizon)
 # note that df horizon 0 is different from 1 because the forward kyn in MHE does use the acceleration.
+HYBRID_DELTA_F: False
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
 # to select from the list : 'stateReg', 'ctrlReg', 'ctrlRegGrav', 'stateLim', 'ctrlLim'
@@ -99,8 +100,8 @@ frameVelocityFrameName: 'contact'
 
  # 'rotation' : end-effector frame orientation
 frameRotationWeights:  [1., 1., 1.]
-frameRotationWeight: 20. #0.05
-frameRotationWeightTerminal: 20. #0.1 #1.
+frameRotationWeight: 2. #0.05
+frameRotationWeightTerminal: 2. #0.1 #1.
 frameRotationRef: 'DEFAULT'
 frameRotationFrameName: 'contact'
 

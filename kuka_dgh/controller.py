@@ -231,7 +231,7 @@ class ClassicalMPCContact:
         # absolute desired position
         self.oPc_offset = np.asarray(self.config['oPc_offset'])
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
-        radius = 0.07 ; omega = 3
+        radius = 0.07 ; omega = 3.
         # radius = 0.0 ; omega = 3.
 
         self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
@@ -266,7 +266,34 @@ class ClassicalMPCContact:
         self.buffer_f   = np.zeros(self.buffer_length)
         self.tau_old = np.zeros(self.nv)
 
-        self.delta_f = 0.
+        # Sanity checks 
+        if(self.config['USE_DELTA_F']):
+            logger.warning("Using DELTA_F")
+            try: 
+                assert(self.config['FORCE_INTEGRAL'] == False)
+            except: 
+                logger.error("Cannot use delta_f and integral at the same time")
+
+        if(self.config['FORCE_INTEGRAL']):
+            logger.warning("Using FORCE_INTEGRAL")
+            try: 
+                assert(self.config['USE_DELTA_F'] == False)
+            except: 
+                logger.error("Cannot use delta_f and integral at the same time")
+        
+        if(self.config['HYBRID_DELTA_F']):
+            logger.warning("Using HYBRID_DELTA_F")
+            try: 
+                assert(self.config['USE_DELTA_F'] == True)
+            except: 
+                logger.error("Must have USE_DELTA_F = True if using hybrid delta_f")
+            try: 
+                assert(self.config['COST_SHIFT'] == False)
+            except: 
+                logger.error("Cannot use hybrid delta_f in cost. Must add it to tau.")
+            self.delta_f = np.zeros(3)
+        else:
+            self.delta_f = 0.
         self.estimator.Q = 3 * 4e-3 * np.ones(7)
         self.estimator.R = 3 * 2e-2 * np.ones(1)
 
@@ -383,7 +410,7 @@ class ClassicalMPCContact:
 
 
         # compute integral
-        if 0 <= time_to_contact:
+        if 0 <= time_to_ramp:
             self.force_integral[0] = self.alpha_f * self.force_integral[0] + (self.force_est[2] - self.coef_target_force * self.target_force_traj[time_to_contact, 2]) * self.dt_simu
             self.force_integral[0] = np.core.umath.maximum(np.core.umath.minimum(self.force_integral[0], 100), -100)
                 
@@ -408,11 +435,18 @@ class ClassicalMPCContact:
 
         t0 = time.time()
         if time_to_ramp > 0:
-            self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, np.array([self.delta_f]), self.buffer_f)
-            # Safety clipping (using np.core is 4 times faster than np.clip)
-            self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 0.2), self.delta_f - 0.2)
-            self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
-            delta_f_ = self.delta_f[0]
+            if(self.config['HYBRID_DELTA_F']):
+                self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, self.delta_f, self.buffer_f)
+                # Safety clipping (using np.core is 4 times faster than np.clip)
+                for i in range(3):
+                    self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f[i], self.delta_f[i] + 0.2), self.delta_f[i] - 0.2)
+                    self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.delta_f[i], 40), -40)
+            else:
+                self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, np.array([self.delta_f]), self.buffer_f)
+                # Safety clipping (using np.core is 4 times faster than np.clip)
+                self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 0.2), self.delta_f - 0.2)
+                self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
+                delta_f_ = self.delta_f[0]
         self.time_df = time.time() - t0
 
         if(time_to_reach == 0): 
@@ -441,7 +475,6 @@ class ClassicalMPCContact:
             if( self.config['USE_DELTA_F'] and self.config['COST_SHIFT']):
                 self.target_force += self.delta_f
             if( self.config["FORCE_INTEGRAL"] and self.config['COST_SHIFT']):
-                Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
                 self.target_force -= self.KF_I * self.force_integral[0]
 
         if(time_to_circle == 0): 
