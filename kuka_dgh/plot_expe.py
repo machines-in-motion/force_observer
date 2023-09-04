@@ -45,7 +45,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = False 
+SIM = True 
 SAVE = False
 
 # Create data Plottger
@@ -57,12 +57,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
-    data_name = 'config_SIM_2023-09-01T10:57:19.747014_mass_delta_f.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/delta_tau/'
+    data_name = 'config_SIM_2023-09-04T15:24:31.195938_delta_tau_no_jac.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
-    data_name = 'config_REAL_2023-09-01T15:47:01.680203_delta_f_fast_cost.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/hybrid/'
+    data_name = 'config_REAL_2023-09-04T14:07:00.711455_hybrid_delta_f_no_jac.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -100,9 +100,15 @@ s.plot_joint_pos( [r.data['joint_positions'][:,controlled_joint_ids], r.data['x_
 #                   ['a mea', 'a smooth' ], # 'pred0', 'pred1'], 
 #                   ['r', 'c'] )
 
-plt.figure()
-plt.plot(np.array(r.data['delta_f']))
-plt.title("delta_f")
+if(config['USE_DELTA_F']):
+    plt.figure()
+    plt.plot(np.array(r.data['delta_f']))
+    plt.title("delta_f")
+
+if(config['USE_DELTA_TAU']):
+    plt.figure()
+    plt.plot(np.array(r.data['delta_tau']))
+    plt.title("delta_tau")
 
 # For SIM robot only
 if(SIM):

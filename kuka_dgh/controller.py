@@ -10,7 +10,7 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 from robot_properties_kuka.config import IiwaConfig
 
-from force_observer import ForceEstimator, MHForceEstimator
+from force_observer import ForceEstimator, MHForceEstimator, TorqueEstimator
 
 
 
@@ -249,22 +249,6 @@ class ClassicalMPCContact:
 
         
         # ForceEstimator
-        frame_of_interest = config['frame_of_interest']
-        id_endeff = robot.model.getFrameId(frame_of_interest)
-        if config['DF_HORIZON'] == 0:
-            self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
-        else:
-            self.estimator = MHForceEstimator(config['DF_HORIZON'], self.robot.model, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
-
-        self.data_estimator = self.estimator.createData()
-
-        self.buffer_length = max(1, config['DF_HORIZON'])
-        self.buffer_q   = np.zeros(self.buffer_length * self.nv)
-        self.buffer_v   = np.zeros(self.buffer_length * self.nv)
-        self.buffer_a   = np.zeros(self.buffer_length * self.nv)
-        self.buffer_tau = np.zeros(self.buffer_length * self.nv)
-        self.buffer_f   = np.zeros(self.buffer_length)
-        self.tau_old = np.zeros(self.nv)
 
         # Sanity checks 
         if(self.config['USE_DELTA_F']):
@@ -294,8 +278,46 @@ class ClassicalMPCContact:
             self.delta_f = np.zeros(3)
         else:
             self.delta_f = 0.
-        self.estimator.Q = 3 * 4e-3 * np.ones(7)
-        self.estimator.R = 3 * 2e-2 * np.ones(1)
+        
+        if(self.config['USE_DELTA_TAU']):
+            logger.warning("Using USE_DELTA_TAU")
+            try: 
+                assert(self.config['USE_DELTA_F'] == False)
+                assert(self.config['FORCE_INTEGRAL'] == False)
+                assert(self.config['HYBRID_DELTA_F'] == False)
+            except: 
+                logger.error("Must have USE_DELTA_F, FORCE_INTEGRAL, HYBRID_DELTA_F = False")
+            self.delta_tau = np.zeros(self.nv)  
+            
+        frame_of_interest = config['frame_of_interest']
+        id_endeff = robot.model.getFrameId(frame_of_interest)
+        if config['DF_HORIZON'] == 0:
+            if(self.config['HYBRID_DELTA_F']):
+                self.estimator = ForceEstimator(self.robot.model, 1, 3, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+            else:
+                self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+        else:
+            self.estimator = MHForceEstimator(config['DF_HORIZON'], self.robot.model, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+        
+        if(self.config['USE_DELTA_TAU']):
+            self.estimator = TorqueEstimator(self.robot.model, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+        
+        self.data_estimator = self.estimator.createData()
+
+        self.buffer_length = max(1, config['DF_HORIZON'])
+        self.buffer_q   = np.zeros(self.buffer_length * self.nv)
+        self.buffer_v   = np.zeros(self.buffer_length * self.nv)
+        self.buffer_a   = np.zeros(self.buffer_length * self.nv)
+        self.buffer_tau = np.zeros(self.buffer_length * self.nv)
+        self.buffer_f   = np.zeros(self.buffer_length)
+        self.tau_old = np.zeros(self.nv)
+
+
+        self.estimator.Q = 3 * 4e-3 * np.ones(self.nv)
+        if(self.config['USE_DELTA_TAU']):
+            self.estimator.R = 3 * 2e-2 * np.ones(self.nv)
+        else:
+            self.estimator.R = 3 * 2e-2 * np.ones(1)
 
         self.force_est = 0.
         self.acc_est = 0.
@@ -431,7 +453,6 @@ class ClassicalMPCContact:
         self.buffer_tau[:self.nv] = self.tau_old
         self.buffer_f[:1]         = np.array([self.force_est[2]])
 
-        # delta_f_ = 0
 
         t0 = time.time()
         if time_to_ramp > 0:
@@ -441,12 +462,18 @@ class ClassicalMPCContact:
                 for i in range(3):
                     self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f[i], self.delta_f[i] + 0.2), self.delta_f[i] - 0.2)
                     self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.delta_f[i], 40), -40)
-            else:
+            elif(self.config['HYBRID_DELTA_F'] == False and self.config['USE_DELTA_F'] == True):
                 self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, np.array([self.delta_f]), self.buffer_f)
                 # Safety clipping (using np.core is 4 times faster than np.clip)
                 self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 0.2), self.delta_f - 0.2)
                 self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
-                delta_f_ = self.delta_f[0]
+            elif(self.config['USE_DELTA_TAU'] == True):
+                self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, self.delta_tau, self.buffer_f)
+                # # Safety clipping (using np.core is 4 times faster than np.clip)
+                # for i in range(self.nv):
+                #     self.delta_tau[i] = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_tau[i], self.delta_tau[i] + 0.5), self.delta_tau[i] - 0.5)
+                #     self.delta_tau[i] = np.core.umath.maximum(np.core.umath.minimum(self.delta_tau[i], 150), -150)
+                    
         self.time_df = time.time() - t0
 
         if(time_to_reach == 0): 
@@ -548,13 +575,18 @@ class ClassicalMPCContact:
 
         if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-            self.tau -= Jac.T @ np.array([0., 0., float(self.delta_f)]) 
+            if(self.config['HYBRID_DELTA_F']):
+                self.tau -= Jac.T @ self.delta_f
+            else:
+                self.tau -= Jac.T @ np.array([0., 0., float(self.delta_f)]) 
                 
         if( self.config["FORCE_INTEGRAL"] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau += self.KF_I * Jac.T @ np.array([0., 0., self.force_integral[0]])
 
-
+        if(self.config['USE_DELTA_TAU'] and 0 <= time_to_contact):
+            self.tau += self.delta_tau 
+            
         # Compute gravity
         self.tau_gravity = pin.rnea(self.robot.model, self.robot.data, self.joint_positions[self.controlled_joint_ids], np.zeros(self.nv), np.zeros(self.nv))
 

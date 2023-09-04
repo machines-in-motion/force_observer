@@ -23,7 +23,7 @@ from core_mpc import path_utils, sim_utils
 from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
-SIM =  True
+SIM = True
 
 DGM_PARAMS_PATH = "/home/skleff/ws/workspace/install/robot_properties_kuka/lib/python3.8/site-packages/robot_properties_kuka/robot_properties_kuka/dynamic_graph_manager/dgm_parameters_iiwa.yaml"
 CONFIG_NAME = 'config' #'config36d'
@@ -52,6 +52,7 @@ _, _, cMs, _ = compute_sensor_frame_transform(pin_robot, IiwaReducedConfig.cad_o
 
 
 if SIM:
+    config['T_tot'] = 15
     # Sim env + set initial state 
     env = BulletEnvWithGround(p.GUI)
     robot_simulator = env.add_robot(IiwaReducedRobot(controlled_joints=CONTROLLED_JOINTS, qref=QREF))
@@ -70,6 +71,7 @@ if SIM:
     f0 = np.zeros(6) #sim_utils.get_contact_wrench(robot_simulator, id_endeff, config['pinRefFrame'])  
     head = SimHead(robot_simulator, with_sliders=False, with_force_plate=True)
 else:
+    config['T_tot'] = 400
     # Get initial force from sensor reading (should be 0)
     f0 = np.zeros(6) #sim_utils.get_contact_wrench(robot_simulator, id_endeff, softContactModel.pinRefFrame)  
     path = DGM_PARAMS_PATH 
@@ -102,8 +104,8 @@ else:
 
 thread_head.switch_controllers(ctrl)
 
-prefix = "/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/"
-suffix = "_hybrid_delta_f"
+prefix = "/home/skleff/Desktop/delta_f_real_exp/sanding/delta_tau/"
+suffix = "_delta_tau_no_jac"
 
 if SIM:
     thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")

@@ -55,12 +55,14 @@ endif()
 set(${PROJECT_NAME}_HEADERS
   include/${PROJECT_NAME}/python.hpp
   include/${PROJECT_NAME}/estimator.hpp
+  include/${PROJECT_NAME}/estimator_tau.hpp
   include/${PROJECT_NAME}/mh_estimator.hpp
   include/${PROJECT_NAME}/mh_varying_estimator.hpp
   )
 
 set(${PROJECT_NAME}_SOURCES
   src/estimator.cpp
+  src/estimator_tau.cpp
   src/mh_estimator.cpp
   src/mh_varying_estimator.cpp
   )
