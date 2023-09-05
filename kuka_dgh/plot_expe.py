@@ -7,7 +7,7 @@ import numpy as np
 import pinocchio as pin
 import matplotlib.pyplot as plt 
 from core_mpc import path_utils
-from core_mpc.pin_utils import get_p_
+from core_mpc.pin_utils import get_p_, get_v_
 from core_mpc import analysis_utils 
 
 from robot_properties_kuka.config import IiwaConfig, IiwaReducedConfig
@@ -45,7 +45,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = True 
+SIM = False 
 SAVE = False
 
 # Create data Plottger
@@ -57,12 +57,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/delta_tau/'
-    data_name = 'config_SIM_2023-09-04T15:24:31.195938_delta_tau_no_jac.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/kv/'
+    data_name = 'config_SIM_2023-09-05T15:02:42.726942_best_fast.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/hybrid/'
-    data_name = 'config_REAL_2023-09-04T14:07:00.711455_hybrid_delta_f_no_jac.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/kv/'
+    data_name = 'config_REAL_2023-09-05T18:08:57.550706_jacT_alltimebest_with_df.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -142,12 +142,8 @@ fig_p, _ = s.plot_ee_pos( [p_mea,
                ['r',  'k'], 
                linestyle=['solid', 'dotted'])
 
-# # # v_mea = get_v_(r.data['joint_velocities'], r.data['x_des'][:,nq:nq+nv], pinrobot.model, pinrobot.model.getFrameId('contact'))
-# # # v_des = get_v_(r.data['joint_velocities'], r.data['x_des'][:,nq:nq+nv], pinrobot.model, pinrobot.model.getFrameId('contact'))
-# # # target_velocity = np.zeros((N, 3))
-# # # target_velocity[:,0] = r.data['target_velocity_x'][:,0]
-# # # target_velocity[:,1] = r.data['target_velocity_y'][:,0]
-# # # target_velocity[:,2] = r.data['target_velocity_z'][:,0]
+# v_mea = get_v_(r.data['joint_velocities'], r.data['x_des'][:,nq:nq+nv], pinrobot.model, pinrobot.model.getFrameId('contact'))
+
 
 
 target_force_3d = np.zeros((N, 3))
@@ -165,17 +161,20 @@ target = np.zeros((N, 3))
 target[:, :3] = np.asarray(config['frameForceRef'])[:3]
 
 # Plot forces
+# r.data['compensation'] = np.zeros((N,3))
 fig_f, _ = s.plot_soft_contact_force([
+                           r.data['compensation'][:,:3], 
                            r.data['contact_force_3d_measured'][:,:3], 
                            r.data['force_est'], 
                            target_force_3d,
                            target],
-                          ['Measured', 
+                          ['comp', 
+                           'Measured', 
                            'Filtered',
                            'Target (modified)', 
                            'Target'], 
-                          ['r', 'g', 'b', 'k'],
-                          linestyle=['solid', 'solid', 'dotted', 'dotted'],
+                          ['y', 'r', 'g', 'b', 'k'],
+                          linestyle=['solid', 'solid', 'solid', 'dotted', 'dotted'],
                           ylims=[[-50,-50, 0], [50, 50, 70]])
 # plot force integral
 plt.figure()

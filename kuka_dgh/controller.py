@@ -313,12 +313,13 @@ class ClassicalMPCContact:
         self.tau_old = np.zeros(self.nv)
 
 
-        self.estimator.Q = 3 * 4e-3 * np.ones(self.nv)
         if(self.config['USE_DELTA_TAU']):
+            self.estimator.Q = 3 * 4e-3 * np.ones(self.nv)
             self.estimator.R = 3 * 2e-2 * np.ones(self.nv)
         else:
-            self.estimator.R = 3 * 2e-2 * np.ones(1)
-
+            self.estimator.Q = 4e-3 * np.ones(self.nv)
+            self.estimator.R = 2e-2 * np.ones(1)
+        
         self.force_est = 0.
         self.acc_est = 0.
 
@@ -346,7 +347,7 @@ class ClassicalMPCContact:
         logger.debug("Start of circle phase in simu cycles = "+str(self.T_CIRCLE))
         logger.debug("OCP to SIMU time ratio = "+str(self.OCP_TO_SIMU_ratio))
 
- 
+        self.compensation = np.zeros(3)
 
     def warmup(self, thread):
         # Warm start 
@@ -469,10 +470,10 @@ class ClassicalMPCContact:
                 self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
             elif(self.config['USE_DELTA_TAU'] == True):
                 self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, self.delta_tau, self.buffer_f)
-                # # Safety clipping (using np.core is 4 times faster than np.clip)
-                # for i in range(self.nv):
-                #     self.delta_tau[i] = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_tau[i], self.delta_tau[i] + 0.5), self.delta_tau[i] - 0.5)
-                #     self.delta_tau[i] = np.core.umath.maximum(np.core.umath.minimum(self.delta_tau[i], 150), -150)
+                # Safety clipping (using np.core is 4 times faster than np.clip)
+                for i in range(self.nv):
+                    self.delta_tau[i] = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_tau[i], self.delta_tau[i] + 0.5), self.delta_tau[i] - 0.5)
+                    self.delta_tau[i] = np.core.umath.maximum(np.core.umath.minimum(self.delta_tau[i], 150), -150)
                     
         self.time_df = time.time() - t0
 
@@ -572,6 +573,14 @@ class ClassicalMPCContact:
         if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau -= Jac.T @ np.array([self.force_est[0], self.force_est[1], 0.])
+            # # Coulomb (dynamic) friction
+            # pin.forwardKinematics(self.robot.model, self.robot.data, q, v)
+            # v_ee    = pin.getFrameVelocity(self.robot.model, self.robot.data, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED).linear
+            # v_ee[2] = 0.
+            # norm_ = np.linalg.norm(v_ee)
+            # if(norm_ > 0):
+            #     self.compensation = -0.35 * self.force_est[2] * np.tanh(10. * norm_) * v_ee / norm_ / np.sqrt(2)
+            #     self.tau -= Jac.T @ self.compensation
 
         if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
