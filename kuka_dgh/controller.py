@@ -231,7 +231,7 @@ class ClassicalMPCContact:
         # absolute desired position
         self.oPc_offset = np.asarray(self.config['oPc_offset'])
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
-        radius = 0.07 ; omega = 1.
+        radius = 0.07 ; omega = 3.
         # radius = 0.0 ; omega = 3.
 
         self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
@@ -314,8 +314,8 @@ class ClassicalMPCContact:
 
 
         if(self.config['USE_DELTA_TAU']):
-            self.estimator.Q = 3 * 4e-3 * np.ones(self.nv)
-            self.estimator.R = 3 * 2e-2 * np.ones(self.nv)
+            self.estimator.Q = 4e-3 * np.ones(self.nv)
+            self.estimator.R = 2e-2 * np.ones(self.nv)
         else:
             self.estimator.Q = 4e-3 * np.ones(self.nv)
             self.estimator.R = 2e-2 * np.ones(1)

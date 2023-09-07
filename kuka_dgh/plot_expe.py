@@ -57,12 +57,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
     data_name = 'config_SIM_2023-09-06T18:23:22.648137_test.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
-    data_name = 'config_REAL_2023-09-07T16:19:35.261490_slow_coulomb.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
+    data_name = 'config_REAL_2023-09-07T16:59:07.835076_dtau_external.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
