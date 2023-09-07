@@ -41,6 +41,8 @@ project(${PROJECT_NAME} ${PROJECT_ARGS})
 find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
 add_project_dependency(pinocchio REQUIRED)
+add_project_dependency(sobec REQUIRED)
+add_project_dependency(crocoddyl REQUIRED)
 add_project_dependency(eigenpy 2.7.10 REQUIRED)
 find_package(proxsuite REQUIRED)
 
@@ -56,6 +58,7 @@ set(${PROJECT_NAME}_HEADERS
   include/${PROJECT_NAME}/python.hpp
   include/${PROJECT_NAME}/estimator.hpp
   include/${PROJECT_NAME}/estimator_tau.hpp
+  include/${PROJECT_NAME}/dam_tau.hpp
   include/${PROJECT_NAME}/mh_estimator.hpp
   include/${PROJECT_NAME}/mh_varying_estimator.hpp
   )
@@ -63,6 +66,7 @@ set(${PROJECT_NAME}_HEADERS
 set(${PROJECT_NAME}_SOURCES
   src/estimator.cpp
   src/estimator_tau.cpp
+  src/dam_tau.cpp
   src/mh_estimator.cpp
   src/mh_varying_estimator.cpp
   )
@@ -77,6 +81,8 @@ endif()
 # Main Executable
 add_executable(${PROJECT_NAMESPACE}-${PROJECT_NAME} src/main.cpp)
 TARGET_LINK_LIBRARIES(${PROJECT_NAME} pinocchio::pinocchio)
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} sobec::sobec)
+TARGET_LINK_LIBRARIES(${PROJECT_NAME} crocoddyl::crocoddyl)
 target_link_libraries(${PROJECT_NAME} proxsuite::proxsuite)
 target_link_libraries(${PROJECT_NAMESPACE}-${PROJECT_NAME} ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME} PROPERTIES INSTALL_RPATH "\$ORIGIN/../lib")

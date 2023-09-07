@@ -10,6 +10,7 @@ BOOST_AUTO_TEST_SUITE(BOOST_TEST_MODULE)
 
 BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     // Load robot model 
+    // std::string URDF_PARAMS = "/home/skleff/ws/workspace/install/robot_properties_kuka/lib/python3.8/site-packages/robot_properties_kuka/robot_properties_kuka/iiwa_ft_sensor_shell.urdf";
     std::string URDF_PARAMS = "/home/skleff/.virtualenvs/croco_master_upstream/lib/python3.8/site-packages/robot_properties_kuka/robot_properties_kuka/iiwa_ft_sensor_shell.urdf";
     pinocchio::Model model;
     pinocchio::urdf::buildModel(URDF_PARAMS, model);
@@ -36,7 +37,7 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     BOOST_CHECK(forceEstimator.get_Q().size() == (unsigned int)model.nv);
     BOOST_CHECK(forceEstimator.get_R().size() == (unsigned int)nc);
 
-    BOOST_CHECK( (forceEstimator.get_P() - 5e-1*Eigen::VectorXd::Ones(nc)).isZero(TOL) );
+    BOOST_CHECK( (forceEstimator.get_P() - 1e0*Eigen::VectorXd::Ones(nc)).isZero(TOL) );
     BOOST_CHECK( (forceEstimator.get_Q() - 1e-2*Eigen::VectorXd::Ones(model.nv)).isZero(TOL) );
     BOOST_CHECK( (forceEstimator.get_R() - 1e-2*Eigen::VectorXd::Ones(nc)).isZero(TOL) );
     BOOST_CHECK(forceEstimator.get_n_tot() == (unsigned int)nc + (unsigned int)T*((unsigned int)nc + (unsigned int)model.nv));
