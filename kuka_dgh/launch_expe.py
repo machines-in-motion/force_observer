@@ -104,8 +104,8 @@ else:
 
 thread_head.switch_controllers(ctrl)
 
-prefix = "/home/skleff/Desktop/delta_f_real_exp/sanding/kv/"
-suffix = "_jacT_alltimebest_with_df"
+prefix = "/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/"
+suffix = "_slow_baseline"
 
 if SIM:
     thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")

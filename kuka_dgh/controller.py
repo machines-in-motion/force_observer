@@ -231,7 +231,7 @@ class ClassicalMPCContact:
         # absolute desired position
         self.oPc_offset = np.asarray(self.config['oPc_offset'])
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
-        radius = 0.07 ; omega = 3.
+        radius = 0.07 ; omega = 1.
         # radius = 0.0 ; omega = 3.
 
         self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
@@ -411,7 +411,7 @@ class ClassicalMPCContact:
         else:
             self.contact_force_3d_measured = f6d_world.linear.copy()
         
-
+            
 
 
         alpha = 0.95
@@ -565,23 +565,26 @@ class ClassicalMPCContact:
             self.tau  = self.tau_ff + self.tau_riccati
         else:
             self.tau = self.tau_ff
-            
+        
         self.count += 1
 
+  
         self.tau_old = self.tau.copy()
 
         if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau -= Jac.T @ np.array([self.force_est[0], self.force_est[1], 0.])
-            # # Coulomb (dynamic) friction
-            # pin.forwardKinematics(self.robot.model, self.robot.data, q, v)
-            # v_ee    = pin.getFrameVelocity(self.robot.model, self.robot.data, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED).linear
-            # v_ee[2] = 0.
-            # norm_ = np.linalg.norm(v_ee)
-            # if(norm_ > 0):
-            #     self.compensation = -0.35 * self.force_est[2] * np.tanh(10. * norm_) * v_ee / norm_ / np.sqrt(2)
-            #     self.tau -= Jac.T @ self.compensation
-
+            
+        if( self.config['USE_COULOMB'] and 0 <= time_to_contact ):
+            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+            pin.forwardKinematics(self.robot.model, self.robot.data, q, v)
+            v_ee    = pin.getFrameVelocity(self.robot.model, self.robot.data, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED).linear
+            v_ee[2] = 0.
+            norm_ = np.linalg.norm(v_ee)
+            if(norm_ > 0):
+                self.compensation = -0.35 * self.force_est[2] * np.tanh(10. * norm_) * v_ee / norm_ / np.sqrt(2)
+                self.tau -= Jac.T @ self.compensation
+            
         if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             if(self.config['HYBRID_DELTA_F']):

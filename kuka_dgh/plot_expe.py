@@ -45,7 +45,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = False 
+SIM = False
 SAVE = False
 
 # Create data Plottger
@@ -57,12 +57,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/kv/'
-    data_name = 'config_SIM_2023-09-05T15:02:42.726942_best_fast.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
+    data_name = 'config_SIM_2023-09-06T18:23:22.648137_test.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/kv/'
-    data_name = 'config_REAL_2023-09-05T18:08:57.550706_jacT_alltimebest_with_df.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
+    data_name = 'config_REAL_2023-09-07T16:19:35.261490_slow_coulomb.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -174,8 +174,8 @@ fig_f, _ = s.plot_soft_contact_force([
                            'Target (modified)', 
                            'Target'], 
                           ['y', 'r', 'g', 'b', 'k'],
-                          linestyle=['solid', 'solid', 'solid', 'dotted', 'dotted'],
-                          ylims=[[-50,-50, 0], [50, 50, 70]])
+                          linestyle=['solid', 'solid', 'solid', 'dotted', 'dotted'])#,
+                        #   ylims=[[-50,-50, 0], [50, 50, 1070]])
 # plot force integral
 plt.figure()
 plt.plot(r.data['force_integral'])
