@@ -11,11 +11,11 @@ namespace estimator {
 namespace bp = boost::python;
 
 void exposeDAMTau() {
-  bp::register_ptr_to_python<boost::shared_ptr< DifferentialActionModelContactFwdDynamics> >();
+  bp::register_ptr_to_python<boost::shared_ptr< DAMContactDeltaTau> >();
 
-  bp::class_<DifferentialActionModelContactFwdDynamics,
+  bp::class_<DAMContactDeltaTau,
              bp::bases<sobec::DifferentialActionModelContactFwdDynamics> >(
-      "DifferentialActionModelContactFwdDynamics",
+      "DAMContactDeltaTau",
       "Differential action model for contact forward dynamics in multibody "
       "systems.\n\n"
       "The contact is modelled as holonomic constraits in the contact frame. "
@@ -46,7 +46,8 @@ void exposeDAMTau() {
           ":param inv_damping: Damping factor for cholesky decomposition of "
           "JMinvJt (default 0.)\n"
           ":param enable_force: Enable the computation of force Jacobians "
-          "(default False)"));
+          "(default False)"))
+.add_property("delta_tau", bp::make_function(&DAMContactDeltaTau::get_delta_tau, bp::return_value_policy<bp::copy_const_reference>()), bp::make_function(&DAMContactDeltaTau::set_delta_tau), "delta_tau");
 }
 
 }  // namespace estimator

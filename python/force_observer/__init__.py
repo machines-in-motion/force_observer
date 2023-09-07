@@ -7,4 +7,4 @@ from .force_observer_pywrap import ForceEstimator, \
                                    MHForceEstimatorData, \
                                    MHVaryingForceEstimator, \
                                    MHVaryingForceEstimatorData, \
-                                   DifferentialActionModelContactFwdDynamics
+                                   DAMContactDeltaTau

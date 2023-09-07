@@ -4,36 +4,33 @@
 
 #include <stdexcept>
 
-#include "crocoddyl/core/actuation-base.hpp"
-#include "crocoddyl/core/costs/cost-sum.hpp"
-#include "crocoddyl/core/diff-action-base.hpp"
-#include "crocoddyl/multibody/contacts/multiple-contacts.hpp"
-#include "crocoddyl/multibody/fwd.hpp"
-#include "crocoddyl/multibody/states/multibody.hpp"
-// #include "crocoddyl/multibody/data/contacts.hpp"
-#include "crocoddyl/multibody/actions/contact-fwddyn.hpp"
-#include "sobec/crocomplements/contact/multiple-contacts.hpp"
-#include "sobec/fwd.hpp"
+#include <sobec/crocomplements/contact/contact-fwddyn.hpp> 
+#include <sobec/fwd.hpp>
+
+#include <Eigen/Dense>
 
 namespace mim {
 namespace estimator {
+
+// class sobec::newcontacts::DifferentialActionModelContactFwdDynamics;
+
 /**
  * @brief Differential action model for contact forward dynamics in multibody
  * systems with torque model mismatch
  *
  * This class is derived from
- * `sobec::DifferentialActionModelContactFwdDynamicsTpl` with the additional
+ * `sobec::newcontacts::DifferentialActionModelContactFwdDynamicsTpl` with the additional
  * feature that it allows to propagate the estimated model mismatch delta_tau
  * through the forward dynamics model
  *
  */
-class DifferentialActionModelContactFwdDynamics
-    : public sobec::DifferentialActionModelContactFwdDynamicsTpl<double> {
+class DAMContactDeltaTau: 
+    public sobec::newcontacts::DifferentialActionModelContactFwdDynamics {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  typedef sobec::DifferentialActionModelContactFwdDynamicsTpl<double> Base;
-  typedef sobec::DifferentialActionDataContactFwdDynamicsTpl<double> Data;
+  typedef sobec::newcontacts::DifferentialActionModelContactFwdDynamicsTpl<double> Base;
+  typedef crocoddyl::DifferentialActionDataContactFwdDynamicsTpl<double> Data;
   typedef crocoddyl::MathBaseTpl<double> MathBase;
   typedef crocoddyl::CostModelSumTpl<double> CostModelSum;
   typedef crocoddyl::StateMultibodyTpl<double> StateMultibody;
@@ -41,8 +38,8 @@ class DifferentialActionModelContactFwdDynamics
   typedef crocoddyl::ActuationModelAbstractTpl<double> ActuationModelAbstract;
   typedef crocoddyl::DifferentialActionDataAbstractTpl<double>
       DifferentialActionDataAbstract;
-  typedef typename MathBase::VectorXs VectorXs;
-  typedef typename MathBase::MatrixXs MatrixXs;
+  typedef typename Eigen::VectorXd VectorXd;
+  typedef typename Eigen::MatrixXd MatrixXd;
 
   /**
    * @brief Initialize the contact forward-dynamics action model
@@ -60,14 +57,14 @@ class DifferentialActionModelContactFwdDynamics
    * @param[in] enable_force     Enable the computation of the contact force
    * derivatives (default false)
    */
-  DifferentialActionModelContactFwdDynamics(
+  DAMContactDeltaTau(
       boost::shared_ptr<StateMultibody> state,
       boost::shared_ptr<ActuationModelAbstract> actuation,
       boost::shared_ptr<crocoContactModelMultiple> contacts,
       boost::shared_ptr<CostModelSum> costs,
       const double JMinvJt_damping = 0.,
       const bool enable_force = false);
-  virtual ~DifferentialActionModelContactFwdDynamics();
+  virtual ~DAMContactDeltaTau();
 
   /**
    * @brief Compute the derivatives of the contact dynamics, and cost function
@@ -78,14 +75,19 @@ class DifferentialActionModelContactFwdDynamics
    */
   virtual void calc(
       const boost::shared_ptr<DifferentialActionDataAbstract>& data,
-      const Eigen::Ref<const VectorXs>& x, const Eigen::Ref<const VectorXs>& u);
+      const Eigen::Ref<const VectorXd>& x, const Eigen::Ref<const VectorXd>& u);
 
-  void set_delta_tau(VectorXs& inDeltaTau) { delta_tau_ = inDeltaTau; } ;
+//   virtual void calcDiff(
+//       const boost::shared_ptr<DifferentialActionDataAbstract>& data,
+//       const Eigen::Ref<const VectorXd>& x, const Eigen::Ref<const VectorXd>& u);
+
+  void set_delta_tau(const VectorXd& inDeltaTau) { delta_tau_ = inDeltaTau; } ;
+  const VectorXd& get_delta_tau() const { return delta_tau_; } ;
 
  private:
   bool enable_force_;
-  boost::shared_ptr<sobec::ContactModelMultipleTpl<double>> sobec_contacts_;
-  VectorXs delta_tau_; 
+  boost::shared_ptr<crocoContactModelMultiple> sobec_contacts_;
+  VectorXd delta_tau_; 
 };
 
 }  // namespace estimator

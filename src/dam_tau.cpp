@@ -21,25 +21,25 @@
 namespace mim {
 namespace estimator {
 
-DifferentialActionModelContactFwdDynamics::
-    DifferentialActionModelContactFwdDynamics(
+DAMContactDeltaTau::
+    DAMContactDeltaTau(
         boost::shared_ptr<StateMultibody> state,
         boost::shared_ptr<ActuationModelAbstract> actuation,
         boost::shared_ptr<crocoContactModelMultiple> contacts,
         boost::shared_ptr<CostModelSum> costs, const double JMinvJt_damping,
         const bool enable_force)
-    : Base(state, actuation, contacts, costs, JMinvJt_damping, enable_force),
+    : Base(state, actuation, contacts, costs, JMinvJt_damping, enable_force) ,
       enable_force_(enable_force) {
-  sobec_contacts_ =
-      boost::static_pointer_cast<sobec::ContactModelMultipleTpl<double>>(contacts);
-  delta_tau_ = VectorXs::Zero(state->get_nv());
+  sobec_contacts_ = boost::static_pointer_cast<sobec::ContactModelMultipleTpl<double>>(contacts);
+  delta_tau_ = VectorXd::Zero(state->get_nv());
 }
 
-DifferentialActionModelContactFwdDynamics::~DifferentialActionModelContactFwdDynamics() {}
+DAMContactDeltaTau::~DAMContactDeltaTau() {}
 
-void DifferentialActionModelContactFwdDynamics::calc(
-    const boost::shared_ptr<DifferentialActionDataAbstract>& data, const Eigen::Ref<const VectorXs>& x,
-    const Eigen::Ref<const VectorXs>& u) {
+void DAMContactDeltaTau::calc(
+    const boost::shared_ptr<DifferentialActionDataAbstract>& data, 
+    const Eigen::Ref<const VectorXd>& x,
+    const Eigen::Ref<const VectorXd>& u) {
   if (static_cast<std::size_t>(x.size()) != this->get_state()->get_nx()) {
     throw_pretty("Invalid argument: "
                  << "x has wrong dimension (it should be " + std::to_string(this->get_state()->get_nx()) + ")");
@@ -48,11 +48,10 @@ void DifferentialActionModelContactFwdDynamics::calc(
     throw_pretty("Invalid argument: "
                  << "u has wrong dimension (it should be " + std::to_string(this->get_nu()) + ")");
   }
-
   const std::size_t nc = sobec_contacts_->get_nc();
   Data* d = static_cast<Data*>(data.get());
-  const Eigen::VectorBlock<const Eigen::Ref<const VectorXs>, Eigen::Dynamic> q = x.head(this->get_state()->get_nq());
-  const Eigen::VectorBlock<const Eigen::Ref<const VectorXs>, Eigen::Dynamic> v = x.tail(this->get_state()->get_nv());
+  const Eigen::VectorBlock<const Eigen::Ref<const VectorXd>, Eigen::Dynamic> q = x.head(this->get_state()->get_nq());
+  const Eigen::VectorBlock<const Eigen::Ref<const VectorXd>, Eigen::Dynamic> v = x.tail(this->get_state()->get_nv());
 
   // Computing the forward dynamics with the holonomic constraints defined by the contact model
   pinocchio::computeAllTerms(this->get_pinocchio(), d->pinocchio, q, v);
@@ -65,13 +64,12 @@ void DifferentialActionModelContactFwdDynamics::calc(
   sobec_contacts_->calc(d->multibody.contacts, x);
 
 #ifndef NDEBUG
-  Eigen::FullPivLU<MatrixXs> Jc_lu(d->multibody.contacts->Jc.topRows(nc));
+  Eigen::FullPivLU<MatrixXd> Jc_lu(d->multibody.contacts->Jc.topRows(nc));
 
   if (Jc_lu.rank() < d->multibody.contacts->Jc.topRows(nc).rows() && JMinvJt_damping_ == Scalar(0.)) {
     throw_pretty("A damping factor is needed as the contact Jacobian is not full-rank");
   }
 #endif
-
   pinocchio::forwardDynamics(this->get_pinocchio(), d->pinocchio, d->multibody.actuation->tau + delta_tau_,
                              d->multibody.contacts->Jc.topRows(nc), d->multibody.contacts->a0.head(nc),
                              0.);
