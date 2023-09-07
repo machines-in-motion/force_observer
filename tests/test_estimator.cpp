@@ -11,7 +11,8 @@ BOOST_AUTO_TEST_SUITE(BOOST_TEST_MODULE)
 
 BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     // Load robot model 
-    std::string URDF_PARAMS = "/home/skleff/ws/workspace/install/robot_properties_kuka/lib/python3.8/site-packages/robot_properties_kuka/robot_properties_kuka/iiwa_ft_sensor_shell.urdf";
+    // std::string URDF_PARAMS = "/home/skleff/ws/workspace/install/robot_properties_kuka/lib/python3.8/site-packages/robot_properties_kuka/robot_properties_kuka/iiwa_ft_sensor_shell.urdf";
+    std::string URDF_PARAMS = "/home/skleff/.virtualenvs/croco_master_upstream/lib/python3.8/site-packages/robot_properties_kuka/robot_properties_kuka/iiwa_ft_sensor_shell.urdf";
     pinocchio::Model model;
     pinocchio::urdf::buildModel(URDF_PARAMS, model);
 

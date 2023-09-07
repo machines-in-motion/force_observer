@@ -1,6 +1,7 @@
 set(${PY_NAME}_SOURCES
   estimator.cpp
   estimator_tau.cpp
+  dam_tau.cpp
   mh_estimator.cpp
   mh_varying_estimator.cpp
   main.cpp
