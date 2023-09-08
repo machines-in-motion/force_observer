@@ -39,15 +39,15 @@ print(controlled_joint_ids)
 # Create data Plotter
 s = SimpleDataPlotter()
 
-data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/integral_tuning/'
-label1 = 'best'
-label2 = 'new'
+data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
+label1 = 'iter=3'
+label2 = 'iter=4'
 # label3 = 'friction_comp+delta_f'
 
 SAVE = False
 
 print("Load data 1...")
-r1 = DataReader(data_path+'config_REAL_2023-08-30T12:12:31.109803_best.mds')  
+r1 = DataReader(data_path+'config_REAL_2023-09-08T16:54:39.495862_df_internal_iter=3.mds')  
 print("Load data 2...")
 r2 = DataReader(data_path+'.mds') 
 # print("Load data 3...")
@@ -64,6 +64,12 @@ from core_mpc import analysis_utils
 
 N = min(r1.data['tau'].shape[0], r2.data['tau'].shape[0])
 # N = min(N, r3.data['tau'].shape[0])
+
+plt.figure()
+plt.plot(r1.data['ddp_iter'], label=label1)
+plt.plot(r2.data['ddp_iter'], label=label2)
+plt.legend()
+# ax[0].plot(N*[1./config['plan_freq']], label= 'mpc')
 
 target_force_3d = np.zeros((N, 3))
 target_force_3d[:,-1] = config['frameForceRef'][2]
@@ -101,145 +107,146 @@ fig_f1, _ = s.plot_soft_contact_force([
                             'dotted'
                             ])
 
-
-fig_f2, _ = s.plot_soft_contact_force([
-                           np.abs(r1.data['contact_force_3d_measured'][N_START:N] - target_force_3d[N_START:N]), 
-                           np.abs(r2.data['contact_force_3d_measured'][N_START:N] - target_force_3d[N_START:N]), 
-                          #  np.abs(r3.data['contact_force_3d_measured'][N_START:N] - target_force_3d[N_START:N]), 
-                           target_force_3d[N_START:N] - target_force_3d[N_START:N]
-                           ],
-                           [
-                            label1,
-                            label2, 
-                            # label3,
-                            'ref'
-                          ], 
-                          [
-                            'b', 
-                            'g', 
-                            # 'r', 
-                            'k'
-                            ],
-                          linestyle=[
-                            'solid', 
-                            'solid', 
-                            # 'solid', 
-                            'dotted'
-                            ])
-
-
-
-p_mea1 = get_p_(r1.data['joint_positions'][N_START:N,controlled_joint_ids][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
-p_mea2 = get_p_(r2.data['joint_positions'][N_START:N,controlled_joint_ids][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
-# p_mea3 = get_p_(r3.data['joint_positions'][N_START:N,controlled_joint_ids][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
-target_position = np.zeros((N-N_START, 3))
-target_position[:,0] = r1.data['target_position_x'][N_START:N,0]
-target_position[:,1] = r1.data['target_position_y'][N_START:N,0]
-target_position[:,2] = r1.data['target_position_z'][N_START:N,0]
-target_position2 = np.zeros((N-N_START, 3))
-target_position2[:,0] = r2.data['target_position_x'][N_START:N,0]
-target_position2[:,1] = r2.data['target_position_y'][N_START:N,0]
-target_position2[:,2] = r2.data['target_position_z'][N_START:N,0]
-# target_position3 = np.zeros((N-N_START, 3))
-# target_position3[:,0] = r3.data['target_position_x'][N_START:N,0]
-# target_position3[:,1] = r3.data['target_position_y'][N_START:N,0]
-# target_position3[:,2] = r3.data['target_position_z'][N_START:N,0]
-fig_p1, _ = s.plot_ee_pos( [
-                           p_mea1,
-                           p_mea2 ,
-                          #  p_mea3,
-                           target_position 
-                           ],
-                           [
-                            label1, 
-                            label2, 
-                            # label3, 
-                            'ref'
-                          ], 
-                          [
-                            'b', 
-                            'g', 
-                            'r', 
-                            'k'
-                            ],
-                          linestyle=[
-                            'solid', 
-                            'solid', 
-                            'solid', 
-                            'dotted'
-                            ])
-
-fig_p2, _ = s.plot_ee_pos( [
-                           np.abs(p_mea1 - target_position),
-                           np.abs(p_mea2 - target_position2),
-                          #  np.abs(p_mea3 - target_position3),
-                           target_position - target_position
-                           ],
-                           [
-                            label1, 
-                            label2,
-                            # label3, 
-                            'ref'
-                          ], 
-                          [
-                            'b', 
-                            'g', 
-                            'r', 
-                            'k'
-                            ],
-                          linestyle=[
-                            'solid', 
-                            'solid', 
-                            'solid', 
-                            'dotted'
-                            ])
-
-
-# s.plot_joint_tau([r1.data['tau'][:,controlled_joint_ids] + r1.data['tau_gravity'][:,controlled_joint_ids],
-#                    r2.data['tau'][:,controlled_joint_ids] + r2.data['tau_gravity'][:,controlled_joint_ids],
-#                    r3.data['tau'][:,controlled_joint_ids] + r3.data['tau_gravity'][:,controlled_joint_ids]],
-#               ['Desired (+g(q))'+label1, 'Desired (+g(q))'+label2, 'Desired (+g(q))'+label3], 
-#               [[0.,0.,0.,0.], 'b', 'g', 'r'],
-#               ylims=[-model.effortLimit, +model.effortLimit] )
-
-
-
-fig, ax = plt.subplots(4, 1, sharex='col') 
-ax[0].plot(r1.data['time_df'], label='time_df'+label1)
-ax[0].plot(r2.data['time_df'], label='time_df'+label2)
-# ax[0].plot(r3.data['time_df'], label='time_df'+label3)
-
-ax[1].plot(r1.data['t_child'], label='child'+label1)
-ax[1].plot(r2.data['t_child'], label='child'+label2)
-# ax[1].plot(r3.data['t_child'], label='child'+label3)
-
-ax[2].plot(r1.data['ddp_iter'], label='iter'+label1)
-ax[2].plot(r2.data['ddp_iter'], label='iter'+label2)
-# ax[2].plot(r3.data['ddp_iter'], label='iter'+label3)
-
-ax[3].plot(r1.data['t_run'], label='t_run'+label1)
-ax[3].plot(r2.data['t_run'], label='t_run'+label2)
-# ax[3].plot(r3.data['t_run'], label='t_run'+label3)
-ax[0].legend(); ax[1].legend(); ax[2].legend(); ax[3].legend()
-
-
-print("------------------------------------")
-print("------------------------------------")
-print(label1+" Pxy error norm = ", np.linalg.norm(p_mea1[N_START:N,:2] - target_position[N_START:N,:2]) )
-print(label2+" Pxy error norm = ", np.linalg.norm(p_mea2[N_START:N,:2] - target_position2[N_START:N,:2]))
-# print(label3+" Pxy error norm = ", np.linalg.norm(p_mea3[N_START:N,:2] - target_position3[N_START:N,:2]))
-print(label1+" Fz mean abs error = ", np.mean(np.abs(r1.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N,2])))
-print(label2+" Fz mean abs error = ", np.mean(np.abs(r2.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N,2])))
-# print(label3+" Fz mean abs error = ", np.mean(np.abs(r3.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N,2])))
-print("------------------------------------")
-print("------------------------------------")
-
-
-# if(SAVE):
-#   fig_f1.savefig(data_path+label1+'_vs_'+label2+'_vs_'+label3+'_compare_force.png')
-#   fig_f2.savefig(data_path+label1+'_vs_'+label2+'_vs_'+label3+'_compare_force_err.png')
-#   # fig_p1.savefig(data_path+label1+'_vs_'+label2+'_vs_'+label3'_compare_pos.png')
-#   fig_p2.savefig(data_path+label1+'_vs_'+label2+'_vs_'+label3+'_compare_pos_err.png')
-
-
 plt.show()
+
+# fig_f2, _ = s.plot_soft_contact_force([
+#                            np.abs(r1.data['contact_force_3d_measured'][N_START:N] - target_force_3d[N_START:N]), 
+#                            np.abs(r2.data['contact_force_3d_measured'][N_START:N] - target_force_3d[N_START:N]), 
+#                           #  np.abs(r3.data['contact_force_3d_measured'][N_START:N] - target_force_3d[N_START:N]), 
+#                            target_force_3d[N_START:N] - target_force_3d[N_START:N]
+#                            ],
+#                            [
+#                             label1,
+#                             label2, 
+#                             # label3,
+#                             'ref'
+#                           ], 
+#                           [
+#                             'b', 
+#                             'g', 
+#                             # 'r', 
+#                             'k'
+#                             ],
+#                           linestyle=[
+#                             'solid', 
+#                             'solid', 
+#                             # 'solid', 
+#                             'dotted'
+#                             ])
+
+
+
+# p_mea1 = get_p_(r1.data['joint_positions'][N_START:N,controlled_joint_ids][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
+# p_mea2 = get_p_(r2.data['joint_positions'][N_START:N,controlled_joint_ids][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
+# # p_mea3 = get_p_(r3.data['joint_positions'][N_START:N,controlled_joint_ids][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
+# target_position = np.zeros((N-N_START, 3))
+# target_position[:,0] = r1.data['target_position_x'][N_START:N,0]
+# target_position[:,1] = r1.data['target_position_y'][N_START:N,0]
+# target_position[:,2] = r1.data['target_position_z'][N_START:N,0]
+# target_position2 = np.zeros((N-N_START, 3))
+# target_position2[:,0] = r2.data['target_position_x'][N_START:N,0]
+# target_position2[:,1] = r2.data['target_position_y'][N_START:N,0]
+# target_position2[:,2] = r2.data['target_position_z'][N_START:N,0]
+# # target_position3 = np.zeros((N-N_START, 3))
+# # target_position3[:,0] = r3.data['target_position_x'][N_START:N,0]
+# # target_position3[:,1] = r3.data['target_position_y'][N_START:N,0]
+# # target_position3[:,2] = r3.data['target_position_z'][N_START:N,0]
+# fig_p1, _ = s.plot_ee_pos( [
+#                            p_mea1,
+#                            p_mea2 ,
+#                           #  p_mea3,
+#                            target_position 
+#                            ],
+#                            [
+#                             label1, 
+#                             label2, 
+#                             # label3, 
+#                             'ref'
+#                           ], 
+#                           [
+#                             'b', 
+#                             'g', 
+#                             'r', 
+#                             'k'
+#                             ],
+#                           linestyle=[
+#                             'solid', 
+#                             'solid', 
+#                             'solid', 
+#                             'dotted'
+#                             ])
+
+# fig_p2, _ = s.plot_ee_pos( [
+#                            np.abs(p_mea1 - target_position),
+#                            np.abs(p_mea2 - target_position2),
+#                           #  np.abs(p_mea3 - target_position3),
+#                            target_position - target_position
+#                            ],
+#                            [
+#                             label1, 
+#                             label2,
+#                             # label3, 
+#                             'ref'
+#                           ], 
+#                           [
+#                             'b', 
+#                             'g', 
+#                             'r', 
+#                             'k'
+#                             ],
+#                           linestyle=[
+#                             'solid', 
+#                             'solid', 
+#                             'solid', 
+#                             'dotted'
+#                             ])
+
+
+# # s.plot_joint_tau([r1.data['tau'][:,controlled_joint_ids] + r1.data['tau_gravity'][:,controlled_joint_ids],
+# #                    r2.data['tau'][:,controlled_joint_ids] + r2.data['tau_gravity'][:,controlled_joint_ids],
+# #                    r3.data['tau'][:,controlled_joint_ids] + r3.data['tau_gravity'][:,controlled_joint_ids]],
+# #               ['Desired (+g(q))'+label1, 'Desired (+g(q))'+label2, 'Desired (+g(q))'+label3], 
+# #               [[0.,0.,0.,0.], 'b', 'g', 'r'],
+# #               ylims=[-model.effortLimit, +model.effortLimit] )
+
+
+
+# fig, ax = plt.subplots(4, 1, sharex='col') 
+# ax[0].plot(r1.data['time_df'], label='time_df'+label1)
+# ax[0].plot(r2.data['time_df'], label='time_df'+label2)
+# # ax[0].plot(r3.data['time_df'], label='time_df'+label3)
+
+# ax[1].plot(r1.data['t_child'], label='child'+label1)
+# ax[1].plot(r2.data['t_child'], label='child'+label2)
+# # ax[1].plot(r3.data['t_child'], label='child'+label3)
+
+# ax[2].plot(r1.data['ddp_iter'], label='iter'+label1)
+# ax[2].plot(r2.data['ddp_iter'], label='iter'+label2)
+# # ax[2].plot(r3.data['ddp_iter'], label='iter'+label3)
+
+# ax[3].plot(r1.data['t_run'], label='t_run'+label1)
+# ax[3].plot(r2.data['t_run'], label='t_run'+label2)
+# # ax[3].plot(r3.data['t_run'], label='t_run'+label3)
+# ax[0].legend(); ax[1].legend(); ax[2].legend(); ax[3].legend()
+
+
+# print("------------------------------------")
+# print("------------------------------------")
+# print(label1+" Pxy error norm = ", np.linalg.norm(p_mea1[N_START:N,:2] - target_position[N_START:N,:2]) )
+# print(label2+" Pxy error norm = ", np.linalg.norm(p_mea2[N_START:N,:2] - target_position2[N_START:N,:2]))
+# # print(label3+" Pxy error norm = ", np.linalg.norm(p_mea3[N_START:N,:2] - target_position3[N_START:N,:2]))
+# print(label1+" Fz mean abs error = ", np.mean(np.abs(r1.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N,2])))
+# print(label2+" Fz mean abs error = ", np.mean(np.abs(r2.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N,2])))
+# # print(label3+" Fz mean abs error = ", np.mean(np.abs(r3.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N,2])))
+# print("------------------------------------")
+# print("------------------------------------")
+
+
+# # if(SAVE):
+# #   fig_f1.savefig(data_path+label1+'_vs_'+label2+'_vs_'+label3+'_compare_force.png')
+# #   fig_f2.savefig(data_path+label1+'_vs_'+label2+'_vs_'+label3+'_compare_force_err.png')
+# #   # fig_p1.savefig(data_path+label1+'_vs_'+label2+'_vs_'+label3'_compare_pos.png')
+# #   fig_p2.savefig(data_path+label1+'_vs_'+label2+'_vs_'+label3+'_compare_pos_err.png')
+
+
+# plt.show()

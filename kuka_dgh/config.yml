@@ -52,16 +52,14 @@ oPc_offset: [0., 0., 0.]
 pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '1Dz'
 
+# Lateral force model
 USE_LATERAL_FRICTION: True
 USE_COULOMB: False
-
-USE_DELTA_F: False
+# Mismtach correction
+USE_DELTA_F: True
 FORCE_INTEGRAL: False
-COST_SHIFT: False
-DF_HORIZON: 0  # Horizon of the estimation (0 calls the estimators implementation without horizon)
-# note that df horizon 0 is different from 1 because the forward kyn in MHE does use the acceleration.
-HYBRID_DELTA_F: False
-USE_DELTA_TAU: True
+INTERNAL: True
+USE_DELTA_TAU: False
 
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)

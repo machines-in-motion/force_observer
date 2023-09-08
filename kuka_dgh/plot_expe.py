@@ -58,11 +58,11 @@ print("N_start = ", N_START)
 
 if(SIM):
     data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
-    data_name = 'config_SIM_2023-09-06T18:23:22.648137_test.mds'
+    data_name = 'config_SIM_2023-09-08T11:55:35.037265_dtau_external.mds'
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
-    data_name = 'config_REAL_2023-09-07T16:59:07.835076_dtau_external.mds'
+    data_name = 'config_REAL_2023-09-08T18:05:34.056236_df_internal_2.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -71,8 +71,8 @@ r = DataReader(data_path+data_name)
 N = r.data['tau'].shape[0]
 
 fig, ax = plt.subplots(4, 1, sharex='col') 
-ax[0].plot(r.data['t_child'], label='t_solve')
-ax[0].plot(N*[1./config['plan_freq']], label= 'mpc')
+ax[0].plot(r.data['KKT'], label='KKT residual')
+# ax[0].plot(N*[1./config['plan_freq']], label= 'mpc')
 ax[1].plot(r.data['time_df'], label='DF_time')
 ax[1].plot(N*[1./config['plan_freq']], label= 'mpc')
 ax[2].plot(r.data['ddp_iter'], label='ddp iter')
@@ -105,10 +105,10 @@ if(config['USE_DELTA_F']):
     plt.plot(np.array(r.data['delta_f']))
     plt.title("delta_f")
 
-if(config['USE_DELTA_TAU']):
-    plt.figure()
-    plt.plot(np.array(r.data['delta_tau']))
-    plt.title("delta_tau")
+# if(config['USE_DELTA_TAU']):
+#     s.plot_joint_tau( [r.data['delta_tau']], 
+#                       ['delta_tau'], 
+#                       ['r'])
 
 # For SIM robot only
 if(SIM):
@@ -180,7 +180,19 @@ fig_f, _ = s.plot_soft_contact_force([
 plt.figure()
 plt.plot(r.data['force_integral'])
 
-print(" Fz mean abs error = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:,2])))
+# Compute average tracking error for each circle
+CIRCLE_PERIOD_IN_CYCLES = int(2*np.pi/3.*1000)
+N_START = N_START
+N_CIRCLE = int((N-N_START)/CIRCLE_PERIOD_IN_CYCLES)
+N = N_START + CIRCLE_PERIOD_IN_CYCLES * N_CIRCLE
+
+error_traj = np.abs(r.data['contact_force_3d_measured'][N_START:, 2] - target[N_START:, 2])
+mean_errors = [np.mean(error_traj[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(N_CIRCLE)]
+print(mean_errors)
+
+print(" Fz mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:N,2])))
+print(" Fz mean abs error [1:] = ", np.mean(mean_errors[1:]), r'$\pm$', np.std(mean_errors[1:]))
+print(" Fz mean abs error      = ", np.mean(mean_errors), r'$\pm$', np.std(mean_errors))
 # print(" F3d mean abs error = ", np.mean(np.linalg.norm(np.abs(r.data['contact_force_3d_measured'][N_START:N, :] - target[N_START:, :]))))
 
 

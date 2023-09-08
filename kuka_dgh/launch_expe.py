@@ -105,7 +105,7 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/"
-suffix = "_dtau_external"
+suffix = "_df_internal_2"
 
 if SIM:
     thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
@@ -114,5 +114,5 @@ if SIM:
     # thread_head.plot_timing()
 else:
     thread_head.start()
-    thread_head.start_logging(20, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
+    thread_head.start_logging(31, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
     # thread_head.start_logging(30, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")

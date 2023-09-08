@@ -22,10 +22,8 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 
 # Check installed pkg
-USE_SOBEC = False 
 import sobec
-from ContactModel import DAMRigidContact
-from ContactModel1d_3d import DAMRigidContact1D3D
+from force_observer import DAMContactDeltaTau
 
 
 class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassical):
@@ -44,7 +42,7 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
     '''
     super().check_config()
 
-  def initialize(self, x0, delta_f, hybrid_df=False, pinRefFrame=pin.LOCAL, callbacks=False):
+  def initialize(self, x0, torque_offset=False, callbacks=False):
     '''
     Initializes OCP and FDDP solver from config parameters and initial state
       INPUT: 
@@ -60,59 +58,43 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
            a <--> weighted activation, with weights e.g. 'stateRegWeights' in config file 
            z <--> can be state x, control u, frame position or velocity, contact force, etc.
     ''' 
+    
   # State and actuation models
     state = crocoddyl.StateMultibody(self.rmodel)
     actuation = crocoddyl.ActuationModelFull(state)
   
-  # Make sure a contact model is defined
-    try: 
-       assert(hasattr(self, 'contacts'))
-    except: 
-      logger.error("The YANL file does not include any contact model !")
-
-    self.nb_contacts = len(self.contacts)
-    self.contact_types = [ct['contactModelType'] for ct in self.contacts]
-    logger.debug("Detected "+str(len(self.contacts))+" contacts with types = "+str(self.contact_types))
+  # Contact or not ?
+    if(not hasattr(self, 'contacts')):
+      self.nb_contacts = 0
+    else:
+      self.nb_contacts = len(self.contacts)
+      self.contact_types = [ct['contactModelType'] for ct in self.contacts]
+      logger.debug("Detected "+str(len(self.contacts))+" contacts with types = "+str(self.contact_types))
 
   # Create IAMs
     runningModels = []
     for i in range(self.N_h):  
       # Create DAM (Contact or FreeFwd)
         # Initialize contact model if necessary and create appropriate DAM
-        contactModels = []
-        for ct in self.contacts:
+        if(self.nb_contacts > 0):
+          contactModels = []
+          for ct in self.contacts:
             contactModels.append(self.create_contact_model(ct, state, actuation))
-
-        # Create DAMContactDyn      
-        if(USE_SOBEC):
-            contactModelSum = sobec.ContactModelMultiple(state, actuation.nu)
-            contactModelSum.addContact(self.contacts[0]['contactModelFrameName'], contactModels[0], active=self.contacts[0]['active'])
-            dam = sobec.DifferentialActionModelContactFwdDynamics(state, 
-                                                                    actuation, 
-                                                                    contactModelSum, 
-                                                                    crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                                                    inv_damping=0., 
-                                                                    enable_force=True)
+        
+        if torque_offset:
+            dam = DAMContactDeltaTau(state, 
+                                actuation, 
+                                crocoddyl.ContactModelMultiple(state, actuation.nu), 
+                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
+                                inv_damping=0., 
+                                enable_force=True)
         else:
-            contactModelSum = sobec.ContactModelMultiple(state, actuation.nu)
-            contactModelSum.addContact(self.contacts[0]['contactModelFrameName'], contactModels[0], active=self.contacts[0]['active'])
-            
-            if hybrid_df:
-                dam = DAMRigidContact1D3D(state, 
-                                    actuation, 
-                                    contactModelSum, 
-                                    crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                    contactModels[0].id,
-                                    delta_f,
-                                    pinRefFrame=pinRefFrame)
-            else:
-                dam = DAMRigidContact(state, 
-                                    actuation, 
-                                    contactModelSum, 
-                                    crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                    contactModels[0].id,
-                                    delta_f,
-                                    pinRefFrame=pinRefFrame)
+            dam = sobec.DifferentialActionModelContactFwdDynamics(state, 
+                                actuation, 
+                                crocoddyl.ContactModelMultiple(state, actuation.nu), 
+                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
+                                inv_damping=0., 
+                                enable_force=True)
       # Create IAM from DAM
         runningModels.append(crocoddyl.IntegratedActionModelEuler(dam, stepTime=self.dt))
         
@@ -123,41 +105,35 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
         # Add armature to current IAM
         runningModels[i].differential.armature = np.asarray(self.armature)
 
+      # Contact model
+        # Add contact model to current IAM
+        if(self.nb_contacts > 0):
+          for k,contactModel in enumerate(contactModels):
+            runningModels[i].differential.contacts.addContact(self.contacts[k]['contactModelFrameName'], contactModel, active=self.contacts[k]['active'])
+
+
   # Terminal DAM (Contact or FreeFwd)
     # If contact, initialize terminal contact model and create terminal DAMContactDyn
-    contactModels = []
-    for ct in self.contacts:
+    if(self.nb_contacts > 0):
+      contactModels = []
+      for ct in self.contacts:
         contactModels.append(self.create_contact_model(ct, state, actuation))
 
     # Create terminal DAMContactDyn
-    if(USE_SOBEC):
-        contactModelSum = sobec.ContactModelMultiple(state, actuation.nu)
-        contactModelSum.addContact(self.contacts[0]['contactModelFrameName'], contactModels[0], active=self.contacts[0]['active'])
-        dam_t = sobec.DifferentialActionModelContactFwdDynamics(state, 
-                                                                actuation, 
-                                                                contactModelSum, 
-                                                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                                                inv_damping=0., 
-                                                                enable_force=True)
+    if torque_offset:
+        dam_t = DAMContactDeltaTau(state, 
+                            actuation, 
+                            sobec.ContactModelMultiple(state, actuation.nu), 
+                            crocoddyl.CostModelSum(state, nu=actuation.nu), 
+                                inv_damping=0., 
+                                enable_force=True)
     else:
-        contactModelSum = sobec.ContactModelMultiple(state, actuation.nu)
-        contactModelSum.addContact(self.contacts[0]['contactModelFrameName'], contactModels[0], active=self.contacts[0]['active'])
-        if hybrid_df:
-            dam_t = DAMRigidContact1D3D(state, 
+        dam_t = sobec.DifferentialActionModelContactFwdDynamics(state, 
                                 actuation, 
-                                contactModelSum, 
+                                sobec.ContactModelMultiple(state, actuation.nu), 
                                 crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                contactModels[0].id,
-                                delta_f,
-                                pinRefFrame=pinRefFrame)
-        else:
-            dam_t = DAMRigidContact(state, 
-                                actuation, 
-                                contactModelSum, 
-                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                contactModels[0].id,
-                                delta_f,
-                                pinRefFrame=pinRefFrame)
+                                inv_damping=0., 
+                                enable_force=True)
         
   # Create terminal IAM from terminal DAM
     terminalModel = crocoddyl.IntegratedActionModelEuler( dam_t, stepTime=0. )
@@ -181,7 +157,7 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
     problem = crocoddyl.ShootingProblem(x0, runningModels, terminalModel)
   
   # Creating the DDP solver 
-    ddp = crocoddyl.SolverFDDP(problem)
+    ddp = crocoddyl.SolverGNMS(problem)
   
   # Callbacks
     if(callbacks):

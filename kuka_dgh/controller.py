@@ -3,7 +3,10 @@ import pinocchio as pin
 
 import time
 
-from classical_mpc.ocp import OptimalControlProblemClassical
+# from classical_mpc.ocp import OptimalControlProblemClassical
+import sys
+sys.path.append("../demos/utils")
+from ocp_utils import OptimalControlProblemClassicalWithObserver
 from core_mpc import pin_utils
 from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
@@ -22,47 +25,50 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
         xs_init = list(ddp.xs[1:]) + [ddp.xs[-1]]
         xs_init[0] = x
         us_init = list(ddp.us[1:]) + [ddp.us[-1]] 
-        # Get OCP nodes
-        m = list(ddp.problem.runningModels) + [ddp.problem.terminalModel]
         # Update OCP for reaching phase
         if(TASK_PHASE == 1):
-            for k in range(ddp.problem.T+1):
-                m[k].differential.costs.costs["translation"].active = True
-                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+            for k in range(ddp.problem.T):
+                ddp.problem.runningModels[k].differential.costs.costs["translation"].active = True
+                ddp.problem.runningModels[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+            ddp.problem.terminalModel.differential.costs.costs["translation"].active = True
+            ddp.problem.terminalModel.differential.costs.costs["translation"].cost.residual.reference = target_reach[-1]    
+            
         # Update OCP for "increase weights" phase
         if(TASK_PHASE == 2):
-            for k in range(ddp.problem.T+1):
+            for k in range(ddp.problem.T):
                 w = min(2.*(k + 1.) , 5)
-                m[k].differential.costs.costs["translation"].active = True
-                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                m[k].differential.costs.costs["translation"].weight = w
+                ddp.problem.runningModels[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+                ddp.problem.runningModels[k].differential.costs.costs["translation"].weight = w
+            ddp.problem.terminalModel.differential.costs.costs["translation"].cost.residual.reference = target_reach[-1]
+            ddp.problem.terminalModel.differential.costs.costs["translation"].weight = w
         # Update OCP for contact phase
         if(TASK_PHASE == 3):
-            for k in range(ddp.problem.T+1):  
-                m[k].differential.costs.costs["translation"].active = True
-                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
-                m[k].differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
-                m[k].differential.costs.costs["translation"].weight = 60. 
-                m[k].differential.costs.costs['rotation'].active = True
-                m[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
-                # activate contact and force cost
-                m[k].differential.contacts.changeContactStatus("contact", True)
-                if(k!=ddp.problem.T):
-                    fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
-                    m[k].differential.costs.costs["force"].active = True
-                    m[k].differential.costs.costs["force"].weight = force_weight
-                    m[k].differential.costs.costs["force"].cost.residual.reference = fref
+            for k in range(ddp.problem.T):  
+                ddp.problem.runningModels[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+                ddp.problem.runningModels[k].differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
+                ddp.problem.runningModels[k].differential.costs.costs["translation"].weight = 60. 
+                ddp.problem.runningModels[k].differential.costs.costs['rotation'].active = True
+                ddp.problem.runningModels[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
+                ddp.problem.runningModels[k].differential.contacts.changeContactStatus("contact", True)
+                ddp.problem.runningModels[k].differential.costs.costs["force"].weight = force_weight
+                ddp.problem.runningModels[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))         
+            ddp.problem.terminalModel.differential.costs.costs["translation"].cost.residual.reference = target_reach[-1]
+            ddp.problem.terminalModel.differential.costs.costs["translation"].cost.activation.weights = np.array([1., 1., 0.])
+            ddp.problem.terminalModel.differential.costs.costs["translation"].weight = 60. 
+            ddp.problem.terminalModel.differential.costs.costs['rotation'].active = True
+            ddp.problem.terminalModel.differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
+            ddp.problem.terminalModel.differential.contacts.changeContactStatus("contact", True)    
+                    
         # Update OCP for circle phase
         if(TASK_PHASE == 4):
-            for k in range(ddp.problem.T+1):
-                m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
+            for k in range(ddp.problem.T):
+                ddp.problem.runningModels[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
                 # update force ref
-                if(k!=ddp.problem.T):
-                    m[k].differential.costs.costs["force"].cost.residual.reference = fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
+                ddp.problem.runningModels[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
+            ddp.problem.terminalModel.differential.costs.costs["translation"].cost.residual.reference = target_reach[-1]    
+        
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
-        jf = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f
-        jMf = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf
-        fpred = jMf.actInv(jf).linear
+        fpred = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf.actInv(ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f).linear
         problem_formulation_time = time.time()
         t_child_1 =  problem_formulation_time - t
         # Solve OCP 
@@ -71,7 +77,7 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
         ddp_iter = ddp.iter
         t_child =  solve_time - problem_formulation_time
         # Send solution to parent process + riccati gains
-        return ddp.us, ddp.xs, ddp.K, fpred, t_child, ddp_iter, t_child_1
+        return ddp.us[0], ddp.xs[1], ddp.K[0], fpred, t_child, ddp_iter, t_child_1, ddp.KKT
 
 
 
@@ -149,7 +155,13 @@ class ClassicalMPCContact:
         self.oMc = contact_placement
         self.fext0 = pin_utils.get_external_joint_torques(contact_placement, f0, robot)  
         # logger.warning(self.fext0)
-        self.ddp = OptimalControlProblemClassical(robot, self.config).initialize(self.x0, callbacks=False)
+        if(self.config['pinRefFrame'] == 'LOCAL'):
+            self.pinRef = pin.LOCAL
+        else:
+            self.pinRef = pin.LOCAL_WORLD_ALIGNED
+
+        torque_offset = self.config["USE_DELTA_TAU"] and self.config["INTERNAL"]
+        self.ddp = OptimalControlProblemClassicalWithObserver(robot, self.config).initialize(self.x0, torque_offset=torque_offset, callbacks=False)
         self.ddp.regMax = 1e6
         self.ddp.reg_max = 1e6
         self.ddp.termination_tol = 1e-4
@@ -164,10 +176,10 @@ class ClassicalMPCContact:
             m.differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0., np.pi)
             
         # Allocate MPC data
-        self.us = self.ddp.us ; self.xs = self.ddp.xs ; self.Ks = self.ddp.K 
-        self.x = self.xs[0] ; self.tau_ff = self.us[0] ; self.K = self.Ks[0]
+        self.K = self.ddp.K[0]
+        self.x_des = self.ddp.xs[0]
+        self.tau_ff = self.ddp.us[0]
         self.tau = self.tau_ff.copy() ; self.tau_riccati = np.zeros(self.tau.shape)
-        self.nb_ctrl = 0
         self.fpred = np.zeros(3)
 
         # Initialize torque measurements 
@@ -199,12 +211,10 @@ class ClassicalMPCContact:
             f6d_local   = self.lwaMc.actInv(pin.Force(self.ft_sensor_wrench))
             f6d_world   = pin.Force(self.ft_sensor_wrench) 
         if(self.config['pinRefFrame'] == 'LOCAL'):
-            self.pinRef = pin.LOCAL
             logger.warning("LOCAL contact force !")
             self.contact_force_3d_measured = f6d_local.vector[:3].copy()
             self.coef_target_force = -1.
         else:
-            self.pinRef = pin.LOCAL_WORLD_ALIGNED
             logger.warning("LOCAL_WORLD_ALIGNED contact force !")
             self.contact_force_3d_measured  = f6d_world.vector[:3].copy()
             self.coef_target_force = +1.  
@@ -265,57 +275,34 @@ class ClassicalMPCContact:
             except: 
                 logger.error("Cannot use delta_f and integral at the same time")
         
-        if(self.config['HYBRID_DELTA_F']):
-            logger.warning("Using HYBRID_DELTA_F")
-            try: 
-                assert(self.config['USE_DELTA_F'] == True)
-            except: 
-                logger.error("Must have USE_DELTA_F = True if using hybrid delta_f")
-            try: 
-                assert(self.config['COST_SHIFT'] == False)
-            except: 
-                logger.error("Cannot use hybrid delta_f in cost. Must add it to tau.")
-            self.delta_f = np.zeros(3)
-        else:
-            self.delta_f = 0.
+
+        self.delta_f = 0.
         
         if(self.config['USE_DELTA_TAU']):
             logger.warning("Using USE_DELTA_TAU")
             try: 
                 assert(self.config['USE_DELTA_F'] == False)
                 assert(self.config['FORCE_INTEGRAL'] == False)
-                assert(self.config['HYBRID_DELTA_F'] == False)
             except: 
-                logger.error("Must have USE_DELTA_F, FORCE_INTEGRAL, HYBRID_DELTA_F = False")
+                logger.error("Must have USE_DELTA_F, FORCE_INTEGRAL = False")
             self.delta_tau = np.zeros(self.nv)  
             
         frame_of_interest = config['frame_of_interest']
         id_endeff = robot.model.getFrameId(frame_of_interest)
-        if config['DF_HORIZON'] == 0:
-            if(self.config['HYBRID_DELTA_F']):
-                self.estimator = ForceEstimator(self.robot.model, 1, 3, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
-            else:
-                self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
-        else:
-            self.estimator = MHForceEstimator(config['DF_HORIZON'], self.robot.model, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+        self.estimator = ForceEstimator(self.robot.model, 1, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
         
         if(self.config['USE_DELTA_TAU']):
             self.estimator = TorqueEstimator(self.robot.model, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
         
         self.data_estimator = self.estimator.createData()
 
-        self.buffer_length = max(1, config['DF_HORIZON'])
-        self.buffer_q   = np.zeros(self.buffer_length * self.nv)
-        self.buffer_v   = np.zeros(self.buffer_length * self.nv)
-        self.buffer_a   = np.zeros(self.buffer_length * self.nv)
-        self.buffer_tau = np.zeros(self.buffer_length * self.nv)
-        self.buffer_f   = np.zeros(self.buffer_length)
+
         self.tau_old = np.zeros(self.nv)
 
 
         if(self.config['USE_DELTA_TAU']):
-            self.estimator.Q = 4e-3 * np.ones(self.nv)
-            self.estimator.R = 2e-2 * np.ones(self.nv)
+            self.estimator.Q = 4e-3 * 0.01 * np.array([1., 1., 1., 1., 1., 1.])
+            self.estimator.R = 2e-2 * 0.01 * np.array([1., 1., 1., 1., 1., 1.])
         else:
             self.estimator.Q = 4e-3 * np.ones(self.nv)
             self.estimator.R = 2e-2 * np.ones(1)
@@ -357,7 +344,7 @@ class ClassicalMPCContact:
         self.ddp.us = [self.u0 for i in range(self.Nh)]
         self.is_plan_updated = False
 
-        self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1 = solveOCP(self.joint_positions[self.controlled_joint_ids], 
+        self.tau_ff, self.x_des, self.K, self.fpred, self.t_child, self.ddp_iter, self.t_child_1, self.KKT = solveOCP(self.joint_positions[self.controlled_joint_ids], 
                                                                                         self.joint_velocities[self.controlled_joint_ids], 
                                                                                         self.ddp, 
                                                                                         self.nb_iter,
@@ -371,7 +358,6 @@ class ClassicalMPCContact:
             
         self.check = 0
         self.nb_iter = self.config['maxiter']
-        self.count = 0
         self.sent = False
     
 
@@ -433,49 +419,31 @@ class ClassicalMPCContact:
 
 
         # compute integral
-        if 0 <= time_to_ramp:
+        if 0 <= time_to_ramp and self.config["FORCE_INTEGRAL"]:
             self.force_integral[0] = self.alpha_f * self.force_integral[0] + (self.force_est[2] - self.coef_target_force * self.target_force_traj[time_to_contact, 2]) * self.dt_simu
             self.force_integral[0] = np.core.umath.maximum(np.core.umath.minimum(self.force_integral[0], 100), -100)
                 
         # Delta F estimation:
-        
-
-        self.buffer_q[self.nv:]   = self.buffer_q[:-self.nv]
-        self.buffer_v[self.nv:]   = self.buffer_v[:-self.nv]
-        self.buffer_a[self.nv:]   = self.buffer_a[:-self.nv]
-        self.buffer_tau[self.nv:]   = self.buffer_tau[:-self.nv]
-        self.buffer_f[1:]   = self.buffer_f[:-1]
-
-
-
-        self.buffer_q[:self.nv]   = q
-        self.buffer_v[:self.nv]   = v
-        self.buffer_a[:self.nv]   = self.acc_est
-        self.buffer_tau[:self.nv] = self.tau_old
-        self.buffer_f[:1]         = np.array([self.force_est[2]])
-
-
         t0 = time.time()
         if time_to_ramp > 0:
-            if(self.config['HYBRID_DELTA_F']):
-                self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, self.delta_f, self.buffer_f)
-                # Safety clipping (using np.core is 4 times faster than np.clip)
-                for i in range(3):
-                    self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f[i], self.delta_f[i] + 0.2), self.delta_f[i] - 0.2)
-                    self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.delta_f[i], 40), -40)
-            elif(self.config['HYBRID_DELTA_F'] == False and self.config['USE_DELTA_F'] == True):
-                self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, np.array([self.delta_f]), self.buffer_f)
+            if(self.config['USE_DELTA_F'] == True):
+                self.estimator.estimate(self.data_estimator, q, v, self.acc_est, self.tau_old, np.array([self.delta_f]), np.array([self.force_est[2]]))
                 # Safety clipping (using np.core is 4 times faster than np.clip)
                 self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 0.2), self.delta_f - 0.2)
                 self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
             elif(self.config['USE_DELTA_TAU'] == True):
-                self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, self.delta_tau, self.buffer_f)
+                self.estimator.estimate(self.data_estimator, q, v, self.acc_est, self.tau_old, self.delta_tau, np.array([self.force_est[2]]))
                 # Safety clipping (using np.core is 4 times faster than np.clip)
-                for i in range(self.nv):
-                    self.delta_tau[i] = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_tau[i], self.delta_tau[i] + 0.5), self.delta_tau[i] - 0.5)
-                    self.delta_tau[i] = np.core.umath.maximum(np.core.umath.minimum(self.delta_tau[i], 150), -150)
-                    
+                self.delta_tau = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_tau, self.delta_tau + 0.5), self.delta_tau - 0.5)
+                self.delta_tau = np.core.umath.maximum(np.core.umath.minimum(self.delta_tau, 40), -40)
+                if self.config['INTERNAL']:
+                    for m in self.ddp.problem.runningModels:
+                        m.differential.delta_tau = - self.delta_tau
+                    self.ddp.problem.terminalModel.differential.delta_tau = - self.delta_tau
         self.time_df = time.time() - t0
+                    
+        # Update OCP for reaching phase                   
+                    
 
         if(time_to_reach == 0): 
             print("Entering reaching phase")
@@ -500,9 +468,9 @@ class ClassicalMPCContact:
             ti  = time_to_contact
             tf  = ti + (self.Nh+1)*self.OCP_TO_SIMU_ratio
             self.target_force = self.coef_target_force * self.target_force_traj[ti:tf:self.OCP_TO_SIMU_ratio, 2]
-            if( self.config['USE_DELTA_F'] and self.config['COST_SHIFT']):
+            if( self.config['USE_DELTA_F'] and self.config['INTERNAL']):
                 self.target_force += self.delta_f
-            if( self.config["FORCE_INTEGRAL"] and self.config['COST_SHIFT']):
+            if( self.config["FORCE_INTEGRAL"] and self.config['INTERNAL']):
                 self.target_force -= self.KF_I * self.force_integral[0]
 
         if(time_to_circle == 0): 
@@ -531,8 +499,7 @@ class ClassicalMPCContact:
         self.t_child, self.t_child_1 = 0, 0
         if thread.ti % int(self.sim_to_plan_ratio) == 0:         
 
-            self.count = 0
-            self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1 = solveOCP(q, v, 
+            self.tau_ff, self.x_des, self.K, self.fpred, self.t_child, self.ddp_iter, self.t_child_1, self.KKT = solveOCP(q, v, 
                                                                 self.ddp,
                                                                 self.nb_iter,
                                                                 self.target_position, 
@@ -546,31 +513,34 @@ class ClassicalMPCContact:
 
         # # # # # # # # 
         # Send policy #
-        # # # # # # # #
-        # Linear interpolation of torque control input & desired state 
-        ctr_index = int(self.count*self.ocp_to_sim_ratio)
-        if ctr_index > self.Nh-1:
-            self.tau_ff   = self.us[-1]     
-            self.x_des    = self.xs[-1]  
-            K = self.Ks[-1]
-            print("DANGER")
-        else:
-            self.tau_ff   = self.us[ctr_index]     
-            self.x_des    = self.xs[ctr_index+1]  
-            K = self.Ks[ctr_index]
+        # # # # # # # #     
 
         # Riccati policy (optional) on (q,v) 
         if(self.config['RICCATI']):
-            self.tau_riccati = K[:,:self.nq+self.nv] @ (self.x_des[:self.nq+self.nv] - np.concatenate([q, v]))
+            self.tau_riccati = self.K[:,:self.nq+self.nv] @ (self.x_des[:self.nq+self.nv] - np.concatenate([q, v]))
             self.tau  = self.tau_ff + self.tau_riccati
         else:
             self.tau = self.tau_ff
         
-        self.count += 1
 
-  
+        # Mismatch correction as feedforward term
+        if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['INTERNAL'] == False ):
+            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+            self.tau -= Jac.T @ np.array([0., 0., float(self.delta_f)]) 
+
+        if(self.config['USE_DELTA_TAU'] and self.config['INTERNAL'] == False and 0 <= time_to_contact):
+            self.tau += self.delta_tau 
+
+        if( self.config["FORCE_INTEGRAL"] and 0 <= time_to_contact and self.config['INTERNAL'] == False ):
+            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+            self.tau += self.KF_I * Jac.T @ np.array([0., 0., self.force_integral[0]])
+            
+            
+        # Save old torque as estimator is not aware of the lateral force model
         self.tau_old = self.tau.copy()
-
+        
+        
+        # Lateral force model
         if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau -= Jac.T @ np.array([self.force_est[0], self.force_est[1], 0.])
@@ -584,20 +554,8 @@ class ClassicalMPCContact:
             if(norm_ > 0):
                 self.compensation = -0.35 * self.force_est[2] * np.tanh(10. * norm_) * v_ee / norm_ / np.sqrt(2)
                 self.tau -= Jac.T @ self.compensation
-            
-        if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-            if(self.config['HYBRID_DELTA_F']):
-                self.tau -= Jac.T @ self.delta_f
-            else:
-                self.tau -= Jac.T @ np.array([0., 0., float(self.delta_f)]) 
                 
-        if( self.config["FORCE_INTEGRAL"] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-            self.tau += self.KF_I * Jac.T @ np.array([0., 0., self.force_integral[0]])
 
-        if(self.config['USE_DELTA_TAU'] and 0 <= time_to_contact):
-            self.tau += self.delta_tau 
             
         # Compute gravity
         self.tau_gravity = pin.rnea(self.robot.model, self.robot.data, self.joint_positions[self.controlled_joint_ids], np.zeros(self.nv), np.zeros(self.nv))
@@ -620,7 +578,5 @@ class ClassicalMPCContact:
         
         
         pin.framesForwardKinematics(self.robot.model, self.robot.data, q)
-
-        self.nb_ctrl += 1
         
         self.t_run = time.time() - t1
