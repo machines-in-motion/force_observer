@@ -49,18 +49,12 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
                     m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
         # Update OCP for circle phase
         if(TASK_PHASE == 4):
-            for k in range(ddp.problem.T+1):
-                # m[k].differential.costs.costs['rotation'].active = True
-                m[k].differential.contacts.changeContactStatus("contact", True)
+            for k in range(ddp.problem.T):
                 # update force ref
-                if(k!=ddp.problem.T):
-                    m[k].differential.costs.costs["force"].active = True
-                    m[k].differential.costs.costs["force"].weight = force_weight
-                    m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
+                m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
+                    
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
-        jf = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f
-        jMf = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf
-        fpred = jMf.actInv(jf).vector
+        fpred = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf.actInv(ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f).vector
         problem_formulation_time = time.time()
         t_child_1 =  problem_formulation_time - t
         # Solve OCP 
@@ -69,7 +63,7 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
         ddp_iter = ddp.iter
         t_child =  solve_time - problem_formulation_time
         # Send solution to parent process + riccati gains
-        return ddp.us, ddp.xs, ddp.K, fpred, t_child, ddp_iter, t_child_1
+        return ddp.us[0], ddp.xs[1], ddp.K[0], fpred, t_child, ddp_iter, t_child_1, ddp.KKT
 
 
 
@@ -170,10 +164,10 @@ class ClassicalMPCContact:
             # m.differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0., np.pi)
             
         # Allocate MPC data
-        self.us = self.ddp.us ; self.xs = self.ddp.xs ; self.Ks = self.ddp.K 
-        self.x = self.xs[0] ; self.tau_ff = self.us[0] ; self.K = self.Ks[0]
+        self.K = self.ddp.K[0]
+        self.x_des = self.ddp.xs[0]
+        self.tau_ff = self.ddp.us[0]
         self.tau = self.tau_ff.copy() ; self.tau_riccati = np.zeros(self.tau.shape)
-        self.nb_ctrl = 0
         self.fpred = np.zeros(6)
 
         # Initialize torque measurements 
@@ -226,14 +220,19 @@ class ClassicalMPCContact:
         FZ_MAX = self.config['frameForceRef'][2]
         self.target_force_traj[:N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
         self.target_force_traj[N_ramp:, 2] = FZ_MAX
-            # Ref in Fx
+        freq = 0.04
+        self.target_force_traj[N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i * self.dt_simu - int(freq * (2*np.pi) * i * self.dt_simu)) for i in range(N_total-N_ramp)]
+        # import matplotlib.pyplot as plt
+        # plt.plot(self.target_force_traj[:, 2])
+        # plt.show()        
+        
+        # Ref in Fx
         FX_MIN = 0.
         FX_MAX = self.config['frameForceRef'][0]
         self.target_force_traj[:N_ramp, 0] = [FX_MIN + (FX_MAX - FX_MIN)*i/N_ramp for i in range(N_ramp)]
         self.target_force_traj[N_ramp:, 0] = FX_MAX
-        # self.target_force_traj[N_sinus*self.Nh:, 2] = [F_MAX + 20.*np.round(np.sin(0.01 * (2*np.pi/self.Nh) * i/2 )  ) for i in range(N_total-N_sinus*self.Nh)]
-        # plt.plot(self.target_force_traj)
-        # plt.show()
+        
+
         self.target_force = np.zeros((self.Nh+1,6))
         self.target_force_fx = self.target_force[:,0]
         self.target_force_fy = self.target_force[:,1]
@@ -270,19 +269,10 @@ class ClassicalMPCContact:
         # ForceEstimator
         frame_of_interest = config['frame_of_interest']
         id_endeff = robot.model.getFrameId(frame_of_interest)
-        if config['DF_HORIZON'] == 0:
-            self.estimator = ForceEstimator(self.robot.model, self.nc, self.nc, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
-        else:
-            self.estimator = MHForceEstimator(config['DF_HORIZON'], self.robot.model, self.nc, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+        self.estimator = ForceEstimator(self.robot.model, self.nc, self.nc, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
 
         self.data_estimator = self.estimator.createData()
 
-        self.buffer_length = max(1, config['DF_HORIZON'])
-        self.buffer_q   = np.zeros(self.buffer_length * self.nv)
-        self.buffer_v   = np.zeros(self.buffer_length * self.nv)
-        self.buffer_a   = np.zeros(self.buffer_length * self.nv)
-        self.buffer_tau = np.zeros(self.buffer_length * self.nv)
-        self.buffer_f   = np.zeros(self.buffer_length * self.nc)
         self.tau_old = np.zeros(self.nv)
 
         self.delta_f = np.zeros(self.nc)
@@ -296,7 +286,7 @@ class ClassicalMPCContact:
         # integral effect parameters
         self.force_integral = np.array([0.]*self.nc)
         self.KF_I = 20.*np.ones(self.nc)
-        self.alpha_f = 0.999*np.ones(self.nc)
+        self.alpha_f = np.ones(self.nc)
 
 
         self.node_id_reach = -1
@@ -326,7 +316,7 @@ class ClassicalMPCContact:
         self.ddp.us = [self.u0 for i in range(self.Nh)]
         self.is_plan_updated = False
 
-        self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1 = solveOCP(self.joint_positions[self.controlled_joint_ids], 
+        self.tau_ff, self.x_des, self.K, self.fpred, self.t_child, self.ddp_iter, self.t_child_1, self.KKT  = solveOCP(self.joint_positions[self.controlled_joint_ids], 
                                                                                         self.joint_velocities[self.controlled_joint_ids], 
                                                                                         self.ddp, 
                                                                                         self.nb_iter,
@@ -379,15 +369,12 @@ class ClassicalMPCContact:
             self.contact_force_6d_measured = f6d_local.vector.copy()
         else:
             self.contact_force_6d_measured = f6d_world.vector.copy()
-        
-        if(thread.ti >= 7000 and thread.ti < 10000):
-            self.contact_force_6d_measured[2] += 30
-            
+                    
         self.contact_force_3d_measured = self.contact_force_6d_measured[:3]
 
 
 
-        alpha = 0.95
+        alpha = 0.
         self.force_est = alpha * self.force_est + (1-alpha) * self.contact_force_6d_measured[:self.nc]
         self.acc_est = alpha * self.acc_est + (1-alpha) * self.a
 
@@ -404,35 +391,17 @@ class ClassicalMPCContact:
         # compute integral
         if 0 <= time_to_contact:
             self.force_integral = self.alpha_f * self.force_integral + (self.force_est - self.coef_target_force * self.target_force_traj[time_to_contact, :self.nc]) * self.dt_simu
-            for i in range(self.nc):
-                self.force_integral[i] = np.core.umath.maximum(np.core.umath.minimum(self.force_integral[i], 100), -100)
+            self.force_integral = np.core.umath.maximum(np.core.umath.minimum(self.force_integral, 100), -100)
             
 
         # Delta F estimation:
-        
-
-        self.buffer_q[self.nv:]   = self.buffer_q[:-self.nv]
-        self.buffer_v[self.nv:]   = self.buffer_v[:-self.nv]
-        self.buffer_a[self.nv:]   = self.buffer_a[:-self.nv]
-        self.buffer_tau[self.nv:] = self.buffer_tau[:-self.nv]
-        self.buffer_f[self.nc:]   = self.buffer_f[:-self.nc]
-
-
-
-        self.buffer_q[:self.nv]   = q
-        self.buffer_v[:self.nv]   = v
-        self.buffer_a[:self.nv]   = self.acc_est
-        self.buffer_tau[:self.nv] = self.tau_old
-        self.buffer_f[:self.nc]   = self.force_est
-
-
         t0 = time.time()
         if time_to_ramp > 0:
-            self.estimator.estimate(self.data_estimator, self.buffer_q, self.buffer_v, self.buffer_a, self.buffer_tau, self.delta_f, self.buffer_f)
-            # Safety clipping (using np.core is 4 times faster than np.clip)
-            for i in range(self.nc):
-                self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f[i], self.delta_f[i] + 10), self.delta_f[i] - 10)
-                self.delta_f[i] = np.core.umath.maximum(np.core.umath.minimum(self.delta_f[i], 40), -40)
+            if(self.config['USE_DELTA_F'] == True):
+                self.estimator.estimate(self.data_estimator, q, v, self.acc_est, self.tau_old, self.delta_f, self.force_est)
+                # Safety clipping (using np.core is 4 times faster than np.clip)
+                self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 1), self.delta_f - 1)
+                self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
         self.time_df = time.time() - t0
 
         if(time_to_reach == 0): 
@@ -497,7 +466,7 @@ class ClassicalMPCContact:
         if thread.ti % int(self.sim_to_plan_ratio) == 0:         
 
             self.count = 0
-            self.us, self.xs, self.Ks, self.fpred, self.t_child, self.ddp_iter, self.t_child_1 = solveOCP(q, v, 
+            self.tau_ff, self.x_des, self.K, self.fpred, self.t_child, self.ddp_iter, self.t_child_1, self.KKT = solveOCP(q, v, 
                                                                 self.ddp,
                                                                 self.nb_iter,
                                                                 self.target_position, 
@@ -512,33 +481,14 @@ class ClassicalMPCContact:
         # # # # # # # # 
         # Send policy #
         # # # # # # # #
-        # Linear interpolation of torque control input & desired state 
-        ctr_index = int(self.count*self.ocp_to_sim_ratio)
-        if ctr_index > self.Nh-1:
-            self.tau_ff   = self.us[-1]     
-            self.x_des    = self.xs[-1]  
-            K = self.Ks[-1]
-            print("DANGER")
-        else:
-            self.tau_ff   = self.us[ctr_index]     
-            self.x_des    = self.xs[ctr_index+1]  
-            K = self.Ks[ctr_index]
 
         # Riccati policy (optional) on (q,v) 
         if(self.config['RICCATI']):
-            self.tau_riccati = K[:,:self.nq+self.nv] @ (self.x_des[:self.nq+self.nv] - np.concatenate([q, v]))
+            self.tau_riccati = self.K[:,:self.nq+self.nv] @ (self.x_des[:self.nq+self.nv] - np.concatenate([q, v]))
             self.tau  = self.tau_ff + self.tau_riccati
         else:
             self.tau = self.tau_ff
-            
-        self.count += 1
-
-        self.tau_old = self.tau.copy()
-
-        # if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact ):
-        #     Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-        #     self.tau -= Jac.T @ np.array([self.force_est[0], self.force_est[1], 0.])
-
+        
         if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:self.nc, self.controlled_joint_ids]
             self.tau -= Jac.T @ self.delta_f
@@ -547,6 +497,8 @@ class ClassicalMPCContact:
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:self.nc, self.controlled_joint_ids]
             self.tau += self.KF_I * Jac.T @ self.force_integral
 
+        # Save old torque as estimator is not aware of the lateral force model
+        self.tau_old = self.tau.copy()
 
         # Compute gravity
         self.tau_gravity = pin.rnea(self.robot.model, self.robot.data, self.joint_positions[self.controlled_joint_ids], np.zeros(self.nv), np.zeros(self.nv))
@@ -570,6 +522,4 @@ class ClassicalMPCContact:
         
         pin.framesForwardKinematics(self.robot.model, self.robot.data, q)
 
-        self.nb_ctrl += 1
-        
         self.t_run = time.time() - t1

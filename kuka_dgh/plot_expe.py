@@ -39,7 +39,9 @@ model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
 controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
 print(controlled_joint_ids)
 # Load config file
-CONFIG_NAME = 'config'
+# CONFIG_NAME = 'config'
+CONFIG_NAME = 'config36d'
+
 CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
 
@@ -57,12 +59,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
-    data_name = 'config_SIM_2023-09-08T11:55:35.037265_dtau_external.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
+    data_name = 'config36d_SIM_2023-09-11T11:19:01.455720test.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
-    data_name = 'config_REAL_2023-09-08T18:05:34.056236_df_internal_2.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
+    data_name = 'config36d_REAL_2023-09-11T11:55:53.603313_DF.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -147,21 +149,38 @@ fig_p, _ = s.plot_ee_pos( [p_mea,
 
 
 target_force_3d = np.zeros((N, 3))
-# target_force_3d[:,0] = r.data['target_force_fx'][:,0]
-# target_force_3d[:,1] = r.data['target_force_fy'][:,0]
-# target_force_3d[:,2] = r.data['target_force_fz'][:,0]
-target_force_3d[:,0] = r.data['target_force'][:,0]*0.
-target_force_3d[:,1] = r.data['target_force'][:,0]*0.
-target_force_3d[:,2] = r.data['target_force'][:,0]
+if CONFIG_NAME == 'config36d':
+    target_force_3d[:,0] = r.data['target_force_fx'][:,0]
+    target_force_3d[:,1] = r.data['target_force_fy'][:,0]
+    target_force_3d[:,2] = r.data['target_force_fz'][:,0]
+else:
+    target_force_3d[:,0] = r.data['target_force'][:,0]*0.
+    target_force_3d[:,1] = r.data['target_force'][:,0]*0.
+    target_force_3d[:,2] = r.data['target_force'][:,0]
 
 force_delta_f = np.zeros((N, 3))
 force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.array(r.data['delta_f'])[:,0]
 
+
 target = np.zeros((N, 3))
-target[:, :3] = np.asarray(config['frameForceRef'])[:3]
+Tc = int(config['T_CONTACT'] * config['simu_freq'])
+target[Tc:, :3] = np.asarray(config['frameForceRef'])[:3]
+N_ramp = int((config['T_RAMP'] - config['T_CONTACT']) * config['simu_freq'])            # Ref in Fz
+FZ_MIN = 5. #self.config['frameForceRef'][2] #0.
+FZ_MAX = config['frameForceRef'][2]
+target[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
+target[Tc+N_ramp:, 2] = FZ_MAX
+        
+if CONFIG_NAME == 'config36d':
+    freq = 0.04
+    target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
+        
+
+
+
 
 # Plot forces
-# r.data['compensation'] = np.zeros((N,3))
+r.data['compensation'] = np.zeros((N,3))
 fig_f, _ = s.plot_soft_contact_force([
                            r.data['compensation'][:,:3], 
                            r.data['contact_force_3d_measured'][:,:3], 

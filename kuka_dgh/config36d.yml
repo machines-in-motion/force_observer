@@ -54,10 +54,8 @@ contactType: '3D'
 
 # USE_LATERAL_FRICTION: True
 USE_DELTA_F: False
-FORCE_INTEGRAL: True
+FORCE_INTEGRAL: False
 COST_SHIFT: True
-DF_HORIZON: 0  # Horizon of the estimation (0 calls the estimators implementation without horizon)
-# note that df horizon 0 is different from 1 because the forward kyn in MHE does use the acceleration.
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
 # to select from the list : 'stateReg', 'ctrlReg', 'ctrlRegGrav', 'stateLim', 'ctrlLim'
