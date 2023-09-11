@@ -12,7 +12,7 @@ from bullet_utils.env import BulletEnvWithGround
 
 # from utils.find_contact_point import compute_sensor_frame_transform
 import sys
-sys.path.append("/home/ajordana/ws/workspace/src/")
+sys.path.append("../../")
 from force_feedback_dgh.demos.utils.find_contact_point import compute_sensor_frame_transform
 
 
@@ -106,7 +106,7 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/3d/integral/"
-suffix = "_baseline"
+suffix = "_DF"
 
 if SIM:
     thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")

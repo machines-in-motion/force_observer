@@ -39,23 +39,24 @@ print(controlled_joint_ids)
 # Create data Plotter
 s = SimpleDataPlotter()
 
-data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
-label1 = 'iter=3'
-label2 = 'iter=4'
-# label3 = 'friction_comp+delta_f'
+data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
+label1 = 'baseline'
+label2 = 'FI'
+label3 = 'DF'
 
 SAVE = False
 
 print("Load data 1...")
-r1 = DataReader(data_path+'config_REAL_2023-09-08T16:54:39.495862_df_internal_iter=3.mds')  
+r1 = DataReader(data_path+'config36d_REAL_2023-09-11T15:26:12.838067_baseline.mds')  
 print("Load data 2...")
-r2 = DataReader(data_path+'.mds') 
-# print("Load data 3...")
-# r3 = DataReader(data_path+'config_REAL_2023-08-30T12:07:59.189964DF_cost.mds')
+r2 = DataReader(data_path+'config36d_REAL_2023-09-11T15:44:38.246985_FI_best.mds') 
+print("Load data 3...")
+r3 = DataReader(data_path+'config36d_REAL_2023-09-11T17:10:36.216511_DF_best.mds')
 
 
 # Load config file
-CONFIG_NAME = 'config.yml'
+# CONFIG_NAME = 'config.yml'
+CONFIG_NAME = 'config36d.yml'
 config      = path_utils.load_yaml_file(CONFIG_NAME)
 
 FILTER = 1
@@ -71,8 +72,30 @@ plt.plot(r2.data['ddp_iter'], label=label2)
 plt.legend()
 # ax[0].plot(N*[1./config['plan_freq']], label= 'mpc')
 
+# target_force_3d = np.zeros((N, 3))
+# target_force_3d[:,-1] = config['frameForceRef'][2]
+
+
 target_force_3d = np.zeros((N, 3))
-target_force_3d[:,-1] = config['frameForceRef'][2]
+Tc = int(config['T_CONTACT'] * config['simu_freq'])
+target_force_3d[Tc:, :3] = np.asarray(config['frameForceRef'])[:3]
+N_ramp = int((config['T_RAMP'] - config['T_CONTACT']) * config['simu_freq'])            # Ref in Fz
+FZ_MIN = 5. #self.config['frameForceRef'][2] #0.
+FZ_MAX = config['frameForceRef'][2]
+FX_MAX = config['frameForceRef'][0]
+target_force_3d[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
+target_force_3d[Tc+N_ramp:, 2] = FZ_MAX
+if CONFIG_NAME == 'config36d.yml':
+    freq = 0.02
+    # target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
+    target_force_3d[Tc+N_ramp:, 0] = [FX_MAX + 20.*(np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq']))-0.5) for i in range(N-N_ramp-Tc)]
+
+
+
+
+
+
+
 
 N_START = int(config['T_CIRCLE'] * config['simu_freq']) 
 print("N_start = ", N_START)
@@ -85,25 +108,25 @@ if(FILTER > 0):
 fig_f1, _ = s.plot_soft_contact_force([
                            r1.data['contact_force_3d_measured'][N_START:N], 
                            r2.data['contact_force_3d_measured'][N_START:N], 
-                          #  r3.data['contact_force_3d_measured'][N_START:N], 
+                           r3.data['contact_force_3d_measured'][N_START:N], 
                            target_force_3d[N_START:N]
                            ],
                            [
                             label1, 
                             label2,
-                            # label3,
+                            label3,
                             'ref'
                           ], 
                           [
                             'b', 
                             'g', 
-                            # 'r', 
+                            'r', 
                             'k'
                             ],
                           linestyle=[
                             'solid', 
                             'solid', 
-                            # 'solid', 
+                            'solid', 
                             'dotted'
                             ])
 

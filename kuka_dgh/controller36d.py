@@ -220,19 +220,19 @@ class ClassicalMPCContact:
         FZ_MAX = self.config['frameForceRef'][2]
         self.target_force_traj[:N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
         self.target_force_traj[N_ramp:, 2] = FZ_MAX
-        freq = 0.04
-        self.target_force_traj[N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i * self.dt_simu - int(freq * (2*np.pi) * i * self.dt_simu)) for i in range(N_total-N_ramp)]
-        # import matplotlib.pyplot as plt
-        # plt.plot(self.target_force_traj[:, 2])
-        # plt.show()        
-        
+
         # Ref in Fx
         FX_MIN = 0.
         FX_MAX = self.config['frameForceRef'][0]
         self.target_force_traj[:N_ramp, 0] = [FX_MIN + (FX_MAX - FX_MIN)*i/N_ramp for i in range(N_ramp)]
         self.target_force_traj[N_ramp:, 0] = FX_MAX
         
-
+        freq = 0.02
+        self.target_force_traj[N_ramp:, 0] = [FX_MAX + 20.*(np.round(freq * (2*np.pi) * i * self.dt_simu - int(freq * (2*np.pi) * i * self.dt_simu))-0.5) for i in range(N_total-N_ramp)]
+        # import matplotlib.pyplot as plt
+        # plt.plot(self.target_force_traj[:, 0])
+        # plt.show()        
+        
         self.target_force = np.zeros((self.Nh+1,6))
         self.target_force_fx = self.target_force[:,0]
         self.target_force_fy = self.target_force[:,1]
@@ -276,8 +276,8 @@ class ClassicalMPCContact:
         self.tau_old = np.zeros(self.nv)
 
         self.delta_f = np.zeros(self.nc)
-        self.estimator.Q = 6 * 8e-4 * np.ones(7)
-        self.estimator.R = 6 * 4e-3 * np.ones(self.nc)
+        self.estimator.Q = 4.* 4e-3 * np.ones(7)
+        self.estimator.R = 4.* 4e-3 * np.ones(self.nc)
 
         self.force_est = np.zeros(self.nc)
         self.acc_est = np.zeros(self.nv)
@@ -285,7 +285,7 @@ class ClassicalMPCContact:
 
         # integral effect parameters
         self.force_integral = np.array([0.]*self.nc)
-        self.KF_I = 20.*np.ones(self.nc)
+        self.KF_I = 8 * np.ones(self.nc)
         self.alpha_f = np.ones(self.nc)
 
 
@@ -375,8 +375,9 @@ class ClassicalMPCContact:
 
 
         alpha = 0.
+        alpha2 = 0.95
         self.force_est = alpha * self.force_est + (1-alpha) * self.contact_force_6d_measured[:self.nc]
-        self.acc_est = alpha * self.acc_est + (1-alpha) * self.a
+        self.acc_est = alpha2 * self.acc_est + (1-alpha2) * self.a
 
         # # # # # # # # # 
         # # Update OCP  #

@@ -64,7 +64,7 @@ if(SIM):
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_REAL_2023-09-11T11:55:53.603313_DF.mds'
+    data_name = 'config36d_REAL_2023-09-11T17:10:36.216511_DF_best.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -168,13 +168,14 @@ target[Tc:, :3] = np.asarray(config['frameForceRef'])[:3]
 N_ramp = int((config['T_RAMP'] - config['T_CONTACT']) * config['simu_freq'])            # Ref in Fz
 FZ_MIN = 5. #self.config['frameForceRef'][2] #0.
 FZ_MAX = config['frameForceRef'][2]
+FX_MAX = config['frameForceRef'][0]
 target[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
 target[Tc+N_ramp:, 2] = FZ_MAX
-        
 if CONFIG_NAME == 'config36d':
-    freq = 0.04
-    target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
-        
+    freq = 0.02
+    # target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
+    target[Tc+N_ramp:, 0] = [FX_MAX + 20.*(np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq']))-0.5) for i in range(N-N_ramp-Tc)]
+
 
 
 
@@ -199,22 +200,39 @@ fig_f, _ = s.plot_soft_contact_force([
 plt.figure()
 plt.plot(r.data['force_integral'])
 
-# Compute average tracking error for each circle
-CIRCLE_PERIOD_IN_CYCLES = int(2*np.pi/3.*1000)
-N_START = N_START
-N_CIRCLE = int((N-N_START)/CIRCLE_PERIOD_IN_CYCLES)
-N = N_START + CIRCLE_PERIOD_IN_CYCLES * N_CIRCLE
 
-error_traj = np.abs(r.data['contact_force_3d_measured'][N_START:, 2] - target[N_START:, 2])
-mean_errors = [np.mean(error_traj[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(N_CIRCLE)]
-print(mean_errors)
+if CONFIG_NAME != 'config36d':
+    # Compute average tracking error for each circle
+    CIRCLE_PERIOD_IN_CYCLES = int(2*np.pi/3.*1000)
+    N_START = N_START
+    N_CIRCLE = int((N-N_START)/CIRCLE_PERIOD_IN_CYCLES)
+    N = N_START + CIRCLE_PERIOD_IN_CYCLES * N_CIRCLE
 
-print(" Fz mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:N,2])))
-print(" Fz mean abs error [1:] = ", np.mean(mean_errors[1:]), r'$\pm$', np.std(mean_errors[1:]))
-print(" Fz mean abs error      = ", np.mean(mean_errors), r'$\pm$', np.std(mean_errors))
-# print(" F3d mean abs error = ", np.mean(np.linalg.norm(np.abs(r.data['contact_force_3d_measured'][N_START:N, :] - target[N_START:, :]))))
+    error_traj = np.abs(r.data['contact_force_3d_measured'][N_START:, 2] - target[N_START:, 2])
+    mean_errors = [np.mean(error_traj[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(N_CIRCLE)]
+    print(mean_errors)
+
+    print(" Fz mean abs error [1:] = ", np.mean(mean_errors[1:]), r'$\pm$', np.std(mean_errors[1:]))
+    print(" Fz mean abs error      = ", np.mean(mean_errors), r'$\pm$', np.std(mean_errors))
+    # print(" F3d mean abs error = ", np.mean(np.linalg.norm(np.abs(r.data['contact_force_3d_measured'][N_START:N, :] - target[N_START:, :]))))
+else:
+    print(" F_xy mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, :2] - target[N_START:N, :2])))
+    print(" Fz mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:N, 2])))
+    print(" F mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N] - target[N_START:N])))
 
 
+# # Analyze time response using a 2nd order fit
+# from tbcontrol.responses import sopdt
+# import scipy
+# ym = r.data['contact_force_3d_measured'][N_START:N,:][2969:6950,0]
+# Nm = len(ym)
+# ts = np.linspace(0.,(Nm-1)*0.001, Nm)
+# [K2, tau2, zeta2, theta2, y02], _ = scipy.optimize.curve_fit(sopdt, ts, ym, [2,2,0.2,1,10])
+# plt.figure()
+# plt.scatter(ts, ym)
+# plt.plot(ts, sopdt(ts, K2, tau2, zeta2, theta2, y02), color='r')
+# T5 = 3.*tau2/zeta2
+# print("Settling time (5%) = ", T5)
 
 if(SAVE):
     fig_f.savefig(data_path+data_name+'_force.png')

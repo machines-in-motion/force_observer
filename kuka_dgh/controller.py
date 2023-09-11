@@ -314,7 +314,7 @@ class ClassicalMPCContact:
         # integral effect parameters
         self.force_integral = np.array([0.])
         self.KF_I = 30.
-        self.alpha_f = 0.9995
+        self.alpha_f = 1. # 0.9995
 
 
         self.node_id_reach = -1
@@ -429,7 +429,7 @@ class ClassicalMPCContact:
             if(self.config['USE_DELTA_F'] == True):
                 self.estimator.estimate(self.data_estimator, q, v, self.acc_est, self.tau_old, np.array([self.delta_f]), np.array([self.force_est[2]]))
                 # Safety clipping (using np.core is 4 times faster than np.clip)
-                self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 0.2), self.delta_f - 0.2)
+                self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 1.), self.delta_f - 1.)
                 self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
             elif(self.config['USE_DELTA_TAU'] == True):
                 self.estimator.estimate(self.data_estimator, q, v, self.acc_est, self.tau_old, self.delta_tau, np.array([self.force_est[2]]))
