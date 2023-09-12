@@ -54,35 +54,39 @@ contactType: '3D'
 
 # USE_LATERAL_FRICTION: True
 USE_DELTA_F: False
-FORCE_INTEGRAL: True
+FORCE_INTEGRAL: False
 COST_SHIFT: True
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
 # to select from the list : 'stateReg', 'ctrlReg', 'ctrlRegGrav', 'stateLim', 'ctrlLim'
 #                           'force', 'friction', 'translation', 'velocity', 'placement'
-WHICH_COSTS: ['force', 'translation', 'velocity', 'stateReg', 'ctrlReg']  
+WHICH_COSTS: ['force', 'translation', 'velocity', 'stateReg', 'ctrlReg', 'ctrlRegGrav', 'rotation']  
 
 # Cost function weights and activations
  # 'force' : end-effector frame force (translation + rotation)
-frameForceWeights:  [1, 1., 1, 0., 0., 0.]
-frameForceWeight: 0.00005
+frameForceWeights:  [50, 50., 1., 0., 0., 0.]
+frameForceWeight: 0.1
 frameForceRef: [0., 0., 50, 0., 0., 0.]    
 frameForceFrameName: 'contact'
 
  # 'stateReg' : state regularization  
-stateRegWeights: [0.2, 0.2, 200, 0.1, 0.1, 0.1, 2., 2., 2., 2., 2., 2.]
-stateRegWeight: 1.
-stateRegWeightTerminal: 1.
+stateRegWeights: [0.1, 0.1, 100., 0.1, 0.1, 0.1,      2., 2., 2., 2., 2., 2.]
+stateRegWeight: 0.08
+stateRegWeightTerminal: 0.08
 stateRegRef: 'DEFAULT'
 
- # 'ctrlReg', 'ctrlRegGrav' : torque regularization 
+ # 'ctrlReg' : torque regularization w.r.t. 0 
 ctrlRegWeights: [1., 1., 1., 1., 1., 1.]
-ctrlRegWeight: 0.00001
+ctrlRegWeight: 0.000001
 ctrlRegRef: 'DEFAULT' 
+
+ # 'ctrlRegGrav' : torque regularization w.r.t. gravity torque 
+ctrlRegGravWeights: [1., 1., 1., 1., 1., 1.]
+ctrlRegGravWeight: 0.0001
 
  # 'translation' : end-effector frame translation 
 frameTranslationWeights:  [1., 1., 1.]
-frameTranslationWeight: 65 #65.
+frameTranslationWeight: 100 #65.
 frameTranslationWeightTerminal: 100.
 alpha_quadflatlog: 0.01
 frameTranslationRef: 'DEFAULT'
@@ -95,12 +99,12 @@ frameVelocityWeightTerminal: 1
 frameVelocityRef: 'DEFAULT'    
 frameVelocityFrameName: 'contact'
 
-#  # 'rotation' : end-effector frame orientation
-# frameRotationWeights:  [1., 1., 1.]
-# frameRotationWeight: 2. #0.05
-# frameRotationWeightTerminal: 2. #0.1 #1.
-# frameRotationRef: 'DEFAULT'
-# frameRotationFrameName: 'contact'
+ # 'rotation' : end-effector frame orientation
+frameRotationWeights:  [1., 1., 1.]
+frameRotationWeight: 50. 
+frameRotationWeightTerminal: 50. 
+frameRotationRef: 'DEFAULT'
+frameRotationFrameName: 'contact'
 
 
 # armature

@@ -32,21 +32,23 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
         # Update OCP for "increase weights" phase
         if(TASK_PHASE == 2):
             for k in range(ddp.problem.T+1):
-                w = min(2.*(k + 1.) , 5)
+                w = min(4.*(k + 1.) , 5)
                 m[k].differential.costs.costs["translation"].active = True
                 m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
                 m[k].differential.costs.costs["translation"].weight = w
         # Update OCP for contact phase
         if(TASK_PHASE == 3):
             for k in range(ddp.problem.T+1):   
-                # m[k].differential.costs.costs['rotation'].active = True
-                # m[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
+                m[k].differential.costs.costs['rotation'].active = True
+                m[k].differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
                 # activate contact and force cost
                 m[k].differential.contacts.changeContactStatus("contact", True)
                 if(k!=ddp.problem.T):
+                    m[k].differential.costs.costs["ctrlReg"].weight = 0.0001
                     m[k].differential.costs.costs["force"].active = True
                     m[k].differential.costs.costs["force"].weight = force_weight
                     m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
+                    
         # Update OCP for circle phase
         if(TASK_PHASE == 4):
             for k in range(ddp.problem.T+1):
@@ -54,6 +56,8 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
                 xreg_ref = np.array([0., 1.0471975511965976, target_joint[k], -1.1344640137963142, 0.2,  0.7853981633974483, 0.,0.,0.,0.,0.,0.])
                 m[k].differential.costs.costs["stateReg"].cost.residual.reference = xreg_ref
                 if(k!=ddp.problem.T):
+                    m[k].differential.costs.costs["ctrlReg"].weight = 0.0008
+                    m[k].differential.costs.costs["ctrlRegGrav"].weight = 0.
                     m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
                     
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
@@ -156,16 +160,18 @@ class ClassicalMPCContact:
         self.ddp.regMax = 1e6
         self.ddp.reg_max = 1e6
         self.ddp.termination_tol = 1e-4
-        
+
+
         # !!! Deactivate all costs & contact models initially !!!
         models = list(self.ddp.problem.runningModels) + [self.ddp.problem.terminalModel]
         for k,m in enumerate(models):
             # logger.debug(str(m.differential.costs.active.tolist()))
             m.differential.costs.costs["translation"].active = False
             m.differential.contacts.changeContactStatus("contact", False)
-            # m.differential.costs.costs['rotation'].active = False
-            # m.differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0., np.pi)
-            
+            m.differential.costs.costs['rotation'].active = False
+            m.differential.costs.costs['rotation'].cost.residual.reference = pin.utils.rpyToMatrix(np.pi, 0., np.pi)
+
+
         # Allocate MPC data
         self.K = self.ddp.K[0]
         self.x_des = self.ddp.xs[0]
@@ -219,7 +225,7 @@ class ClassicalMPCContact:
         N_ramp = int((self.config['T_RAMP'] - self.config['T_CONTACT']) / self.dt_simu)
         self.target_force_traj = np.zeros((N_total, 6))
             # Ref in Fz
-        FZ_MIN = 5. #self.config['frameForceRef'][2] #0.
+        FZ_MIN = 20. #self.config['frameForceRef'][2] #0.
         FZ_MAX = self.config['frameForceRef'][2]
         self.target_force_traj[:N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
         self.target_force_traj[N_ramp:, 2] = FZ_MAX
@@ -271,7 +277,7 @@ class ClassicalMPCContact:
         self.target_position_z = self.target_position[:,2]
 
         self.target_joint_traj = np.zeros(N_circle)
-        self.target_joint_traj = [self.x0[2] + 0.5 * np.sin(freq*(2*np.pi)*i*self.dt_simu) for i in range(N_circle)]
+        self.target_joint_traj = [self.x0[2] + 0.3 * np.sin(freq*(2*np.pi)*i*self.dt_simu) for i in range(N_circle)]
         self.target_joint = self.x0[2]*np.ones(self.Nh+1)
         # import matplotlib.pyplot as plt
         # plt.plot(self.target_joint_traj, label='pos')
@@ -317,7 +323,6 @@ class ClassicalMPCContact:
         logger.debug("Start of circle phase in simu cycles = "+str(self.T_CIRCLE))
         logger.debug("OCP to SIMU time ratio = "+str(self.OCP_TO_SIMU_ratio))
 
- 
 
     def warmup(self, thread):
         # Warm start 
@@ -348,7 +353,7 @@ class ClassicalMPCContact:
 
     def run(self, thread):  
         t1 = time.time()
-              
+
         # # # # # # # # # 
         # Read sensors  #
         # # # # # # # # # 

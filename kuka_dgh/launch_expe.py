@@ -53,7 +53,7 @@ _, _, cMs, _ = compute_sensor_frame_transform(pin_robot, IiwaReducedConfig.cad_o
 
 
 if SIM:
-    config['T_tot'] = 15
+    config['T_tot'] = 400
     # Sim env + set initial state 
     env = BulletEnvWithGround(p.GUI)
     robot_simulator = env.add_robot(IiwaReducedRobot(controlled_joints=CONTROLLED_JOINTS, qref=QREF))
@@ -106,11 +106,13 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/3d/integral/"
-suffix = "_DF"
+suffix = "_baseline"
+
 
 if SIM:
-    thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
-    thread_head.sim_run_timed(int(config['T_tot']*config['simu_freq']))
+    thread_head.start_logging(15, prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
+    # thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
+    thread_head.sim_run_timed(int(15*config['simu_freq']))
     thread_head.stop_logging()
     # thread_head.plot_timing()
 else:

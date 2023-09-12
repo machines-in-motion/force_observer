@@ -1,5 +1,5 @@
 import sys
-sys.path.append("/home/ajordana/ws/workspace/src/")
+sys.path.append("../../")
 from force_feedback_dgh.demos.utils.plot_utils import SimpleDataPlotter
 from mim_data_utils import DataReader
 from core_mpc.pin_utils import *
@@ -60,11 +60,11 @@ print("N_start = ", N_START)
 
 if(SIM):
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_SIM_2023-09-11T20:23:04.170350_DF.mds'
+    data_name = 'config36d_SIM_2023-09-12T18:12:59.214400_baseline.mds'
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_REAL_2023-09-11T19:38:00.957282_FI.mds'
+    data_name = 'config36d_REAL_2023-09-12T18:11:46.141709_baseline.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -122,9 +122,18 @@ if(config['USE_DELTA_F']):
 
 # For SIM robot only
 if(SIM):
-    s.plot_joint_tau( [r.data['tau'], r.data['tau_ff'], r.data['tau_riccati'], r.data['tau_gravity']], 
-                      ['total', 'ff', 'riccati', 'gravity'], 
-                      ['r', 'g', 'b', [0.2, 0.2, 0.2, 0.5]],
+    s.plot_joint_tau( [r.data['tau'], 
+                       r.data['tau_ff'], 
+                       r.data['tau_riccati'], 
+                       r.data['tau_gravity']],
+                      ['total', 
+                       'ff', 
+                       'riccati', 
+                       'gravity'], 
+                      ['r', 
+                       'g', 
+                       'b', 
+                       [0.2, 0.2, 0.2, 0.5]],
                       ylims=[-model.effortLimit, +model.effortLimit] )
 # For REAL robot only !! DEFINITIVE FORMULA !!
 else:
@@ -134,10 +143,18 @@ else:
     s.plot_joint_tau( [-r.data['joint_cmd_torques'][:,controlled_joint_ids], 
                        r.data['joint_torques_measured'][:,controlled_joint_ids], 
                        r.data['tau'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
-                       r.data['joint_ext_torques'][:,controlled_joint_ids]], 
-                  ['-cmd (FRI)', 'Measured', 'Desired (+g(q))', 'EXT'], 
-                  [[0.,0.,0.,0.], 'g', 'b', 'y'],
-                  ylims=[-model.effortLimit, +model.effortLimit] )
+                       r.data['tau_ff'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
+                     r.data['tau_gravity'][:,controlled_joint_ids]],
+                    #    r.data['joint_ext_torques'][:,controlled_joint_ids]], 
+                  ['-cmd (FRI)', 
+                   'Measured', 
+                   'Desired (sent to robot) [+g(q)]', 
+                   'tau_ff (OCP solution) [+g(q)]', 
+                   'g(q)',
+                   'EXT'], 
+                  ['k', 'r', 'b', 'g', 'y'],
+                  ylims=[-model.effortLimit, +model.effortLimit],
+                  linestyle=['dotted', 'solid', 'solid', 'solid', 'solid'])
 
 
 p_mea = get_p_(r.data['joint_positions'][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
@@ -171,14 +188,14 @@ force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.arr
 
 
 target = np.zeros((N, 3))
-Tc = int(config['T_CONTACT'] * config['simu_freq'])
-target[Tc:, :3] = np.asarray(config['frameForceRef'])[:3]
-N_ramp = int((config['T_RAMP'] - config['T_CONTACT']) * config['simu_freq'])            # Ref in Fz
-FZ_MIN = 5. #self.config['frameForceRef'][2] #0.
-FZ_MAX = config['frameForceRef'][2]
-FX_MAX = config['frameForceRef'][0]
-target[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
-target[Tc+N_ramp:, 2] = FZ_MAX
+# Tc = int(config['T_CONTACT'] * config['simu_freq'])
+# target[Tc:, :3] = np.asarray(config['frameForceRef'])[:3]
+# N_ramp = int((config['T_RAMP'] - config['T_CONTACT']) * config['simu_freq'])            # Ref in Fz
+# FZ_MIN = 15. #self.config['frameForceRef'][2] #0.
+# FZ_MAX = config['frameForceRef'][2]
+# FX_MAX = config['frameForceRef'][0]
+# target[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
+# target[Tc+N_ramp:, 2] = FZ_MAX
 # if CONFIG_NAME == 'config36d':
 #     freq = 0.02
 #     # target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
