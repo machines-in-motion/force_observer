@@ -40,18 +40,18 @@ print(controlled_joint_ids)
 s = SimpleDataPlotter()
 
 data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-label1 = 'baseline'
-label2 = 'FI'
+label1 = 'FI_tune'
+label2 = 'DF_tune'
 label3 = 'DF'
 
 SAVE = False
 
 print("Load data 1...")
-r1 = DataReader(data_path+'config36d_REAL_2023-09-11T15:26:12.838067_baseline.mds')  
+r1 = DataReader(data_path+'config36d_REAL_2023-09-11T18:26:46.367469_FI_tune.mds')  
 print("Load data 2...")
-r2 = DataReader(data_path+'config36d_REAL_2023-09-11T15:44:38.246985_FI_best.mds') 
+r2 = DataReader(data_path+'config36d_REAL_2023-09-11T18:17:26.896803_DF_tune.mds') 
 print("Load data 3...")
-r3 = DataReader(data_path+'config36d_REAL_2023-09-11T17:10:36.216511_DF_best.mds')
+r3 = DataReader(data_path+'config36d_REAL_2023-09-11T18:08:20.416763_DF.mds')
 
 
 # Load config file
@@ -85,10 +85,10 @@ FZ_MAX = config['frameForceRef'][2]
 FX_MAX = config['frameForceRef'][0]
 target_force_3d[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
 target_force_3d[Tc+N_ramp:, 2] = FZ_MAX
-if CONFIG_NAME == 'config36d.yml':
-    freq = 0.02
-    # target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
-    target_force_3d[Tc+N_ramp:, 0] = [FX_MAX + 20.*(np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq']))-0.5) for i in range(N-N_ramp-Tc)]
+# if CONFIG_NAME == 'config36d.yml':
+#     freq = 0.02
+#     # target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
+#     target_force_3d[Tc+N_ramp:, 0] = [FX_MAX + 20.*(np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq']))-0.5) for i in range(N-N_ramp-Tc)]
 
 
 

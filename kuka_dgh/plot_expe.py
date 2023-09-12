@@ -47,7 +47,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = False
+SIM = True
 SAVE = False
 
 # Create data Plottger
@@ -60,11 +60,11 @@ print("N_start = ", N_START)
 
 if(SIM):
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_SIM_2023-09-11T11:19:01.455720test.mds'
+    data_name = 'config36d_SIM_2023-09-11T20:23:04.170350_DF.mds'
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_REAL_2023-09-11T17:10:36.216511_DF_best.mds'
+    data_name = 'config36d_REAL_2023-09-11T19:38:00.957282_FI.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -85,11 +85,19 @@ ax[0].legend(); ax[1].legend(); ax[2].legend(); ax[3].legend()
 if(FILTER > 0):
     r.data['contact_force_3d_measured'][:N] = analysis_utils.moving_average_filter(r.data['contact_force_3d_measured'][:N].copy(), FILTER)
 
-
-s.plot_joint_pos( [r.data['joint_positions'][:,controlled_joint_ids], r.data['x_des'][:,:nq]], # r.data['x'][:,:nq], r.data['x1'][:,:nq]], 
-                   ['mea', 'pred'], #, 'pred0', 'pred1'], 
-                   ['r', 'b'], #[0.2, 0.2, 0.2, 0.5], 'b', 'g'])
-                #    markers=[None, None, '.', '.']) 
+target_joint = np.zeros((N,nq))
+target_joint[:, 2] = r.data['target_joint'][:,0]
+# print(target_joint)
+s.plot_joint_pos( [r.data['x_des'][:,:nq],
+                   r.data['joint_positions'][:,controlled_joint_ids],
+                   target_joint],
+                   ['pred', 
+                    'mea',
+                    'ref'],
+                   ['b', 
+                    'r',
+                    'k'],
+                   linestyle=['solid', 'solid', 'dotted'],
                    ylims=[model.lowerPositionLimit, model.upperPositionLimit] )
 # s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x_des'][:,nq:nq+nv]], # r.data['x'][:,nq:nq+nv], r.data['x1'][:,nq:nq+nv]],
 #                   ['mea', 'pred'], # 'pred0', 'pred1'], 
@@ -171,10 +179,10 @@ FZ_MAX = config['frameForceRef'][2]
 FX_MAX = config['frameForceRef'][0]
 target[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
 target[Tc+N_ramp:, 2] = FZ_MAX
-if CONFIG_NAME == 'config36d':
-    freq = 0.02
-    # target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
-    target[Tc+N_ramp:, 0] = [FX_MAX + 20.*(np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq']))-0.5) for i in range(N-N_ramp-Tc)]
+# if CONFIG_NAME == 'config36d':
+#     freq = 0.02
+#     # target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
+#     target[Tc+N_ramp:, 2] = [FZ_MAX + 50.*(np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq']))-0.5) for i in range(N-N_ramp-Tc)]
 
 
 
@@ -192,7 +200,8 @@ fig_f, _ = s.plot_soft_contact_force([
                            'Measured', 
                            'Filtered',
                            'Target (modified)', 
-                           'Target'], 
+                           'Target',
+                           'Predicted'], 
                           ['y', 'r', 'g', 'b', 'k'],
                           linestyle=['solid', 'solid', 'solid', 'dotted', 'dotted'])#,
                         #   ylims=[[-50,-50, 0], [50, 50, 1070]])
@@ -220,6 +229,8 @@ else:
     print(" Fz mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:N, 2])))
     print(" F mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N] - target[N_START:N])))
 
+# Compute energy
+print("Total energy = ",  np.mean([np.linalg.norm(u) for u in r.data['tau_ff'][N_START:]]))
 
 # # Analyze time response using a 2nd order fit
 # from tbcontrol.responses import sopdt

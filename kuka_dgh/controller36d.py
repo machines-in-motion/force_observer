@@ -14,7 +14,7 @@ from force_observer import ForceEstimator, MHForceEstimator
 
 
 
-def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_force):
+def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_force, target_joint):
         t = time.time()
         # Update initial state + warm-start
         x = np.concatenate([q, v])
@@ -49,9 +49,12 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
                     m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
         # Update OCP for circle phase
         if(TASK_PHASE == 4):
-            for k in range(ddp.problem.T):
+            for k in range(ddp.problem.T+1):
                 # update force ref
-                m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
+                xreg_ref = np.array([0., 1.0471975511965976, target_joint[k], -1.1344640137963142, 0.2,  0.7853981633974483, 0.,0.,0.,0.,0.,0.])
+                m[k].differential.costs.costs["stateReg"].cost.residual.reference = xreg_ref
+                if(k!=ddp.problem.T):
+                    m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
                     
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
         fpred = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf.actInv(ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f).vector
@@ -227,8 +230,10 @@ class ClassicalMPCContact:
         self.target_force_traj[:N_ramp, 0] = [FX_MIN + (FX_MAX - FX_MIN)*i/N_ramp for i in range(N_ramp)]
         self.target_force_traj[N_ramp:, 0] = FX_MAX
         
-        freq = 0.02
-        self.target_force_traj[N_ramp:, 0] = [FX_MAX + 20.*(np.round(freq * (2*np.pi) * i * self.dt_simu - int(freq * (2*np.pi) * i * self.dt_simu))-0.5) for i in range(N_total-N_ramp)]
+        freq = 0.25
+        # self.target_force_traj[N_ramp:, 2] = [FZ_MAX + 50.*(np.round(freq * (2*np.pi) * i * self.dt_simu - int(freq * (2*np.pi) * i * self.dt_simu))-0.5) for i in range(N_total-N_ramp)]
+        
+
         # import matplotlib.pyplot as plt
         # plt.plot(self.target_force_traj[:, 0])
         # plt.show()        
@@ -265,6 +270,12 @@ class ClassicalMPCContact:
         self.target_position_y = self.target_position[:,1] 
         self.target_position_z = self.target_position[:,2]
 
+        self.target_joint_traj = np.zeros(N_circle)
+        self.target_joint_traj = [self.x0[2] + 0.5 * np.sin(freq*(2*np.pi)*i*self.dt_simu) for i in range(N_circle)]
+        self.target_joint = self.x0[2]*np.ones(self.Nh+1)
+        # import matplotlib.pyplot as plt
+        # plt.plot(self.target_joint_traj, label='pos')
+        # plt.show()
         
         # ForceEstimator
         frame_of_interest = config['frame_of_interest']
@@ -323,7 +334,8 @@ class ClassicalMPCContact:
                                                                                         self.target_position, 
                                                                                         self.force_weight,
                                                                                         self.TASK_PHASE,
-                                                                                        self.target_force)
+                                                                                        self.target_force, 
+                                                                                        self.target_joint)
 
         if(self.pinRef != pin.LOCAL):
             self.fpred = self.lwaMc.act(pin.Force(self.fpred)).vector
@@ -371,7 +383,9 @@ class ClassicalMPCContact:
             self.contact_force_6d_measured = f6d_world.vector.copy()
                     
         self.contact_force_3d_measured = self.contact_force_6d_measured[:3]
-
+        
+        # if(thread.ti > self.T_CIRCLE + 1000 and thread.ti < self.T_CIRCLE + 4000):
+        #     self.contact_force_3d_measured[0] += 10
 
 
         alpha = 0.
@@ -458,6 +472,8 @@ class ClassicalMPCContact:
             self.target_position_x = self.target_position[:,0] 
             self.target_position_y = self.target_position[:,1] 
             self.target_position_z = self.target_position[:,2]
+            # target ref joint 2
+            self.target_joint = self.target_joint_traj[ti:tf:self.OCP_TO_SIMU_ratio] 
 
         # # # # # # #  
         # Solve OCP #
@@ -473,7 +489,8 @@ class ClassicalMPCContact:
                                                                 self.target_position, 
                                                                 self.force_weight, 
                                                                 self.TASK_PHASE,
-                                                                self.target_force)
+                                                                self.target_force,
+                                                                self.target_joint)
 
             if(self.pinRef != pin.LOCAL):
                 self.fpred = self.lwaMc.act(pin.Force(self.fpred)).vector
