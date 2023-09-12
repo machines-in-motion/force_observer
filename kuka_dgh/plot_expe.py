@@ -47,7 +47,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = True 
+SIM = False 
 SAVE = False
 
 # Create data Plottger
@@ -60,11 +60,11 @@ print("N_start = ", N_START)
 
 if(SIM):
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_SIM_2023-09-12T18:44:59.640671_DF.mds'
+    data_name = 'config36d_SIM_2023-09-12T18:58:32.379107_DF.mds'
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_REAL_2023-09-12T18:42:07.361679_DF.mds'
+    data_name = 'config36d_REAL_2023-09-12T19:07:59.098520_FI.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'

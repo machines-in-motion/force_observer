@@ -277,7 +277,7 @@ class ClassicalMPCContact:
         self.target_position_z = self.target_position[:,2]
 
         self.target_joint_traj = np.zeros(N_circle)
-        self.target_joint_traj = [self.x0[2] + 0.1 * np.sin(freq*(2*np.pi)*i*self.dt_simu) for i in range(N_circle)]
+        self.target_joint_traj = [self.x0[2] + 0.2 * np.sin(freq*(2*np.pi)*i*self.dt_simu) for i in range(N_circle)]
         self.target_joint = self.x0[2]*np.ones(self.Nh+1)
         # import matplotlib.pyplot as plt
         # plt.plot(self.target_joint_traj, label='pos')

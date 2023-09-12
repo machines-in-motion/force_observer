@@ -53,8 +53,8 @@ pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '3D'
 
 # USE_LATERAL_FRICTION: True
-USE_DELTA_F: True
-FORCE_INTEGRAL: False
+USE_DELTA_F: False
+FORCE_INTEGRAL: True
 COST_SHIFT: True
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
