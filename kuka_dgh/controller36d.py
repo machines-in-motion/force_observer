@@ -236,7 +236,7 @@ class ClassicalMPCContact:
         self.target_force_traj[:N_ramp, 0] = [FX_MIN + (FX_MAX - FX_MIN)*i/N_ramp for i in range(N_ramp)]
         self.target_force_traj[N_ramp:, 0] = FX_MAX
         
-        freq = 0.25
+        freq = 0.5
         # self.target_force_traj[N_ramp:, 2] = [FZ_MAX + 50.*(np.round(freq * (2*np.pi) * i * self.dt_simu - int(freq * (2*np.pi) * i * self.dt_simu))-0.5) for i in range(N_total-N_ramp)]
         
 
@@ -277,7 +277,7 @@ class ClassicalMPCContact:
         self.target_position_z = self.target_position[:,2]
 
         self.target_joint_traj = np.zeros(N_circle)
-        self.target_joint_traj = [self.x0[2] + 0.3 * np.sin(freq*(2*np.pi)*i*self.dt_simu) for i in range(N_circle)]
+        self.target_joint_traj = [self.x0[2] + 0.1 * np.sin(freq*(2*np.pi)*i*self.dt_simu) for i in range(N_circle)]
         self.target_joint = self.x0[2]*np.ones(self.Nh+1)
         # import matplotlib.pyplot as plt
         # plt.plot(self.target_joint_traj, label='pos')

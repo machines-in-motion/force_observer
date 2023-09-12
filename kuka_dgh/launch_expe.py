@@ -106,7 +106,7 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/3d/integral/"
-suffix = "_baseline"
+suffix = "_DF"
 
 
 if SIM:

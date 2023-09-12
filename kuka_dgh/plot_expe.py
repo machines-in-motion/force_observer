@@ -47,7 +47,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = True
+SIM = True 
 SAVE = False
 
 # Create data Plottger
@@ -60,11 +60,11 @@ print("N_start = ", N_START)
 
 if(SIM):
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_SIM_2023-09-12T18:12:59.214400_baseline.mds'
+    data_name = 'config36d_SIM_2023-09-12T18:44:59.640671_DF.mds'
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_REAL_2023-09-12T18:11:46.141709_baseline.mds'
+    data_name = 'config36d_REAL_2023-09-12T18:42:07.361679_DF.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -247,7 +247,10 @@ else:
     print(" F mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N] - target[N_START:N])))
 
 # Compute energy
-print("Total energy = ",  np.mean([np.linalg.norm(u) for u in r.data['tau_ff'][N_START:]]))
+if SIM:
+    print("Total energy = ",  np.mean([np.linalg.norm(u) for u in r.data['tau_ff'][N_START:]]))
+else:
+    print("Total energy = ",  np.mean([ np.linalg.norm(u1+u2) for u1, u2 in zip(r.data['tau_ff'][N_START:], r.data['tau_gravity'][:,controlled_joint_ids]) ]) )
 
 # # Analyze time response using a 2nd order fit
 # from tbcontrol.responses import sopdt
