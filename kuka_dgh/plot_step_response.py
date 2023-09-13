@@ -54,8 +54,8 @@ print("Load data 4...")
 r4 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:03.901817_FI.mds')
 
 label1 = 'Default'
-label2 = 'Estimation Int'
-label3 = 'Estimation Ext'
+label2 = 'Estimation (Cost)'
+label3 = 'Estimation (Feedforward)'
 label4 = 'Integral'
 
 
@@ -151,6 +151,8 @@ plt.xlabel('Time (s)', fontsize=26)
 plt.tick_params(axis = 'y', labelsize=22)
 plt.tick_params(axis = 'x', labelsize=22)
 
+fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/step_response.pdf', bbox_inches="tight")
+
 
 def print_error(r, label):
     error = np.abs(r.data['contact_force_3d_measured'][N_START:N] - target_force_3d[N_START:N])
@@ -164,8 +166,6 @@ print_error(r1, label1)
 print_error(r2, label2)
 print_error(r3, label3)
 print_error(r4, label4)
-
-# fig.savefig('/home/skleff/data_paper_fadmm/no_cstr_q1_plot.pdf', bbox_inches="tight")
 
 
 
