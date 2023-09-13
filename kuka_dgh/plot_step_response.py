@@ -45,15 +45,18 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/'
     
 print("Load data 1...")
-r1 = DataReader(data_path+'config36d_REAL_2023-09-11T15:26:12.838067_baseline.mds')  
+r1 = DataReader(data_path+'config36d_REAL_2023-09-13T16:39:19.602786_baseline.mds')  
 print("Load data 2...")
-r2 = DataReader(data_path+'config36d_REAL_2023-09-11T15:44:38.246985_FI_best.mds') 
+r2 = DataReader(data_path+'config36d_REAL_2023-09-13T16:40:12.238629_DF_int.mds') 
 print("Load data 3...")
-r3 = DataReader(data_path+'config36d_REAL_2023-09-11T17:10:36.216511_DF_best.mds')
+r3 = DataReader(data_path+'config36d_REAL_2023-09-13T16:41:03.995670_DF_ext.mds') 
+print("Load data 4...")
+r4 = DataReader(data_path+'config36d_REAL_2023-09-13T16:41:57.325986_FI.mds')
 
 label1 = 'Default'
-label2 = 'Integral'
-label3 = 'Estimation'
+label2 = 'Estimation Int'
+label3 = 'Estimation Ext'
+label4 = 'Integral'
 
 
 FILTER = 1
@@ -62,14 +65,17 @@ from core_mpc import analysis_utils
 N = min(r1.data['tau'].shape[0], r2.data['tau'].shape[0])
 N = min(N, r3.data['tau'].shape[0])
 
-N_START = 0 # int(config['T_CIRCLE'] * config['simu_freq']) 
+N_START = 9800 
+N = 10800
 print("N_start = ", N_START)
+
 
 
 
 force_3d_1 = np.zeros((N-N_START, 3))
 force_3d_2 = np.zeros((N-N_START, 3))
 force_3d_3 = np.zeros((N-N_START, 3))
+force_3d_4 = np.zeros((N-N_START, 3))
 
 
 
@@ -77,10 +83,12 @@ if(FILTER > 0):
     force_3d_1 = analysis_utils.moving_average_filter(r1.data['contact_force_3d_measured'][N_START:N].copy(), FILTER)
     force_3d_2 = analysis_utils.moving_average_filter(r2.data['contact_force_3d_measured'][N_START:N].copy(), FILTER) 
     force_3d_3 = analysis_utils.moving_average_filter(r3.data['contact_force_3d_measured'][N_START:N].copy(), FILTER) 
+    force_3d_4 = analysis_utils.moving_average_filter(r4.data['contact_force_3d_measured'][N_START:N].copy(), FILTER) 
 else:
     force_3d_1 = r1.data['contact_force_3d_measured'][N_START:N]
     force_3d_2 = r2.data['contact_force_3d_measured'][N_START:N] 
     force_3d_3 = r3.data['contact_force_3d_measured'][N_START:N] 
+    force_3d_4 = r4.data['contact_force_3d_measured'][N_START:N] 
 
 
 target_force_3d = np.zeros((N, 3))
@@ -112,54 +120,51 @@ matplotlib.rcParams["ps.fonttype"] = 42
 fig0, ax = plt.subplots(3, 1, figsize=(10.8,10.8))
 
 for i in range(3):
-    ax[i].plot(time_lin, target_force_3d[:,i], color='k', linewidth=4, linestyle='-', label='Reference', alpha=1.) 
-    ax[i].plot(time_lin, force_3d_1[:,i], color='b', linewidth=4, label=label1, alpha=0.5)
-    # ax[i].plot(time_lin, force_3d_2[:,i], color='g', linewidth=4, label=label2, alpha=0.5)
-    # ax[i].plot(time_lin, force_3d_3[:,i], color='r', linewidth=4, label=label3, alpha=0.5)
+    ax[i].plot(time_lin, target_force_3d[N_START:N,i], color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
+    ax[i].plot(time_lin, force_3d_1[:,i], color='b', linewidth=4, label=label1, alpha=1.)
+    ax[i].plot(time_lin, force_3d_2[:,i], color='g', linewidth=4, label=label2, alpha=1.)
+    ax[i].plot(time_lin, force_3d_3[:,i], color='r', linewidth=4, label=label3, alpha=1.)
+    ax[i].plot(time_lin, force_3d_4[:,i], color='y', linewidth=4, label=label4, alpha=1.)
     
     
     ax[i].grid(True) 
-ax[0].legend()    
-plt.show()
-
-ax0.set_ylabel('Z (m)', fontsize=26)
-ax0.set_xlabel('Y (m)', fontsize=26)
-ax0.tick_params(axis = 'y', labelsize=22)
-ax0.tick_params(axis = 'x', labelsize=22)
+ax[0].legend() 
+ax[0].set_ylabel('F (N)', fontsize=26)
+ax[0].set_xlabel('Time (s)', fontsize=26)
+ax[0].tick_params(axis = 'y', labelsize=22)
+ax[0].tick_params(axis = 'x', labelsize=22)
 
 
+fig1 = plt.figure(figsize=(10.8,10.8))
+
+plt.plot(time_lin, target_force_3d[N_START:N, 0], color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
+plt.plot(time_lin, force_3d_1[:,0], color='b', linewidth=4, label=label1, alpha=1.)
+plt.plot(time_lin, force_3d_2[:,0], color='g', linewidth=4, label=label2, alpha=1.)
+plt.plot(time_lin, force_3d_3[:,0], color='r', linewidth=4, label=label3, alpha=1.)
+plt.plot(time_lin, force_3d_4[:,0], color='y', linewidth=4, label=label4, alpha=1.)
+
+plt.grid(True) 
+plt.legend() 
+plt.xlim(time_lin[0], time_lin[-1])
+plt.ylabel('F (N)', fontsize=26)
+plt.xlabel('Time (s)', fontsize=26)
+plt.tick_params(axis = 'y', labelsize=22)
+plt.tick_params(axis = 'x', labelsize=22)
 
 
- 
-# Plot end-effector trajectory (y,z) plane 
-def plot_joint_traj(jmea, label):
-    fig0, ax0 = plt.subplots(1, 1, figsize=(19.2,10.8))
-    # Measured
-    ax0.plot(xdata, jmea, color='b', linewidth=4, label=label, alpha=0.5) 
-    # Axis label & ticks
-    ax0.set_ylabel('Joint position $q_1$ (rad)', fontsize=26)
-    ax0.set_xlabel('Time (s)', fontsize=26)
-    ax0.tick_params(axis = 'y', labelsize=22)
-    ax0.tick_params(axis = 'x', labelsize=22)
-    ax0.grid(True) 
-    return fig0, ax0
+def print_error(r, label):
+    error = np.abs(r.data['contact_force_3d_measured'][N_START:N] - target_force_3d[N_START:N])
+    print(label, " Fx mean abs error      = ", np.mean(error[:, 0]))
+    print(label, " Fy mean abs error      = ", np.mean(error[:, 1]))
+    print(label, " Fz mean abs error      = ", np.mean(error[:, 2]))
+    print(label, " F mean abs error      = ",  np.mean(error))
+    print('\n')
 
+print_error(r1, label1)
+print_error(r2, label2)
+print_error(r3, label3)
+print_error(r4, label4)
 
-p_mea = get_p_(r1.data['joint_positions'][N_start:N], pinrobot.model, pinrobot.model.getFrameId('contact'))
-fig0, ax0 = plot_endeff_yz(p_mea, target_position) 
-ax0.set_xlim(-0.33, +0.33)
-ax0.set_ylim(0.15, 0.8)
-ax0.plot(p_mea[0,1], p_mea[0,2], 'ro', markersize=16)
-ax0.text(0., 0.1, '$x_0$', fontdict={'size':26})
-# handles, labels = ax0.get_legend_handles_labels()
-# fig0.legend(handles, labels, loc='upper left', bbox_to_anchor=(0.12, 0.885), prop={'size': 26}) 
-# fig0.savefig('/home/skleff/data_paper_fadmm/no_cstr_circle_plot.pdf', bbox_inches="tight")
-# Joint pos
-jmea = r1.data['joint_positions'][N_start:N, 0]
-fig1, ax1 = plot_joint_traj(jmea) 
-ax1.set_ylim(-2., 2.)
-# handles, labels = ax.get_legend_handles_labels()
-# fig.legend(handles, labels, loc='upper left', bbox_to_anchor=(0.12, 0.885), prop={'size': 26}) 
 # fig.savefig('/home/skleff/data_paper_fadmm/no_cstr_q1_plot.pdf', bbox_inches="tight")
 
 
