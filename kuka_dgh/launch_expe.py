@@ -106,7 +106,7 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/"
-suffix = "_FI"
+suffix = "_baseline"
 
 if SIM:
     thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")

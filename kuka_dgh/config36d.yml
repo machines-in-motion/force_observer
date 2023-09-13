@@ -54,7 +54,7 @@ contactType: '3D'
 
 # USE_LATERAL_FRICTION: True
 USE_DELTA_F: False
-FORCE_INTEGRAL: True
+FORCE_INTEGRAL: False
 COST_SHIFT: False
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
@@ -70,7 +70,7 @@ frameForceRef: [0., 0., 100, 0., 0., 0.]
 frameForceFrameName: 'contact'
 
  # 'stateReg' : state regularization  
-stateRegWeights: [0.2, 0.2, 0.2, 0.1, 0.1, 0.1, 2., 2., 2., 2., 2., 2.]
+stateRegWeights: [0.4, 0.4, 0.4, 0.4, 0.4, 0.4, 2., 2., 2., 2., 2., 2.]
 stateRegWeight: 0.02 
 stateRegWeightTerminal: 0.02
 stateRegRef: 'DEFAULT'

@@ -51,8 +51,6 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
         if(TASK_PHASE == 4):
             for k in range(ddp.problem.T+1):
                 # update force ref
-                m[k].differential.costs.costs["translation"].active = False
-                m[k].differential.costs.costs["velocity"].active = False    
                 if(k!=ddp.problem.T):
                     m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
                     
@@ -250,8 +248,8 @@ class ClassicalMPCContact:
         # absolute desired position
         self.oPc_offset = np.asarray(self.config['oPc_offset'])
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
-        radius = 0.07 ; omega = 3
-        # radius = 0.0 ; omega = 3.
+        # radius = 0.07 ; omega = 3
+        radius = 0.0 ; omega = 3.
 
         self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
                                                               self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
