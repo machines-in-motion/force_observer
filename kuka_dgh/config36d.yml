@@ -53,9 +53,9 @@ pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '3D'
 
 # USE_LATERAL_FRICTION: True
-USE_DELTA_F: True
-FORCE_INTEGRAL: False
-COST_SHIFT: True
+USE_DELTA_F: False
+FORCE_INTEGRAL: True
+COST_SHIFT: False
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
 # to select from the list : 'stateReg', 'ctrlReg', 'ctrlRegGrav', 'stateLim', 'ctrlLim'
@@ -76,9 +76,9 @@ stateRegWeightTerminal: 0.02
 stateRegRef: 'DEFAULT'
 
  # 'ctrlReg', 'ctrlRegGrav' : torque regularization 
-ctrlRegWeights: [1., 1., 1., 1., 1., 1.]
-ctrlRegWeight: 0.0001
-ctrlRegRef: 'DEFAULT' 
+ctrlRegGravWeights: [1., 1., 1., 1., 1., 1.]
+ctrlRegGravWeight: 0.0001
+ctrlRegGravRef: 'DEFAULT' 
 
  # 'translation' : end-effector frame translation 
 frameTranslationWeights:  [1., 1., 1.]

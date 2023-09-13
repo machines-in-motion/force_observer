@@ -49,9 +49,12 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
                     m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
         # Update OCP for circle phase
         if(TASK_PHASE == 4):
-            for k in range(ddp.problem.T):
+            for k in range(ddp.problem.T+1):
                 # update force ref
-                m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
+                m[k].differential.costs.costs["translation"].active = False
+                m[k].differential.costs.costs["velocity"].active = False    
+                if(k!=ddp.problem.T):
+                    m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
                     
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
         fpred = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf.actInv(ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f).vector
@@ -64,8 +67,6 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
         t_child =  solve_time - problem_formulation_time
         # Send solution to parent process + riccati gains
         return ddp.us[0], ddp.xs[1], ddp.K[0], fpred, t_child, ddp_iter, t_child_1, ddp.KKT
-
-
 
 class ClassicalMPCContact:
 

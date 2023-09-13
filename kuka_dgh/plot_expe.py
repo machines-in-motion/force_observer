@@ -63,8 +63,8 @@ if(SIM):
     data_name = 'config36d_SIM_2023-09-11T11:19:01.455720test.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_REAL_2023-09-11T17:10:36.216511_DF_best.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/'
+    data_name = 'config36d_REAL_2023-09-13T16:36:33.713149_DF_ext.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
