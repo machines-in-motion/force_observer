@@ -45,17 +45,17 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/'
     
 print("Load data 1...")
-r1 = DataReader(data_path+'config36d_REAL_2023-09-13T16:39:19.602786_baseline.mds')  
+r1 = DataReader(data_path+'config36d_REAL_2023-09-13T17:55:41.465521_baseline.mds')  
 print("Load data 2...")
-r2 = DataReader(data_path+'config36d_REAL_2023-09-13T16:40:12.238629_DF_int.mds') 
+r2 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:54.221924_df_int.mds') 
 print("Load data 3...")
-r3 = DataReader(data_path+'config36d_REAL_2023-09-13T16:41:03.995670_DF_ext.mds') 
+r3 = DataReader(data_path+'config36d_REAL_2023-09-13T17:53:02.723577_df_ext.mds') 
 print("Load data 4...")
-r4 = DataReader(data_path+'config36d_REAL_2023-09-13T16:41:57.325986_FI.mds')
+r4 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:03.901817_FI.mds')
 
 label1 = 'Default'
-label2 = 'Estimation Int'
-label3 = 'Estimation Ext'
+label2 = 'Estimation (Cost)'
+label3 = 'Estimation (Feedforward)'
 label4 = 'Integral'
 
 
@@ -135,7 +135,7 @@ ax[0].tick_params(axis = 'y', labelsize=22)
 ax[0].tick_params(axis = 'x', labelsize=22)
 
 
-fig1 = plt.figure(figsize=(10.8,10.8))
+fig1 = plt.figure(figsize=(20,10))
 
 plt.plot(time_lin, target_force_3d[N_START:N, 0], color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
 plt.plot(time_lin, force_3d_1[:,0], color='b', linewidth=4, label=label1, alpha=1.)
@@ -144,12 +144,14 @@ plt.plot(time_lin, force_3d_3[:,0], color='r', linewidth=4, label=label3, alpha=
 plt.plot(time_lin, force_3d_4[:,0], color='y', linewidth=4, label=label4, alpha=1.)
 
 plt.grid(True) 
-plt.legend() 
+plt.legend(fontsize=26) 
 plt.xlim(time_lin[0], time_lin[-1])
 plt.ylabel('F (N)', fontsize=26)
 plt.xlabel('Time (s)', fontsize=26)
 plt.tick_params(axis = 'y', labelsize=22)
 plt.tick_params(axis = 'x', labelsize=22)
+
+fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/step_response.pdf', bbox_inches="tight")
 
 
 def print_error(r, label):
@@ -164,8 +166,6 @@ print_error(r1, label1)
 print_error(r2, label2)
 print_error(r3, label3)
 print_error(r4, label4)
-
-# fig.savefig('/home/skleff/data_paper_fadmm/no_cstr_q1_plot.pdf', bbox_inches="tight")
 
 
 
