@@ -7,7 +7,7 @@ import numpy as np
 import pinocchio as pin
 import matplotlib.pyplot as plt 
 from core_mpc import path_utils
-from core_mpc.pin_utils import get_p_, get_v_
+from core_mpc.pin_utils import get_p_, get_v_, get_rpy_
 from core_mpc import analysis_utils 
 
 from robot_properties_kuka.config import IiwaConfig, IiwaReducedConfig
@@ -64,7 +64,7 @@ if(SIM):
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_REAL_2023-09-12T20:22:22.322009_DF_internal.mds'
+    data_name = 'config36d_REAL_2023-09-13T11:49:03.239324_no_ee_cost_DF_externe_new_cost.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -72,33 +72,33 @@ else:
 r = DataReader(data_path+data_name)
 N = r.data['tau'].shape[0]
 
-fig, ax = plt.subplots(4, 1, sharex='col') 
-ax[0].plot(r.data['KKT'], label='KKT residual')
-# ax[0].plot(N*[1./config['plan_freq']], label= 'mpc')
-ax[1].plot(r.data['time_df'], label='DF_time')
-ax[1].plot(N*[1./config['plan_freq']], label= 'mpc')
-ax[2].plot(r.data['ddp_iter'], label='ddp iter')
-ax[3].plot(r.data['t_run'], label='t_run')
-ax[3].plot(N*[1./config['plan_freq']], label= 'mpc')
-ax[0].legend(); ax[1].legend(); ax[2].legend(); ax[3].legend()
+# fig, ax = plt.subplots(4, 1, sharex='col') 
+# ax[0].plot(r.data['KKT'], label='KKT residual')
+# # ax[0].plot(N*[1./config['plan_freq']], label= 'mpc')
+# ax[1].plot(r.data['time_df'], label='DF_time')
+# ax[1].plot(N*[1./config['plan_freq']], label= 'mpc')
+# ax[2].plot(r.data['ddp_iter'], label='ddp iter')
+# ax[3].plot(r.data['t_run'], label='t_run')
+# ax[3].plot(N*[1./config['plan_freq']], label= 'mpc')
+# ax[0].legend(); ax[1].legend(); ax[2].legend(); ax[3].legend()
 
 if(FILTER > 0):
     r.data['contact_force_3d_measured'][:N] = analysis_utils.moving_average_filter(r.data['contact_force_3d_measured'][:N].copy(), FILTER)
 
 target_joint = np.zeros((N,nq))
 target_joint[:, 2] = r.data['target_joint'][:,0]
-# print(target_joint)
-s.plot_joint_pos( [r.data['x_des'][:,:nq],
-                   r.data['joint_positions'][:,controlled_joint_ids],
-                   target_joint],
-                   ['pred', 
-                    'mea',
-                    'ref'],
-                   ['b', 
-                    'r',
-                    'k'],
-                   linestyle=['solid', 'solid', 'dotted'],
-                   ylims=[model.lowerPositionLimit, model.upperPositionLimit] )
+
+# s.plot_joint_pos( [r.data['x_des'][:,:nq],
+#                    r.data['joint_positions'][:,controlled_joint_ids],
+#                    target_joint],
+#                    ['pred', 
+#                     'mea',
+#                     'ref'],
+#                    ['b', 
+#                     'r',
+#                     'k'],
+#                    linestyle=['solid', 'solid', 'dotted'],
+#                    ylims=[model.lowerPositionLimit, model.upperPositionLimit] )
 # s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x_des'][:,nq:nq+nv]], # r.data['x'][:,nq:nq+nv], r.data['x1'][:,nq:nq+nv]],
 #                   ['mea', 'pred'], # 'pred0', 'pred1'], 
 #                   ['r', 'b'], #[0.2, 0.2, 0.2, 0.5], 'b', 'g']) 
@@ -121,40 +121,40 @@ if(config['USE_DELTA_F']):
 #                       ['r'])
 
 # For SIM robot only
-if(SIM):
-    s.plot_joint_tau( [r.data['tau'], 
-                       r.data['tau_ff'], 
-                       r.data['tau_riccati'], 
-                       r.data['tau_gravity']],
-                      ['total', 
-                       'ff', 
-                       'riccati', 
-                       'gravity'], 
-                      ['r', 
-                       'g', 
-                       'b', 
-                       [0.2, 0.2, 0.2, 0.5]],
-                      ylims=[-model.effortLimit, +model.effortLimit] )
-# For REAL robot only !! DEFINITIVE FORMULA !!
-else:
-    # Our self.tau was subtracted gravity, so we add it again
-    # joint_torques_measured DOES include the gravity torque from KUKA
-    # There is a sign mismatch in the axis so we use a minus sign
-    s.plot_joint_tau( [-r.data['joint_cmd_torques'][:,controlled_joint_ids], 
-                       r.data['joint_torques_measured'][:,controlled_joint_ids], 
-                       r.data['tau'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
-                       r.data['tau_ff'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
-                     r.data['tau_gravity'][:,controlled_joint_ids]],
-                    #    r.data['joint_ext_torques'][:,controlled_joint_ids]], 
-                  ['-cmd (FRI)', 
-                   'Measured', 
-                   'Desired (sent to robot) [+g(q)]', 
-                   'tau_ff (OCP solution) [+g(q)]', 
-                   'g(q)',
-                   'EXT'], 
-                  ['k', 'r', 'b', 'g', 'y'],
-                  ylims=[-model.effortLimit, +model.effortLimit],
-                  linestyle=['dotted', 'solid', 'solid', 'solid', 'solid'])
+# if(SIM):
+#     s.plot_joint_tau( [r.data['tau'], 
+#                        r.data['tau_ff'], 
+#                        r.data['tau_riccati'], 
+#                        r.data['tau_gravity']],
+#                       ['total', 
+#                        'ff', 
+#                        'riccati', 
+#                        'gravity'], 
+#                       ['r', 
+#                        'g', 
+#                        'b', 
+#                        [0.2, 0.2, 0.2, 0.5]],
+#                       ylims=[-model.effortLimit, +model.effortLimit] )
+# # For REAL robot only !! DEFINITIVE FORMULA !!
+# else:
+#     # Our self.tau was subtracted gravity, so we add it again
+#     # joint_torques_measured DOES include the gravity torque from KUKA
+#     # There is a sign mismatch in the axis so we use a minus sign
+#     s.plot_joint_tau( [-r.data['joint_cmd_torques'][:,controlled_joint_ids], 
+#                        r.data['joint_torques_measured'][:,controlled_joint_ids], 
+#                        r.data['tau'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
+#                        r.data['tau_ff'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
+#                      r.data['tau_gravity'][:,controlled_joint_ids]],
+#                     #    r.data['joint_ext_torques'][:,controlled_joint_ids]], 
+#                   ['-cmd (FRI)', 
+#                    'Measured', 
+#                    'Desired (sent to robot) [+g(q)]', 
+#                    'tau_ff (OCP solution) [+g(q)]', 
+#                    'g(q)',
+#                    'EXT'], 
+#                   ['k', 'r', 'b', 'g', 'y'],
+#                   ylims=[-model.effortLimit, +model.effortLimit],
+#                   linestyle=['dotted', 'solid', 'solid', 'solid', 'solid'])
 
 
 p_mea = get_p_(r.data['joint_positions'][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
@@ -223,11 +223,11 @@ fig_f, _ = s.plot_soft_contact_force([
                           linestyle=['solid', 'solid', 'solid', 'dotted', 'dotted'])#,
                         #   ylims=[[-50,-50, 0], [50, 50, 1070]])
 # plot force integral
-plt.figure()
-plt.plot(r.data['force_integral'])
+# plt.figure()
+# plt.plot(r.data['force_integral'])
 
 
-if CONFIG_NAME != 'config36d':
+if CONFIG_NAME == 'config':
     # Compute average tracking error for each circle
     CIRCLE_PERIOD_IN_CYCLES = int(2*np.pi/3.*1000)
     N_START = N_START
@@ -246,24 +246,116 @@ else:
     print(" Fz mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:N, 2])))
     print(" F mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N] - target[N_START:N])))
 
-# Compute energy
-if SIM:
-    print("Total energy = ",  np.mean([np.linalg.norm(u) for u in r.data['tau'][N_START:, controlled_joint_ids]]))
-else:
-    print("Total energy = ",  np.mean([ np.linalg.norm(u1+u2) for u1, u2 in zip(r.data['tau'][N_START:, controlled_joint_ids], r.data['tau_gravity'][:,controlled_joint_ids]) ]) )
 
-# # Analyze time response using a 2nd order fit
-# from tbcontrol.responses import sopdt
-# import scipy
-# ym = r.data['contact_force_3d_measured'][N_START:N,:][2969:6950,0]
-# Nm = len(ym)
-# ts = np.linspace(0.,(Nm-1)*0.001, Nm)
-# [K2, tau2, zeta2, theta2, y02], _ = scipy.optimize.curve_fit(sopdt, ts, ym, [2,2,0.2,1,10])
-# plt.figure()
-# plt.scatter(ts, ym)
-# plt.plot(ts, sopdt(ts, K2, tau2, zeta2, theta2, y02), color='r')
-# T5 = 3.*tau2/zeta2
-# print("Settling time (5%) = ", T5)
+# Compute energy
+if CONFIG_NAME == 'config36d':
+    if SIM:
+        print("Total energy = ",  np.mean([np.linalg.norm(u) for u in r.data['tau'][N_START:, controlled_joint_ids]]))
+    else:
+        torque_list = [np.linalg.norm(u1+u2) for u1, u2 in zip(r.data['tau'][N_START:, controlled_joint_ids], r.data['tau_gravity'][:,controlled_joint_ids])]
+        print("Avg Torque = ",  np.mean([np.linalg.norm(u) for u in torque_list]) )
+        
+        torque_square_norm = [np.linalg.norm(u)**2 for u in torque_list]
+        print("Avg Square Torque = ",  np.mean(torque_square_norm) )
+
+        CIRCLE_PERIOD_IN_CYCLES = int(1000 / 0.5)
+        print(CIRCLE_PERIOD_IN_CYCLES)
+        N_CIRCLE = int((N-N_START)/CIRCLE_PERIOD_IN_CYCLES)
+        N = N_START + CIRCLE_PERIOD_IN_CYCLES * N_CIRCLE
+        print(N_CIRCLE)
+        mean_torque_errors = [np.mean(torque_square_norm[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(N_CIRCLE)]
+        print("Avg Square Torque [1:] = ", np.mean(mean_torque_errors[1:]), r'$\pm$', np.std(mean_torque_errors[1:]))
+        print("Avg Square Torque      = ", np.mean(mean_torque_errors), r'$\pm$', np.std(mean_torque_errors))
+
+
+
+
+cost_list = []
+force_cost_list = []
+state_cost_list = []
+tau_cost_list = []
+rotation_cost_list = []
+for t in range(N- N_START):
+    index = N_START + t
+
+    f = r.data['contact_force_3d_measured'][index][:3]   
+    q = r.data['joint_positions'][index,controlled_joint_ids]
+    v = r.data['joint_velocities'][index,controlled_joint_ids]
+    x = np.concatenate([q, v])
+    if SIM:
+        tau = r.data['tau'][index, controlled_joint_ids] 
+    else:
+        tau = r.data['tau'][index, controlled_joint_ids] + r.data['tau_gravity'][index,controlled_joint_ids]
+
+    rotation = pin.utils.rpyToMatrix(get_rpy_(r.data['joint_positions'][index,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact')))
+
+    f_ref = config['frameForceRef'][:3]
+    xref = np.array([0., 1.0471975511965976, r.data['target_joint'][index, 0], -1.1344640137963142, 0.2,  0.7853981633974483, 0.,0.,0.,0.,0.,0.])
+    tau_ref = np.zeros(tau.shape)
+    rotation_ref = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
+    
+    
+    
+    force_cost = 0.5 * config['frameForceWeight'] * (f - f_ref).T @ np.diag(config['frameForceWeights'][:3])@ (f - f_ref)
+    # force_cost = 0.5 * config['frameForceWeight'] * (f - f_ref).T @ np.diag(np.array([0, 0., 0.01]))@ (f - f_ref)
+    force_cost_list.append(force_cost)
+    
+    
+    state_cost = 0.5 * config['stateRegWeight'] * (x - xref).T @ np.diag(config['stateRegWeights'])@ (x - xref)
+    state_cost_list.append(state_cost)
+
+    tau_cost =  0.5 * 0.0008 * (tau - tau_ref).T @ (tau - tau_ref)
+    tau_cost_list.append(tau_cost)
+
+
+    rot_residual = pin.log3(rotation_ref.T @ rotation) 
+    rotation_cost = 0.5 * config['frameRotationWeight'] * rot_residual.T @ np.diag(config['frameRotationWeights']) @ rot_residual
+    rotation_cost_list.append(rotation_cost)
+
+
+    cost_list.append(force_cost + state_cost + tau_cost + rotation_cost)
+
+
+
+cost_list = np.array(cost_list)
+force_cost_list = np.array(force_cost_list)
+state_cost_list = np.array(state_cost_list)
+tau_cost_list = np.array(tau_cost_list)
+rotation_cost_list = np.array(rotation_cost_list)
+
+
+
+print("total cost ", np.mean(cost_list))
+print("force cost ", np.mean(force_cost_list))
+print("state cost ", np.mean(state_cost_list))
+print("tau cost ", np.mean(tau_cost_list))
+print("rotation cost ", np.mean(rotation_cost_list))
+
+
+plt.figure()
+plt.plot(cost_list, label="total cost")
+plt.plot(force_cost_list, label="force cost")
+plt.plot(state_cost_list, label="state cost")
+plt.plot(tau_cost_list, label="tau cost")
+plt.plot(rotation_cost_list, label="rotation cost")
+plt.legend()
+plt.show()
+
+frameForceWeights:  [50, 50., 0.01, 0., 0., 0.]
+frameForceWeight: 0.1
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 if(SAVE):
     fig_f.savefig(data_path+data_name+'_force.png')

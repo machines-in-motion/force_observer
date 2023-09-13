@@ -55,6 +55,8 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
                 # update force ref
                 xreg_ref = np.array([0., 1.0471975511965976, target_joint[k], -1.1344640137963142, 0.2,  0.7853981633974483, 0.,0.,0.,0.,0.,0.])
                 m[k].differential.costs.costs["stateReg"].cost.residual.reference = xreg_ref
+                m[k].differential.costs.costs["translation"].active = False
+                m[k].differential.costs.costs["velocity"].active = False
                 if(k!=ddp.problem.T):
                     m[k].differential.costs.costs["ctrlReg"].weight = 0.0008
                     m[k].differential.costs.costs["ctrlRegGrav"].weight = 0.
