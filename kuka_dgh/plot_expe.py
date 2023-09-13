@@ -63,8 +63,8 @@ if(SIM):
     data_name = 'config36d_SIM_2023-09-12T18:58:32.379107_DF.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_REAL_2023-09-13T11:49:03.239324_no_ee_cost_DF_externe_new_cost.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_new_cost/'
+    data_name = 'config36d_REAL_2023-09-13T11:40:58.242183_no_ee_cost_FI_new_cost.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -247,6 +247,7 @@ else:
     print(" F mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N] - target[N_START:N])))
 
 
+
 # Compute energy
 if CONFIG_NAME == 'config36d':
     if SIM:
@@ -263,8 +264,15 @@ if CONFIG_NAME == 'config36d':
         N_CIRCLE = int((N-N_START)/CIRCLE_PERIOD_IN_CYCLES)
         N = N_START + CIRCLE_PERIOD_IN_CYCLES * N_CIRCLE
         print(N_CIRCLE)
+        
+        def mean_std(np_array):
+            np_array = [np.mean(np_array[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(1, N_CIRCLE)]
+            return np.mean(np_array), np.std(np_array)
+                    
         mean_torque_errors = [np.mean(torque_square_norm[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(N_CIRCLE)]
         print("Avg Square Torque [1:] = ", np.mean(mean_torque_errors[1:]), r'$\pm$', np.std(mean_torque_errors[1:]))
+        m , std = mean_std(torque_square_norm)
+        print("Avg Square Torque [1:] = ", m, r'$\pm$', std)
         print("Avg Square Torque      = ", np.mean(mean_torque_errors), r'$\pm$', np.std(mean_torque_errors))
 
 
@@ -304,7 +312,7 @@ for t in range(N- N_START):
     state_cost = 0.5 * config['stateRegWeight'] * (x - xref).T @ np.diag(config['stateRegWeights'])@ (x - xref)
     state_cost_list.append(state_cost)
 
-    tau_cost =  0.5 * 0.0008 * (tau - tau_ref).T @ (tau - tau_ref)
+    tau_cost =  0.5 * 0.002 * (tau - tau_ref).T @ (tau - tau_ref)
     tau_cost_list.append(tau_cost)
 
 
@@ -325,11 +333,24 @@ rotation_cost_list = np.array(rotation_cost_list)
 
 
 
-print("total cost ", np.mean(cost_list))
-print("force cost ", np.mean(force_cost_list))
-print("state cost ", np.mean(state_cost_list))
-print("tau cost ", np.mean(tau_cost_list))
-print("rotation cost ", np.mean(rotation_cost_list))
+
+mean , std = mean_std(cost_list)
+print("total cost ", mean, ' +- ', std)
+
+
+mean , std = mean_std(force_cost_list)
+print("force cost ", mean, ' +- ', std)
+
+
+mean , std = mean_std(state_cost_list)
+print("state cost ", mean, ' +- ', std)
+
+mean , std = mean_std(tau_cost_list)
+print("tau cost ", mean, ' +- ', std)
+
+
+mean , std = mean_std(rotation_cost_list)
+print("rotation cost ", mean, ' +- ', std)
 
 
 plt.figure()
@@ -340,21 +361,6 @@ plt.plot(tau_cost_list, label="tau cost")
 plt.plot(rotation_cost_list, label="rotation cost")
 plt.legend()
 plt.show()
-
-frameForceWeights:  [50, 50., 0.01, 0., 0., 0.]
-frameForceWeight: 0.1
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 if(SAVE):
