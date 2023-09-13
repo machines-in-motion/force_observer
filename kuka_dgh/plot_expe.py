@@ -64,7 +64,7 @@ if(SIM):
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_REAL_2023-09-12T19:07:59.098520_FI.mds'
+    data_name = 'config36d_REAL_2023-09-12T20:22:22.322009_DF_internal.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -248,9 +248,9 @@ else:
 
 # Compute energy
 if SIM:
-    print("Total energy = ",  np.mean([np.linalg.norm(u) for u in r.data['tau_ff'][N_START:]]))
+    print("Total energy = ",  np.mean([np.linalg.norm(u) for u in r.data['tau'][N_START:, controlled_joint_ids]]))
 else:
-    print("Total energy = ",  np.mean([ np.linalg.norm(u1+u2) for u1, u2 in zip(r.data['tau_ff'][N_START:], r.data['tau_gravity'][:,controlled_joint_ids]) ]) )
+    print("Total energy = ",  np.mean([ np.linalg.norm(u1+u2) for u1, u2 in zip(r.data['tau'][N_START:, controlled_joint_ids], r.data['tau_gravity'][:,controlled_joint_ids]) ]) )
 
 # # Analyze time response using a 2nd order fit
 # from tbcontrol.responses import sopdt

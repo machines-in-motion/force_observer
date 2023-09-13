@@ -106,7 +106,7 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/3d/integral/"
-suffix = "_FI"
+suffix = "_DF_internal"
 
 
 if SIM:
@@ -117,5 +117,5 @@ if SIM:
     # thread_head.plot_timing()
 else:
     thread_head.start()
-    thread_head.start_logging(15, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
+    thread_head.start_logging(30, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
     # thread_head.start_logging(30, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
