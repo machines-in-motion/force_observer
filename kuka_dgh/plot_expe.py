@@ -63,8 +63,8 @@ if(SIM):
     data_name = 'config36d_SIM_2023-09-12T18:58:32.379107_DF.mds'
     
 else:
-    data_path =  '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
-    data_name = 'config_REAL_2023-09-13T20:18:41.967236_DF_interne_slow.mds'
+    data_path =  '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
+    data_name = 'config_REAL_2023-09-13T19:41:20.484038_medium_default.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -241,6 +241,15 @@ if CONFIG_NAME == 'config':
     print(" Fz mean abs error [1:] = ", np.mean(mean_errors[1:]), r'$\pm$', np.std(mean_errors[1:]))
     print(" Fz mean abs error      = ", np.mean(mean_errors), r'$\pm$', np.std(mean_errors))
     # print(" F3d mean abs error = ", np.mean(np.linalg.norm(np.abs(r.data['contact_force_3d_measured'][N_START:N, :] - target[N_START:, :]))))
+
+
+    error_traj_pos = np.abs(p_mea[N_START:, :2] - target_position[N_START:, :2])
+    mean_error_pos = [np.mean(error_traj_pos[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(1, N_CIRCLE)]
+    # print(mean_errors)
+    print( ": POS mean abs error      = ",  np.mean(mean_error_pos), "  +-  ", np.std(mean_error_pos))
+    print('\n')    
+    
+    
 else:
     print(" F_xy mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, :2] - target[N_START:N, :2])))
     print(" Fz mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:N, 2])))
@@ -248,6 +257,8 @@ else:
 
 
 
+    
+    
 # Compute energy
 if CONFIG_NAME == 'config36d':
     if SIM:
