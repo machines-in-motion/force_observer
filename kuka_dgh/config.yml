@@ -55,6 +55,7 @@ contactType: '1Dz'
 # Lateral force model
 USE_LATERAL_FRICTION: True
 USE_COULOMB: False
+
 # Mismtach correction
 USE_DELTA_F: True
 FORCE_INTEGRAL: False
@@ -81,9 +82,9 @@ stateRegWeightTerminal: 0.02
 stateRegRef: 'DEFAULT'
 
  # 'ctrlReg', 'ctrlRegGrav' : torque regularization 
-ctrlRegWeights: [1., 1., 1., 1., 1., 1.]
-ctrlRegWeight: 0.0001
-ctrlRegRef: 'DEFAULT' 
+ctrlRegGravWeights: [1., 1., 1., 1., 1., 1.]
+ctrlRegGravWeight: 0.0001
+ctrlRegGravRef: 'DEFAULT' 
 
  # 'translation' : end-effector frame translation 
 frameTranslationWeights:  [1., 1., 1.]

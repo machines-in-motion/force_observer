@@ -39,8 +39,8 @@ model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
 controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
 print(controlled_joint_ids)
 # Load config file
-# CONFIG_NAME = 'config'
-CONFIG_NAME = 'config36d'
+CONFIG_NAME = 'config'
+# CONFIG_NAME = 'config36d'
 
 CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
@@ -59,12 +59,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/d_tau_vs_df/'
     data_name = 'config36d_SIM_2023-09-12T18:58:32.379107_DF.mds'
     
 else:
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_new_cost/'
-    data_name = 'config36d_REAL_2023-09-13T11:40:58.242183_no_ee_cost_FI_new_cost.mds'
+    data_path =  '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
+    data_name = 'config_REAL_2023-09-13T20:18:41.967236_DF_interne_slow.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -85,8 +85,8 @@ N = r.data['tau'].shape[0]
 if(FILTER > 0):
     r.data['contact_force_3d_measured'][:N] = analysis_utils.moving_average_filter(r.data['contact_force_3d_measured'][:N].copy(), FILTER)
 
-target_joint = np.zeros((N,nq))
-target_joint[:, 2] = r.data['target_joint'][:,0]
+# target_joint = np.zeros((N,nq))
+# target_joint[:, 2] = r.data['target_joint'][:,0]
 
 # s.plot_joint_pos( [r.data['x_des'][:,:nq],
 #                    r.data['joint_positions'][:,controlled_joint_ids],
@@ -188,14 +188,14 @@ force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.arr
 
 
 target = np.zeros((N, 3))
-# Tc = int(config['T_CONTACT'] * config['simu_freq'])
-# target[Tc:, :3] = np.asarray(config['frameForceRef'])[:3]
-# N_ramp = int((config['T_RAMP'] - config['T_CONTACT']) * config['simu_freq'])            # Ref in Fz
-# FZ_MIN = 15. #self.config['frameForceRef'][2] #0.
-# FZ_MAX = config['frameForceRef'][2]
-# FX_MAX = config['frameForceRef'][0]
-# target[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
-# target[Tc+N_ramp:, 2] = FZ_MAX
+Tc = int(config['T_CONTACT'] * config['simu_freq'])
+target[Tc:, :3] = np.asarray(config['frameForceRef'])[:3]
+N_ramp = int((config['T_RAMP'] - config['T_CONTACT']) * config['simu_freq'])            # Ref in Fz
+FZ_MIN = 5. #self.config['frameForceRef'][2] #0.
+FZ_MAX = config['frameForceRef'][2]
+FX_MAX = config['frameForceRef'][0]
+target[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
+target[Tc+N_ramp:, 2] = FZ_MAX
 # if CONFIG_NAME == 'config36d':
 #     freq = 0.02
 #     # target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['simu_freq'] - int(freq * (2*np.pi) * i / config['simu_freq'])) for i in range(N-N_ramp-Tc)]
@@ -278,89 +278,89 @@ if CONFIG_NAME == 'config36d':
 
 
 
-cost_list = []
-force_cost_list = []
-state_cost_list = []
-tau_cost_list = []
-rotation_cost_list = []
-for t in range(N- N_START):
-    index = N_START + t
+    cost_list = []
+    force_cost_list = []
+    state_cost_list = []
+    tau_cost_list = []
+    rotation_cost_list = []
+    for t in range(N- N_START):
+        index = N_START + t
 
-    f = r.data['contact_force_3d_measured'][index][:3]   
-    q = r.data['joint_positions'][index,controlled_joint_ids]
-    v = r.data['joint_velocities'][index,controlled_joint_ids]
-    x = np.concatenate([q, v])
-    if SIM:
-        tau = r.data['tau'][index, controlled_joint_ids] 
-    else:
-        tau = r.data['tau'][index, controlled_joint_ids] + r.data['tau_gravity'][index,controlled_joint_ids]
+        f = r.data['contact_force_3d_measured'][index][:3]   
+        q = r.data['joint_positions'][index,controlled_joint_ids]
+        v = r.data['joint_velocities'][index,controlled_joint_ids]
+        x = np.concatenate([q, v])
+        if SIM:
+            tau = r.data['tau'][index, controlled_joint_ids] 
+        else:
+            tau = r.data['tau'][index, controlled_joint_ids] + r.data['tau_gravity'][index,controlled_joint_ids]
 
-    rotation = pin.utils.rpyToMatrix(get_rpy_(r.data['joint_positions'][index,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact')))
+        rotation = pin.utils.rpyToMatrix(get_rpy_(r.data['joint_positions'][index,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact')))
 
-    f_ref = config['frameForceRef'][:3]
-    xref = np.array([0., 1.0471975511965976, r.data['target_joint'][index, 0], -1.1344640137963142, 0.2,  0.7853981633974483, 0.,0.,0.,0.,0.,0.])
-    tau_ref = np.zeros(tau.shape)
-    rotation_ref = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
-    
-    
-    
-    force_cost = 0.5 * config['frameForceWeight'] * (f - f_ref).T @ np.diag(config['frameForceWeights'][:3])@ (f - f_ref)
-    # force_cost = 0.5 * config['frameForceWeight'] * (f - f_ref).T @ np.diag(np.array([0, 0., 0.01]))@ (f - f_ref)
-    force_cost_list.append(force_cost)
-    
-    
-    state_cost = 0.5 * config['stateRegWeight'] * (x - xref).T @ np.diag(config['stateRegWeights'])@ (x - xref)
-    state_cost_list.append(state_cost)
-
-    tau_cost =  0.5 * 0.002 * (tau - tau_ref).T @ (tau - tau_ref)
-    tau_cost_list.append(tau_cost)
-
-
-    rot_residual = pin.log3(rotation_ref.T @ rotation) 
-    rotation_cost = 0.5 * config['frameRotationWeight'] * rot_residual.T @ np.diag(config['frameRotationWeights']) @ rot_residual
-    rotation_cost_list.append(rotation_cost)
-
-
-    cost_list.append(force_cost + state_cost + tau_cost + rotation_cost)
+        f_ref = config['frameForceRef'][:3]
+        xref = np.array([0., 1.0471975511965976, r.data['target_joint'][index, 0], -1.1344640137963142, 0.2,  0.7853981633974483, 0.,0.,0.,0.,0.,0.])
+        tau_ref = np.zeros(tau.shape)
+        rotation_ref = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
 
 
 
-cost_list = np.array(cost_list)
-force_cost_list = np.array(force_cost_list)
-state_cost_list = np.array(state_cost_list)
-tau_cost_list = np.array(tau_cost_list)
-rotation_cost_list = np.array(rotation_cost_list)
+        force_cost = 0.5 * config['frameForceWeight'] * (f - f_ref).T @ np.diag(config['frameForceWeights'][:3])@ (f - f_ref)
+        # force_cost = 0.5 * config['frameForceWeight'] * (f - f_ref).T @ np.diag(np.array([0, 0., 0.01]))@ (f - f_ref)
+        force_cost_list.append(force_cost)
+
+
+        state_cost = 0.5 * config['stateRegWeight'] * (x - xref).T @ np.diag(config['stateRegWeights'])@ (x - xref)
+        state_cost_list.append(state_cost)
+
+        tau_cost =  0.5 * 0.002 * (tau - tau_ref).T @ (tau - tau_ref)
+        tau_cost_list.append(tau_cost)
+
+
+        rot_residual = pin.log3(rotation_ref.T @ rotation) 
+        rotation_cost = 0.5 * config['frameRotationWeight'] * rot_residual.T @ np.diag(config['frameRotationWeights']) @ rot_residual
+        rotation_cost_list.append(rotation_cost)
+
+
+        cost_list.append(force_cost + state_cost + tau_cost + rotation_cost)
+
+
+
+        cost_list = np.array(cost_list)
+        force_cost_list = np.array(force_cost_list)
+        state_cost_list = np.array(state_cost_list)
+        tau_cost_list = np.array(tau_cost_list)
+        rotation_cost_list = np.array(rotation_cost_list)
 
 
 
 
-mean , std = mean_std(cost_list)
-print("total cost ", mean, ' +- ', std)
+    mean , std = mean_std(cost_list)
+    print("total cost ", mean, ' +- ', std)
 
 
-mean , std = mean_std(force_cost_list)
-print("force cost ", mean, ' +- ', std)
+    mean , std = mean_std(force_cost_list)
+    print("force cost ", mean, ' +- ', std)
 
 
-mean , std = mean_std(state_cost_list)
-print("state cost ", mean, ' +- ', std)
+    mean , std = mean_std(state_cost_list)
+    print("state cost ", mean, ' +- ', std)
 
-mean , std = mean_std(tau_cost_list)
-print("tau cost ", mean, ' +- ', std)
-
-
-mean , std = mean_std(rotation_cost_list)
-print("rotation cost ", mean, ' +- ', std)
+    mean , std = mean_std(tau_cost_list)
+    print("tau cost ", mean, ' +- ', std)
 
 
-plt.figure()
-plt.plot(cost_list, label="total cost")
-plt.plot(force_cost_list, label="force cost")
-plt.plot(state_cost_list, label="state cost")
-plt.plot(tau_cost_list, label="tau cost")
-plt.plot(rotation_cost_list, label="rotation cost")
-plt.legend()
-plt.show()
+    mean , std = mean_std(rotation_cost_list)
+    print("rotation cost ", mean, ' +- ', std)
+
+
+    plt.figure()
+    plt.plot(cost_list, label="total cost")
+    plt.plot(force_cost_list, label="force cost")
+    plt.plot(state_cost_list, label="state cost")
+    plt.plot(tau_cost_list, label="tau cost")
+    plt.plot(rotation_cost_list, label="rotation cost")
+    plt.legend()
+    plt.show()
 
 
 if(SAVE):
