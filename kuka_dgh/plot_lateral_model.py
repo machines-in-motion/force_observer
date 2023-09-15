@@ -8,6 +8,7 @@ import numpy as np
 import pinocchio as pin
 from robot_properties_kuka.config import IiwaConfig, IiwaReducedConfig
 from robot_properties_kuka.config import IiwaConfig
+from core_mpc.pin_utils import get_p_, get_v_, get_rpy_
 
 pinrobot = IiwaConfig.buildRobotWrapper()
 model = pinrobot.model
@@ -41,7 +42,6 @@ CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
-FILTER = False
 
 PLOT = "SOTA"
 # PLOT = "LATERAL_MODE"
@@ -71,8 +71,8 @@ if PLOT == "SOTA":
 
 if PLOT == "LATERAL_MODE":
     # TASK = "slow"
-    TASK = "medium"
-    # TASK = "fast"
+    # TASK = "medium"
+    TASK = "fast"
 
 
     data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
@@ -189,34 +189,78 @@ matplotlib.rcParams["pdf.fonttype"] = 42
 matplotlib.rcParams["ps.fonttype"] = 42
  
     
-    
-fig0, ax = plt.subplots(3, 1, figsize=(10.8,10.8))
 
-for i in range(3):
-    ax[i].plot(time_lin, target_force_3d[N_START+SKIP:N,i], color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
-    ax[i].plot(time_lin, force_3d_1[SKIP:,i], color='b', linewidth=4, label=label1, alpha=1.)
-    ax[i].plot(time_lin, force_3d_2[SKIP:,i], color='g', linewidth=4, label=label2, alpha=1.)
-    ax[i].plot(time_lin, force_3d_3[SKIP:,i], color='r', linewidth=4, label=label3, alpha=1.)
-    if PLOT == "DF_DTAU":
-        ax[i].plot(time_lin, force_3d_4[SKIP:,i], color='r', linewidth=4, label=label4, alpha=1.)
+def compute_pos_error_traj(r):
+    p_mea = get_p_(r.data['joint_positions'][N_START:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
+    return np.sqrt((p_mea[:, 0] - r.data['target_position_x'][N_START:,0])**2 + (p_mea[:, 1] - r.data['target_position_y'][N_START:,1])**2)
+
+
+pos_error_1 = np.zeros((N-N_START, 1))
+pos_error_2 = np.zeros((N-N_START, 1))
+pos_error_3 = np.zeros((N-N_START, 1))
+pos_error_4 = np.zeros((N-N_START, 1))
+
+pos_error_1 = compute_pos_error_traj(r1)
+pos_error_2 = compute_pos_error_traj(r2)
+pos_error_3 = compute_pos_error_traj(r3)
+if PLOT == "DF_DTAU":
+    pos_error_4 = compute_pos_error_traj(r4)
+    
+fig0, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 20))
+
+
+ax1.plot(time_lin, target_force_3d[N_START+SKIP:N,2], color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
+ax1.plot(time_lin, force_3d_1[SKIP:,2], color=color_list[0], linewidth=4, label=label1, alpha=0.8)
+ax1.plot(time_lin, force_3d_2[SKIP:,2], color=color_list[1], linewidth=4, label=label2, alpha=0.8)
+ax1.plot(time_lin, force_3d_3[SKIP:,2], color=color_list[2], linewidth=4, label=label3, alpha=0.8)
+if PLOT == "DF_DTAU":
+    ax1.plot(time_lin, force_3d_4[SKIP:,2], color=color_list[3], linewidth=4, label=label4, alpha=0.8)
+ax1.grid(True) 
+    
+ax2.plot(time_lin, pos_error_1[SKIP:], color=color_list[0], linewidth=4, label=label1, alpha=0.8)
+ax2.plot(time_lin, pos_error_2[SKIP:], color=color_list[1], linewidth=4, label=label2, alpha=0.8)
+ax2.plot(time_lin, pos_error_3[SKIP:], color=color_list[2], linewidth=4, label=label3, alpha=0.8)
+if PLOT == "DF_DTAU":
+    ax2.plot(time_lin, pos_error_4[SKIP:], color=color_list[3], linewidth=4, label=label4, alpha=0.8)
+ax2.grid(True) 
     
     
-    ax[i].grid(True) 
-ax[0].legend() 
-ax[0].set_ylabel('F (N)', fontsize=26)
-ax[0].set_xlabel('Time (s)', fontsize=26)
-ax[0].tick_params(axis = 'y', labelsize=22)
-ax[0].tick_params(axis = 'x', labelsize=22)
+ax1.set_xlim(time_lin[0], time_lin[-1])
+ax2.set_xlim(time_lin[0], time_lin[-1])
+ax2.set_ylim(0., 0.017)
+    
+ax1.legend(framealpha=0.95, fontsize=26) 
+ax1.set_ylabel('Force (N)', fontsize=26)
+ax2.set_ylabel('Position error (m)', fontsize=26)
+ax2.set_xlabel('Time (s)', fontsize=26)
+
+ax1.tick_params(axis = 'y', labelsize=22)
+ax2.tick_params(axis = 'x', labelsize=22)
+ax2.tick_params(axis = 'y', labelsize=22)
+ax1.tick_params(labelbottom=False)  
+
+fig0.tight_layout()
+
+
+
+if PLOT == "SOTA":
+    fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/' + PLOT + '_with_pos.pdf', bbox_inches="tight")
+if PLOT == "LATERAL_MODE":
+    fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/' + TASK + '_with_pos.pdf', bbox_inches="tight")
+if PLOT == "DF_DTAU":
+    fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/' + PLOT + '._with_pos.pdf', bbox_inches="tight")
+
+
+
 
 
 fig1 = plt.figure(figsize=(20., 10.))
-
 plt.plot(time_lin, target_force_3d[N_START+SKIP:N, 2], color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
 plt.plot(time_lin, force_3d_1[SKIP:,2], color=color_list[0], linewidth=4, label=label1, alpha=0.8)
 plt.plot(time_lin, force_3d_2[SKIP:,2], color=color_list[1], linewidth=4, label=label2, alpha=0.8)
 plt.plot(time_lin, force_3d_3[SKIP:,2], color=color_list[2], linewidth=4, label=label3, alpha=0.8)
 if PLOT == "DF_DTAU":
-    plt.plot(time_lin, force_3d_4[SKIP:,2], color=color_list[3], linewidth=4, label=label4, alpha=1.)
+    plt.plot(time_lin, force_3d_4[SKIP:,2], color=color_list[3], linewidth=4, label=label4, alpha=0.8)
         
 plt.grid(True) 
 # plt.legend(loc='upper right', framealpha=0.95, fontsize=26) 
@@ -226,7 +270,6 @@ plt.ylabel('F (N)', fontsize=26)
 plt.xlabel('Time (s)', fontsize=26)
 plt.tick_params(axis = 'y', labelsize=22)
 plt.tick_params(axis = 'x', labelsize=22)
-
 
    
 
@@ -251,21 +294,27 @@ N_CIRCLE = 11
 print("N_CIRCLE (fisrt is desregarded) = ", N_CIRCLE - 1)
 
 
-def print_error(r, label):
+def print_error(r, label, pos_error):
     error_traj = np.abs(r.data['contact_force_3d_measured'][N_START:, 2] - target_force_3d[N_START:, 2])
     mean_errors = [np.mean(error_traj[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(1, N_CIRCLE)]
     # print(mean_errors)
     print(label, ": F mean abs error      = ",  np.mean(mean_errors), "  +-  ", np.std(mean_errors))
+    
+    
+    pos_mean_errors = [np.mean(pos_error[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(1, N_CIRCLE)]
+    # print(mean_errors)
+    print(label, ": Pos mean abs error      = ",  np.mean(pos_mean_errors), "  +-  ", np.std(pos_mean_errors))
+    
     print('\n')
     
     
     
     
-print_error(r1, label1)
-print_error(r2, label2)
-print_error(r3, label3)
+print_error(r1, label1, pos_error_1)
+print_error(r2, label2, pos_error_2)
+print_error(r3, label3, pos_error_3)
 if PLOT == "DF_DTAU":
-    print_error(r4, label4)
+    print_error(r4, label4, pos_error_4)
 
 
 

@@ -54,7 +54,7 @@ print("Load data 4...")
 r4 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:03.901817_FI.mds')
 
 label1 = 'Default'
-label2 = 'Estimation (Cost)'
+label2 = 'Estimation (Model)'
 label3 = 'Estimation (Feedforward)'
 label4 = 'Integral'
 
