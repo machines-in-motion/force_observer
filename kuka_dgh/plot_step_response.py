@@ -57,7 +57,7 @@ r3 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:54.221924_df_int.mds'
 
 label1 = 'Default'
 label2 = 'Integral'
-label3 = r'FL + $\Delta F$'
+label3 = r'$\Delta F$ (PM)'
 # label4 = 'Integral'
 
 
