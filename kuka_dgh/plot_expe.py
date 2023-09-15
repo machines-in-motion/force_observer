@@ -39,8 +39,8 @@ model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
 controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
 print(controlled_joint_ids)
 # Load config file
-CONFIG_NAME = 'config'
-# CONFIG_NAME = 'config36d'
+# CONFIG_NAME = 'config'
+CONFIG_NAME = 'config36d'
 
 CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
@@ -60,11 +60,11 @@ print("N_start = ", N_START)
 
 if(SIM):
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_dtau/'
-    data_name = 'config36d_SIM_2023-09-15T11:27:54.940770_test.mds'
+    data_name = 'config36d_REAL_2023-09-15T13:07:28.199420_df_int.mds'
     
 else:
-    data_path =  '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
-    data_name = 'config_REAL_2023-09-15T15:05:44.793654_FI.mds'
+    data_path =  '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_dtau/'
+    data_name = 'config36d_REAL_2023-09-12T20:19:01.529102_FI.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -110,15 +110,15 @@ if(FILTER > 0):
 #                   ['a mea', 'a smooth' ], # 'pred0', 'pred1'], 
 #                   ['r', 'c'] )
 
-if(config['USE_DELTA_F']):
-    plt.figure()
-    plt.plot(np.array(r.data['delta_f']))
-    plt.title("delta_f")
+# if(config['USE_DELTA_F']):
+#     plt.figure()
+#     plt.plot(np.array(r.data['delta_f']))
+#     plt.title("delta_f")
 
-if(config['USE_DELTA_TAU']):
-    s.plot_joint_tau( [r.data['delta_tau']], 
-                      ['delta_tau'], 
-                      ['r'])
+# if(config['USE_DELTA_TAU']):
+#     s.plot_joint_tau( [r.data['delta_tau']], 
+#                       ['delta_tau'], 
+#                       ['r'])
 
 # For SIM robot only
 # if(SIM):
@@ -323,7 +323,7 @@ if CONFIG_NAME == 'config36d':
         state_cost = 0.5 * config['stateRegWeight'] * (x - xref).T @ np.diag(config['stateRegWeights'])@ (x - xref)
         state_cost_list.append(state_cost)
 
-        tau_cost =  0.5 * 0.002 * (tau - tau_ref).T @ (tau - tau_ref)
+        tau_cost =  0.5 * 0.0008 * (tau - tau_ref).T @ (tau - tau_ref)
         tau_cost_list.append(tau_cost)
 
 
