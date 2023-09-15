@@ -60,7 +60,7 @@ print("N_start = ", N_START)
 
 if(SIM):
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/'
-    data_name = 'config36d_SIM_2023-09-15T15:30:07.263224_test_baseline.mds'
+    data_name = 'config36d_SIM_2023-09-15T16:08:13.658369_test_baseline.mds'
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/'
