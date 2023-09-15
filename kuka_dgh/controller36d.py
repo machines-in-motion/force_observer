@@ -2,7 +2,9 @@ import numpy as np
 import pinocchio as pin 
 
 import time
-
+import sys
+sys.path.append("../demos/utils")
+from ocp_utils import OptimalControlProblemClassicalWithObserver
 from classical_mpc.ocp import OptimalControlProblemClassical
 from core_mpc import pin_utils
 from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
@@ -10,7 +12,7 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 from robot_properties_kuka.config import IiwaConfig
 
-from force_observer import ForceEstimator, MHForceEstimator
+from force_observer import ForceEstimator, MHForceEstimator, TorqueEstimator
 
 
 
@@ -148,7 +150,9 @@ class ClassicalMPCContact:
         self.oMc = contact_placement
         self.fext0 = pin_utils.get_external_joint_torques(contact_placement, f0, robot)  
         # logger.warning(self.fext0)
-        self.ddp = OptimalControlProblemClassical(robot, self.config).initialize(self.x0, callbacks=False)
+
+        torque_offset = self.config["USE_DELTA_TAU"] and self.config["INTERNAL"]
+        self.ddp = OptimalControlProblemClassicalWithObserver(robot, self.config).initialize(self.x0, torque_offset=torque_offset, callbacks=False)
         self.ddp.regMax = 1e6
         self.ddp.reg_max = 1e6
         self.ddp.termination_tol = 1e-4
@@ -266,17 +270,40 @@ class ClassicalMPCContact:
 
         
         # ForceEstimator
+        if(self.config['USE_DELTA_TAU']):
+            logger.warning("Using USE_DELTA_TAU")
+            try: 
+                assert(self.config['USE_DELTA_F'] == False)
+                assert(self.config['FORCE_INTEGRAL'] == False)
+            except: 
+                logger.error("Must have USE_DELTA_F, FORCE_INTEGRAL = False")
+            self.delta_tau = np.zeros(self.nv)  
+            
+        
+        
+        
+        
+        
         frame_of_interest = config['frame_of_interest']
         id_endeff = robot.model.getFrameId(frame_of_interest)
         self.estimator = ForceEstimator(self.robot.model, self.nc, self.nc, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
-
+        
+        if(self.config['USE_DELTA_TAU']):
+            self.estimator = TorqueEstimator(self.robot.model, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+        
         self.data_estimator = self.estimator.createData()
 
         self.tau_old = np.zeros(self.nv)
 
         self.delta_f = np.zeros(self.nc)
-        self.estimator.Q = 4.* 4e-3 * np.ones(7)
-        self.estimator.R = 4.* 4e-3 * np.ones(self.nc)
+        
+        
+        if(self.config['USE_DELTA_TAU']):
+            self.estimator.Q = 1.e-3 * 0.01 * np.array([1., 1., 1., 1., 1., 1.])
+            self.estimator.R = 1.e-3 * 0.01 * np.array([1., 1., 1., 1., 1., 1.])
+        else:
+            self.estimator.Q = 4.* 4e-3 * np.ones(7)
+            self.estimator.R = 4.* 4e-3 * np.ones(self.nc)
 
         self.force_est = np.zeros(self.nc)
         self.acc_est = np.zeros(self.nv)
@@ -402,6 +429,15 @@ class ClassicalMPCContact:
                 # Safety clipping (using np.core is 4 times faster than np.clip)
                 self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_f, self.delta_f + 1), self.delta_f - 1)
                 self.delta_f = np.core.umath.maximum(np.core.umath.minimum(self.delta_f, 40), -40)
+            elif(self.config['USE_DELTA_TAU'] == True):
+                self.estimator.estimate(self.data_estimator, q, v, self.acc_est, self.tau_old, self.delta_tau, self.force_est)
+                # Safety clipping (using np.core is 4 times faster than np.clip)
+                self.delta_tau = np.core.umath.maximum(np.core.umath.minimum(self.data_estimator.delta_tau, self.delta_tau + 0.5), self.delta_tau - 0.5)
+                self.delta_tau = np.core.umath.maximum(np.core.umath.minimum(self.delta_tau, 40), -40)
+                if self.config['INTERNAL']:
+                    for m in self.ddp.problem.runningModels:
+                        m.differential.delta_tau = - self.delta_tau
+                    self.ddp.problem.terminalModel.differential.delta_tau = - self.delta_tau
         self.time_df = time.time() - t0
 
         if(time_to_reach == 0): 
@@ -427,9 +463,9 @@ class ClassicalMPCContact:
             ti  = time_to_contact
             tf  = ti + (self.Nh+1)*self.OCP_TO_SIMU_ratio
             self.target_force = self.coef_target_force * self.target_force_traj[ti:tf:self.OCP_TO_SIMU_ratio, :]
-            if( self.config['USE_DELTA_F'] and self.config['COST_SHIFT']):
+            if( self.config['USE_DELTA_F'] and self.config['INTERNAL']):
                 self.target_force[:,:self.nc] += self.delta_f
-            if( self.config["FORCE_INTEGRAL"] and self.config['COST_SHIFT']):
+            if( self.config["FORCE_INTEGRAL"] and self.config['INTERNAL']):
                 self.target_force[:,:self.nc] -= self.KF_I * self.force_integral
             # Record contact force reference
             self.target_force_fx = self.target_force[:,0] 
@@ -489,11 +525,14 @@ class ClassicalMPCContact:
         else:
             self.tau = self.tau_ff
         
-        if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
+        if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['INTERNAL'] == False ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:self.nc, self.controlled_joint_ids]
             self.tau -= Jac.T @ self.delta_f
-                
-        if( self.config["FORCE_INTEGRAL"] and 0 <= time_to_contact and self.config['COST_SHIFT'] == False ):
+            
+        if(self.config['USE_DELTA_TAU'] and self.config['INTERNAL'] == False and 0 <= time_to_contact):
+            self.tau += self.delta_tau 
+
+        if( self.config["FORCE_INTEGRAL"] and 0 <= time_to_contact and self.config['INTERNAL'] == False ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:self.nc, self.controlled_joint_ids]
             self.tau += self.KF_I * Jac.T @ self.force_integral
 

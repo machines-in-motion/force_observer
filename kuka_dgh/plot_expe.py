@@ -47,7 +47,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = False
+SIM = True
 SAVE = False
 
 # Create data Plottger
@@ -59,12 +59,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/'
-    data_name = 'config36d_SIM_2023-09-11T11:19:01.455720test.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/'
+    data_name = 'config36d_SIM_2023-09-15T15:30:07.263224_test_baseline.mds'
     
 else:
     data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/'
-    data_name = 'config36d_REAL_2023-09-13T16:36:33.713149_DF_ext.mds'
+    data_name = 'config36d_REAL_2023-09-15T15:18:36.504785_test_baseline.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -107,10 +107,10 @@ if(config['USE_DELTA_F']):
     plt.plot(np.array(r.data['delta_f']))
     plt.title("delta_f")
 
-# if(config['USE_DELTA_TAU']):
-#     s.plot_joint_tau( [r.data['delta_tau']], 
-#                       ['delta_tau'], 
-#                       ['r'])
+if(config['USE_DELTA_TAU']):
+    s.plot_joint_tau( [r.data['delta_tau']], 
+                      ['delta_tau'], 
+                      ['r'])
 
 # For SIM robot only
 if(SIM):
