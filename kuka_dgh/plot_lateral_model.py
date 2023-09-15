@@ -54,7 +54,7 @@ if PLOT == "SOTA":
     print("Load data 1...")
     data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
     r1 = DataReader(data_path+'config_REAL_2023-09-13T19:41:20.484038_medium_default.mds') 
-    # r1 = DataReader("/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/"+'config_REAL_2023-09-14T13:30:54.773869_ff_FI.mds') 
+    # r1 = DataReader("/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/"+'config_REAL_2023-09-15T15:05:44.793654_FI.mds') 
     print("Load data 2...")
     r2 = DataReader(data_path+'config_REAL_2023-09-13T19:44:20.481230_medium_ff.mds')  
     print("Load data 3...")

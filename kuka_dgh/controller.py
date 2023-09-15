@@ -313,7 +313,7 @@ class ClassicalMPCContact:
 
         # integral effect parameters
         self.force_integral = np.array([0.])
-        self.KF_I = 30.
+        self.KF_I = 15.
         self.alpha_f = 1. # 0.9995
 
 

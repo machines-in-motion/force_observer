@@ -39,8 +39,8 @@ model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
 controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
 print(controlled_joint_ids)
 # Load config file
-# CONFIG_NAME = 'config'
-CONFIG_NAME = 'config36d'
+CONFIG_NAME = 'config'
+# CONFIG_NAME = 'config36d'
 
 CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
@@ -63,8 +63,8 @@ if(SIM):
     data_name = 'config36d_SIM_2023-09-15T11:27:54.940770_test.mds'
     
 else:
-    data_path =  '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_dtau/'
-    data_name = 'config36d_REAL_2023-09-15T13:45:33.093715_dtau_ext_tune.mds'
+    data_path =  '/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/'
+    data_name = 'config_REAL_2023-09-15T15:05:44.793654_FI.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'

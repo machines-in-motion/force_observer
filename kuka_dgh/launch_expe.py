@@ -106,7 +106,7 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/"
-suffix = "_ff_df_int"
+suffix = "_FI"
 
 
 if SIM:
