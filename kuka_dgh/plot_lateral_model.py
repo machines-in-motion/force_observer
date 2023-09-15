@@ -45,7 +45,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 PLOT = "SOTA"
 # PLOT = "LATERAL_MODE"
-# PLOT = "DF_DTAU"
+PLOT = "DF_DTAU"
 
 color_list = ['b', 'g', 'r', 'y']
 
@@ -117,9 +117,9 @@ if PLOT == "DF_DTAU":
     
     data_path = "/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/"
     print("Load data 1...")
-    r1 = DataReader(data_path+'config_REAL_2023-09-14T13:29:38.261347_ff_dtau_int.mds') 
+    r1 = DataReader(data_path+'config_REAL_2023-09-15T16:45:58.007244_ff_dtau_int.mds') 
     print("Load data 2...")
-    r2 = DataReader(data_path+'config_REAL_2023-09-14T13:28:17.149401_ff_dtau_ext.mds') 
+    r2 = DataReader(data_path+'config_REAL_2023-09-15T16:51:48.387220_ff_dtau_ext.mds') 
     print("Load data 3...")
     r3 = DataReader(data_path+'config_REAL_2023-09-14T13:34:53.546969_ff_df_int.mds') 
     print("Load data 4...")

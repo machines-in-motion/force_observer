@@ -58,9 +58,9 @@ USE_COULOMB: False
 
 # Mismtach correction
 USE_DELTA_F: False
-FORCE_INTEGRAL: True
+FORCE_INTEGRAL: False
 INTERNAL: False
-USE_DELTA_TAU: False
+USE_DELTA_TAU: True
 
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
