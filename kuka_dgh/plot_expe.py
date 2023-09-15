@@ -64,7 +64,7 @@ if(SIM):
     
 else:
     data_path =  '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_dtau/'
-    data_name = 'config36d_REAL_2023-09-12T20:19:01.529102_FI.mds'
+    data_name = 'config36d_REAL_2023-09-15T16:37:16.333033_dtau_ext.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -115,10 +115,10 @@ if(FILTER > 0):
 #     plt.plot(np.array(r.data['delta_f']))
 #     plt.title("delta_f")
 
-# if(config['USE_DELTA_TAU']):
-#     s.plot_joint_tau( [r.data['delta_tau']], 
-#                       ['delta_tau'], 
-#                       ['r'])
+if(config['USE_DELTA_TAU']):
+    s.plot_joint_tau( [r.data['delta_tau']], 
+                      ['delta_tau'], 
+                      ['r'])
 
 # For SIM robot only
 # if(SIM):

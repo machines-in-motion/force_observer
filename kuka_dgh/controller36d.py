@@ -305,7 +305,7 @@ class ClassicalMPCContact:
         self.estimator = ForceEstimator(self.robot.model, self.nc, self.nc, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
         
         if(self.config['USE_DELTA_TAU']):
-            self.estimator = TorqueEstimator(self.robot.model, 1, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
+            self.estimator = TorqueEstimator(self.robot.model, self.nc, id_endeff, np.array(config['contacts'][0]['contactModelGains']), self.pinRef)
 
         self.data_estimator = self.estimator.createData()
 
@@ -314,12 +314,14 @@ class ClassicalMPCContact:
 
 
         if(self.config['USE_DELTA_TAU']):
-            if self.config['INTERNAL']:
-                self.estimator.Q = 4.* 4e-3 * 0.01 * np.array([1., 1., 1., 1., 1., 1.])
-                self.estimator.R = 4.* 4e-3 * 0.01 * np.array([1., 1., 1., 1., 1., 1.])
-            else:
-                self.estimator.Q = 1.e-3 * 0.004 * np.array([1., 1., 1., 1., 1., 1.])
-                self.estimator.R = 1.e-3 * 0.004 * np.array([1., 1., 1., 1., 1., 1.])
+            self.estimator.Q = 4e-3 * 0.01 * np.ones(7)
+            self.estimator.R = 4e-3 * 0.01 * np.ones(self.nc)
+            # if self.config['INTERNAL']:
+            #     self.estimator.Q = 4e-3 * 0.01 * np.ones(7)
+            #     self.estimator.R = 4e-3 * 0.01 * np.ones(self.nc)
+            # else:
+            #     self.estimator.Q = 1.e-3 * 0.004 * np.ones(7)
+            #     self.estimator.R = 1.e-3 * 0.004 * np.ones(self.nc)
         else:
             self.estimator.Q = 4.* 4e-3 * np.ones(7)
             self.estimator.R = 4.* 4e-3 * np.ones(self.nc)
