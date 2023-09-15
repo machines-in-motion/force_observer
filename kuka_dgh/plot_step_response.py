@@ -42,21 +42,23 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 
-data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/'
+data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step_final/'
     
 print("Load data 1...")
 r1 = DataReader(data_path+'config36d_REAL_2023-09-13T17:55:41.465521_baseline.mds')  
 print("Load data 2...")
-r2 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:54.221924_df_int.mds') 
+# r2 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:54.221924_df_int.mds') 
+r2 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:03.901817_FI.mds') 
 print("Load data 3...")
-r3 = DataReader(data_path+'config36d_REAL_2023-09-13T17:53:02.723577_df_ext.mds') 
-print("Load data 4...")
-r4 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:03.901817_FI.mds')
+r3 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:54.221924_df_int.mds') 
+# r3 = DataReader(data_path+'config36d_REAL_2023-09-13T17:53:02.723577_df_ext.mds') 
+# print("Load data 4...")
+# r4 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:03.901817_FI.mds')
 
 label1 = 'Default'
-label2 = 'Estimation (Cost)'
-label3 = 'Estimation (Feedforward)'
-label4 = 'Integral'
+label2 = 'Integral'
+label3 = r'FL + $\Delta F$'
+# label4 = 'Integral'
 
 
 FILTER = 1
@@ -83,12 +85,12 @@ if(FILTER > 0):
     force_3d_1 = analysis_utils.moving_average_filter(r1.data['contact_force_3d_measured'][N_START:N].copy(), FILTER)
     force_3d_2 = analysis_utils.moving_average_filter(r2.data['contact_force_3d_measured'][N_START:N].copy(), FILTER) 
     force_3d_3 = analysis_utils.moving_average_filter(r3.data['contact_force_3d_measured'][N_START:N].copy(), FILTER) 
-    force_3d_4 = analysis_utils.moving_average_filter(r4.data['contact_force_3d_measured'][N_START:N].copy(), FILTER) 
+    # force_3d_4 = analysis_utils.moving_average_filter(r4.data['contact_force_3d_measured'][N_START:N].copy(), FILTER) 
 else:
     force_3d_1 = r1.data['contact_force_3d_measured'][N_START:N]
     force_3d_2 = r2.data['contact_force_3d_measured'][N_START:N] 
     force_3d_3 = r3.data['contact_force_3d_measured'][N_START:N] 
-    force_3d_4 = r4.data['contact_force_3d_measured'][N_START:N] 
+    # force_3d_4 = r4.data['contact_force_3d_measured'][N_START:N] 
 
 
 target_force_3d = np.zeros((N, 3))
@@ -124,7 +126,7 @@ for i in range(3):
     ax[i].plot(time_lin, force_3d_1[:,i], color='b', linewidth=4, label=label1, alpha=1.)
     ax[i].plot(time_lin, force_3d_2[:,i], color='g', linewidth=4, label=label2, alpha=1.)
     ax[i].plot(time_lin, force_3d_3[:,i], color='r', linewidth=4, label=label3, alpha=1.)
-    ax[i].plot(time_lin, force_3d_4[:,i], color='y', linewidth=4, label=label4, alpha=1.)
+    # ax[i].plot(time_lin, force_3d_4[:,i], color='y', linewidth=4, label=label4, alpha=1.)
     
     
     ax[i].grid(True) 
@@ -135,13 +137,13 @@ ax[0].tick_params(axis = 'y', labelsize=22)
 ax[0].tick_params(axis = 'x', labelsize=22)
 
 
-fig1 = plt.figure(figsize=(20,10))
+fig1 = plt.figure(figsize=(20,9))
 
 plt.plot(time_lin, target_force_3d[N_START:N, 0], color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
 plt.plot(time_lin, force_3d_1[:,0], color='b', linewidth=4, label=label1, alpha=1.)
 plt.plot(time_lin, force_3d_2[:,0], color='g', linewidth=4, label=label2, alpha=1.)
 plt.plot(time_lin, force_3d_3[:,0], color='r', linewidth=4, label=label3, alpha=1.)
-plt.plot(time_lin, force_3d_4[:,0], color='y', linewidth=4, label=label4, alpha=1.)
+# plt.plot(time_lin, force_3d_4[:,0], color='y', linewidth=4, label=label4, alpha=1.)
 
 plt.grid(True) 
 plt.legend(fontsize=26) 
@@ -151,7 +153,7 @@ plt.xlabel('Time (s)', fontsize=26)
 plt.tick_params(axis = 'y', labelsize=22)
 plt.tick_params(axis = 'x', labelsize=22)
 
-fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/step_response.pdf', bbox_inches="tight")
+fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/3d/integral/step_final/step_response.pdf', bbox_inches="tight")
 
 
 def print_error(r, label):
@@ -165,7 +167,7 @@ def print_error(r, label):
 print_error(r1, label1)
 print_error(r2, label2)
 print_error(r3, label3)
-print_error(r4, label4)
+# print_error(r4, label4)
 
 
 

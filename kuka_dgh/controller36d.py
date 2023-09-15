@@ -299,8 +299,10 @@ class ClassicalMPCContact:
         
         
         if(self.config['USE_DELTA_TAU']):
-            self.estimator.Q =  4.* 4e-3 * 0.01 * np.array([1., 1., 1., 1., 1., 1.])
-            self.estimator.R =  4.* 4e-3 * 0.01 * np.array([1., 1., 1., 1., 1., 1.])
+            # self.estimator.Q =  4e-2 * 0.01 * np.array([1., 1., 1., 1., 1., 1.])
+            # self.estimator.R =  4e-2 * 0.01 * np.ones(self.nc)
+            self.estimator.Q =  4.* 4e-4 * np.array([1., 1., 1., 1., 1., 1.])
+            self.estimator.R =  4.* 4e-4 * np.ones(self.nc)
         else:
             self.estimator.Q = 4.* 4e-3 * np.ones(7)
             self.estimator.R = 4.* 4e-3 * np.ones(self.nc)

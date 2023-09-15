@@ -56,7 +56,7 @@ contactType: '3D'
 USE_DELTA_F: False
 USE_DELTA_TAU: True
 FORCE_INTEGRAL: False
-INTERNAL: False
+INTERNAL: True
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
 # to select from the list : 'stateReg', 'ctrlReg', 'ctrlRegGrav', 'stateLim', 'ctrlLim'
