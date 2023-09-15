@@ -39,8 +39,8 @@ model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
 controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
 print(controlled_joint_ids)
 # Load config file
-CONFIG_NAME = 'config'
-# CONFIG_NAME = 'config36d'
+# CONFIG_NAME = 'config'
+CONFIG_NAME = 'config36d'
 
 CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
@@ -59,12 +59,12 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/d_tau_vs_df/'
-    data_name = 'config36d_SIM_2023-09-12T18:58:32.379107_DF.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_dtau/'
+    data_name = 'config36d_SIM_2023-09-15T11:27:54.940770_test.mds'
     
 else:
-    data_path =  '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
-    data_name = 'config_REAL_2023-09-13T19:41:20.484038_medium_default.mds'
+    data_path =  '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_dtau/'
+    data_name = 'config36d_REAL_2023-09-15T13:45:33.093715_dtau_ext_tune.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -115,10 +115,10 @@ if(config['USE_DELTA_F']):
     plt.plot(np.array(r.data['delta_f']))
     plt.title("delta_f")
 
-# if(config['USE_DELTA_TAU']):
-#     s.plot_joint_tau( [r.data['delta_tau']], 
-#                       ['delta_tau'], 
-#                       ['r'])
+if(config['USE_DELTA_TAU']):
+    s.plot_joint_tau( [r.data['delta_tau']], 
+                      ['delta_tau'], 
+                      ['r'])
 
 # For SIM robot only
 # if(SIM):
@@ -281,10 +281,10 @@ if CONFIG_NAME == 'config36d':
             return np.mean(np_array), np.std(np_array)
                     
         mean_torque_errors = [np.mean(torque_square_norm[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(N_CIRCLE)]
-        print("Avg Square Torque [1:] = ", np.mean(mean_torque_errors[1:]), r'$\pm$', np.std(mean_torque_errors[1:]))
+        # print("Avg Square Torque [1:] = ", np.mean(mean_torque_errors[1:]), r'$\pm$', np.std(mean_torque_errors[1:]))
         m , std = mean_std(torque_square_norm)
         print("Avg Square Torque [1:] = ", m, r'$\pm$', std)
-        print("Avg Square Torque      = ", np.mean(mean_torque_errors), r'$\pm$', np.std(mean_torque_errors))
+        # print("Avg Square Torque      = ", np.mean(mean_torque_errors), r'$\pm$', np.std(mean_torque_errors))
 
 
 
@@ -295,7 +295,7 @@ if CONFIG_NAME == 'config36d':
     tau_cost_list = []
     rotation_cost_list = []
     for t in range(N- N_START):
-        index = N_START + t
+        index = N_START  + t
 
         f = r.data['contact_force_3d_measured'][index][:3]   
         q = r.data['joint_positions'][index,controlled_joint_ids]
@@ -336,32 +336,32 @@ if CONFIG_NAME == 'config36d':
 
 
 
-        cost_list = np.array(cost_list)
-        force_cost_list = np.array(force_cost_list)
-        state_cost_list = np.array(state_cost_list)
-        tau_cost_list = np.array(tau_cost_list)
-        rotation_cost_list = np.array(rotation_cost_list)
+    cost_list = np.array(cost_list)
+    force_cost_list = np.array(force_cost_list)
+    state_cost_list = np.array(state_cost_list)
+    tau_cost_list = np.array(tau_cost_list)
+    rotation_cost_list = np.array(rotation_cost_list)
 
 
 
-
-    mean , std = mean_std(cost_list)
-    print("total cost ", mean, ' +- ', std)
-
-
-    mean , std = mean_std(force_cost_list)
-    print("force cost ", mean, ' +- ', std)
+    if not SIM:
+        mean , std = mean_std(cost_list)
+        print("total cost ", mean, ' +- ', std)
 
 
-    mean , std = mean_std(state_cost_list)
-    print("state cost ", mean, ' +- ', std)
-
-    mean , std = mean_std(tau_cost_list)
-    print("tau cost ", mean, ' +- ', std)
+        mean , std = mean_std(force_cost_list)
+        print("force cost ", mean, ' +- ', std)
 
 
-    mean , std = mean_std(rotation_cost_list)
-    print("rotation cost ", mean, ' +- ', std)
+        mean , std = mean_std(state_cost_list)
+        print("state cost ", mean, ' +- ', std)
+
+        mean , std = mean_std(tau_cost_list)
+        print("tau cost ", mean, ' +- ', std)
+
+
+        mean , std = mean_std(rotation_cost_list)
+        print("rotation cost ", mean, ' +- ', std)
 
 
     plt.figure()
