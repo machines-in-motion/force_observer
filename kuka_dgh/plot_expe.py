@@ -64,7 +64,7 @@ if(SIM):
     
 else:
     data_path =  '/home/skleff/Desktop/delta_f_real_exp/sanding/'
-    data_name = 'd_tau_vs_dfconfig_REAL_2023-09-15T16:51:48.387220_dtau_ext.mds'
+    data_name = 'd_tau_vs_dfconfig_REAL_2023-09-15T18:06:39.857122_dtau_ext.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'

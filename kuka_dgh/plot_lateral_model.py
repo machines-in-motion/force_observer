@@ -45,7 +45,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 PLOT = "SOTA"
 # PLOT = "LATERAL_MODE"
-PLOT = "DF_DTAU"
+# PLOT = "DF_DTAU"
 
 color_list = ['b', 'g', 'r', 'y']
 
@@ -58,21 +58,20 @@ if PLOT == "SOTA":
     print("Load data 2...")
     r2 = DataReader(data_path+'config_REAL_2023-09-13T19:44:20.481230_medium_ff.mds')  
     print("Load data 3...")
-    data_path = "/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/"
+    data_path = "/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df_final/"
     r3 = DataReader(data_path+'config_REAL_2023-09-14T13:34:53.546969_ff_df_int.mds') 
 
     label1 = 'Default'
     # label1 = 'FI'
-    label2 = 'Feedforward'
-    label3 = 'Feedforward + Estimation'
-
+    label2 = 'FL'
+    label3 = r'FL + $\Delta F$ (PM)'
 
 
 
 if PLOT == "LATERAL_MODE":
     # TASK = "slow"
-    # TASK = "medium"
-    TASK = "fast"
+    TASK = "medium"
+    # TASK = "fast"
 
 
     data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
@@ -110,16 +109,16 @@ if PLOT == "LATERAL_MODE":
 
     label1 = 'Default'
     label2 = 'Coulomb'
-    label3 = 'Feedforward'
+    label3 = 'FL'
 
 if PLOT == "DF_DTAU":
     omega = 3
     
-    data_path = "/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/"
+    data_path = "/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df_final/"
     print("Load data 1...")
     r1 = DataReader(data_path+'config_REAL_2023-09-15T16:45:58.007244_ff_dtau_int.mds') 
     print("Load data 2...")
-    r2 = DataReader(data_path+'config_REAL_2023-09-15T16:51:48.387220_ff_dtau_ext.mds') 
+    r2 = DataReader(data_path+'d_tau_vs_dfconfig_REAL_2023-09-15T18:06:39.857122_dtau_ext.mds') 
     print("Load data 3...")
     r3 = DataReader(data_path+'config_REAL_2023-09-14T13:34:53.546969_ff_df_int.mds') 
     print("Load data 4...")
@@ -206,7 +205,7 @@ pos_error_3 = compute_pos_error_traj(r3)
 if PLOT == "DF_DTAU":
     pos_error_4 = compute_pos_error_traj(r4)
     
-fig0, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 20))
+fig0, (ax1, ax2) = plt.subplots(2, 1, figsize=(20, 18))
 
 
 ax1.plot(time_lin, target_force_3d[N_START+SKIP:N,2], color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
@@ -248,13 +247,13 @@ if PLOT == "SOTA":
 if PLOT == "LATERAL_MODE":
     fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/' + TASK + '_with_pos.pdf', bbox_inches="tight")
 if PLOT == "DF_DTAU":
-    fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/' + PLOT + '._with_pos.pdf', bbox_inches="tight")
+    fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df_final/' + PLOT + '._with_pos.pdf', bbox_inches="tight")
 
 
 
 
 
-fig1 = plt.figure(figsize=(20., 10.))
+fig1 = plt.figure(figsize=(20., 9.))
 plt.plot(time_lin, target_force_3d[N_START+SKIP:N, 2], color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
 plt.plot(time_lin, force_3d_1[SKIP:,2], color=color_list[0], linewidth=4, label=label1, alpha=0.8)
 plt.plot(time_lin, force_3d_2[SKIP:,2], color=color_list[1], linewidth=4, label=label2, alpha=0.8)
@@ -278,7 +277,7 @@ if PLOT == "SOTA":
 if PLOT == "LATERAL_MODE":
     fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/' + TASK + '.pdf', bbox_inches="tight")
 if PLOT == "DF_DTAU":
-    fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/' + PLOT + '.pdf', bbox_inches="tight")
+    fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df_final/' + PLOT + '.pdf', bbox_inches="tight")
 
 
 
