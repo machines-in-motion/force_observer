@@ -7,7 +7,7 @@ import numpy as np
 import pinocchio as pin
 import matplotlib.pyplot as plt 
 from core_mpc import path_utils
-from core_mpc.pin_utils import get_p_, get_v_, get_rpy_
+from core_mpc.pin_utils import get_p_
 from core_mpc import analysis_utils 
 
 from robot_properties_kuka.config import IiwaConfig, IiwaReducedConfig
@@ -74,7 +74,6 @@ label2 = r'FL + $\Delta F$ (PM)'
 N = min(r1.data['tau'].shape[0], r2.data['tau'].shape[0])
 N = 25000
  
-print("N_start = ", N_START)
 
 
 
@@ -85,7 +84,6 @@ force_3d_3 = np.zeros((N-N_START, 3))
 force_3d_4 = np.zeros((N-N_START, 3))
 
 
-
 if(FILTER > 0):
     force_3d_1 = analysis_utils.moving_average_filter(r1.data['contact_force_3d_measured'][N_START:N].copy(), FILTER)
     force_3d_2 = analysis_utils.moving_average_filter(r2.data['contact_force_3d_measured'][N_START:N].copy(), FILTER) 
@@ -94,9 +92,12 @@ else:
     force_3d_2 = r2.data['contact_force_3d_measured'][N_START:N] 
 
 
-
 def compute_pos_error_traj(r):
     p_mea = get_p_(r.data['joint_positions'][N_START:N,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
+    # if(FILTER > 0):
+    #     p_mea = analysis_utils.moving_average_filter(p_mea.copy(), FILTER) 
+    # else:
+    #     p_mea = p_mea
     return np.sqrt((p_mea[:, 0] - r.data['target_position_x'][N_START:N,0])**2 + (p_mea[:, 1] - r.data['target_position_y'][N_START:N,1])**2)
 
 
@@ -105,8 +106,7 @@ pos_error_2 = np.zeros((N-N_START, 1))
 
 pos_error_1 = compute_pos_error_traj(r1)
 pos_error_2 = compute_pos_error_traj(r2)
-
-
+    
 target_force_3d = np.zeros((N, 3))
 Tc = int(config['T_CONTACT'] * config['simu_freq'])
 target_force_3d[Tc:, :3] = np.asarray(config['frameForceRef'])[:3]
@@ -173,15 +173,24 @@ line1b, = ax1.plot(time_lin[0:1], force_3d_2[0:1, 2], animated=True, color=color
 line2a, = ax2.plot(time_lin[0:1], pos_error_1[0:1], animated=True, color=color_list[0], linewidth=4, label=label1, alpha=0.8)
 line2b, = ax2.plot(time_lin[0:1], pos_error_2[0:1], animated=True, color=color_list[2], linewidth=4, label=label2, alpha=0.8)
 
-
+# Task phases
+PHASE_TIME = 6283
+ax1.axvline(PHASE_TIME/1000., color='k', linewidth=2, linestyle=':', alpha=0.8)
+ax1.axvline(2*PHASE_TIME/1000., color='k', linewidth=2, linestyle=':', alpha=0.8)
+ax2.axvline(PHASE_TIME/1000., color='k', linewidth=2, linestyle=':', alpha=0.8)
+ax2.axvline(2*PHASE_TIME/1000., color='k', linewidth=2, linestyle=':', alpha=0.8)
+ax1.text(0.2, 0.55, 'Slow',transform=fig.transFigure, fontdict={'size':30})
+ax1.text(0.5, 0.55, 'Medium',transform=fig.transFigure, fontdict={'size':30})
+ax1.text(0.81, 0.55, 'Fast',transform=fig.transFigure, fontdict={'size':30})
 
 line = [line1a, line1b, line2a, line2b]
 
 ax1.legend(loc="upper left", framealpha=0.95, fontsize=26) 
 
+fig.align_ylabels()
 
 T = int((N-N_START)/1000)
-PPS = 50  # Point per second
+PPS = 10 #50  # Point per second
 
 N_FRAMES = int(T * PPS)
 SKIP = int(1000/PPS)
