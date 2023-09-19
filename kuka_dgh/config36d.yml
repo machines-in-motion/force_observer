@@ -54,8 +54,8 @@ contactType: '3D'
 
 # USE_LATERAL_FRICTION: True
 USE_DELTA_F: False
-USE_DELTA_TAU: True
-FORCE_INTEGRAL: False
+USE_DELTA_TAU: False
+FORCE_INTEGRAL: True
 INTERNAL: False
 
 # Cost function composition (a.k.a which terms will be actually used in the OCP)
