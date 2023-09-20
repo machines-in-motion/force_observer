@@ -236,18 +236,30 @@ class ClassicalMPCContact:
 
         # Circle trajectory 
         N_total_pos = int((self.config['T_tot'] - self.config['T_REACH'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio)
-        N_circle = int((self.config['T_tot'] - self.config['T_CIRCLE'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio )
+        N_circle    = int((self.config['T_tot'] - self.config['T_CIRCLE'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio )
         self.target_position_traj = np.zeros( (N_total_pos, 3) )
         # absolute desired position
         self.oPc_offset = np.asarray(self.config['oPc_offset'])
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
-        radius = 0.07 ; omega = 3.
-        # radius = 0.0 ; omega = 3.
-
-        self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
-                                                              self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
-                                                              self.pdes[2]]) for i in range(N_circle)]
-        self.target_position_traj[N_circle:, :] = self.target_position_traj[N_circle-1,:]
+        
+        PHASE_TIME = 6283 # in cycles
+        # SLOW
+        radius = 0.07 ; omega = 1.
+        self.target_position_traj[0:PHASE_TIME, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
+                                                                self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
+                                                                self.pdes[2]]) for i in range(PHASE_TIME)]
+        # MEDIUM
+        omega = 3.
+        self.target_position_traj[PHASE_TIME:2*PHASE_TIME, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
+                                                                           self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
+                                                                           self.pdes[2]]) for i in range(PHASE_TIME)]
+        # FAST
+        omega = 6.
+        self.target_position_traj[2*PHASE_TIME:3*PHASE_TIME, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
+                                                                             self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
+                                                                             self.pdes[2]]) for i in range(PHASE_TIME)]
+        self.target_position_traj[3*PHASE_TIME:, :] = self.target_position_traj[3*PHASE_TIME-1,:]
+        # import matplotlib.pyplot as plt
         # plt.plot(self.target_position_traj, label='pos')
         # plt.show()
         # Targets over one horizon (initially = absolute target position)
