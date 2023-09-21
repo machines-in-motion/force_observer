@@ -5,7 +5,6 @@
 simu_freq: 1000        # Simulation frequency in Hz
 plan_freq: 1000       # Planning frequency
 T_tot: 400             # Simu duration (s)-
-RICCATI: False 
 
 # Definition of the contact surface in the simulator
 # It is aligned with the LOCAL contact frame by default

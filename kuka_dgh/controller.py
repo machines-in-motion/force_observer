@@ -350,6 +350,7 @@ class ClassicalMPCContact:
         self.t_child, self.t_child_1 = 0, 0
 
         self.time = 0.
+        self.time_old = 0.
 
 
     def warmup(self, thread):
@@ -374,7 +375,6 @@ class ClassicalMPCContact:
         self.nb_iter = self.config['maxiter']
         self.sent = False
     
-        self.T_START = 0.
     
     def run(self, thread):  
         
@@ -383,7 +383,7 @@ class ClassicalMPCContact:
 
 
         
-        self.time = time.time() - self.T0
+        self.time = (time.time() - self.T0) * self.config['plan_freq']
               
         # # # # # # # # # 
         # Read sensors  #
@@ -439,11 +439,9 @@ class ClassicalMPCContact:
         # time_to_ramp    = thread.ti - self.T_RAMP
         # time_to_circle  = thread.ti - self.T_CIRCLE
 
-        time_to_reach   = int(self.time * self.config['plan_freq'] - self.T_REACH)
-        time_to_track   = int(self.time * self.config['plan_freq'] - self.T_TRACK)
-        time_to_contact = int(self.time * self.config['plan_freq'] - self.T_CONTACT)
-        time_to_ramp    = int(self.time * self.config['plan_freq'] - self.T_RAMP)
-        time_to_circle  = int(self.time * self.config['plan_freq'] - self.T_CIRCLE)
+        time_to_contact = int(self.time - self.T_CONTACT)
+        time_to_ramp    = int(self.time - self.T_RAMP)
+        time_to_circle  = int(self.time - self.T_CIRCLE)
 
         # compute integral
         if 0. <= time_to_ramp and self.config["FORCE_INTEGRAL"]:
@@ -470,16 +468,15 @@ class ClassicalMPCContact:
                     
         # Update OCP for reaching phase                   
                     
-
-        if(time_to_reach == 0): 
+        if self.time_old <= self.T_REACH and self.T_REACH < self.time:
             print("Entering reaching phase")
             self.TASK_PHASE = 1
 
-        if(time_to_track == 0): 
+        if self.time_old <=self.T_TRACK and self.T_TRACK < self.time:
             print("Entering tracking phase")
             self.TASK_PHASE = 2
-
-        if(time_to_contact == 0): 
+    
+        if self.time_old <= self.T_CONTACT and self.T_CONTACT < self.time:
             # Record end-effector position at the time of the contact switch
             self.position_at_contact_switch = self.robot.data.oMf[self.contactFrameId].translation.copy()
             self.target_position[:,:] = self.position_at_contact_switch.copy()
@@ -498,7 +495,7 @@ class ClassicalMPCContact:
             if( self.config["FORCE_INTEGRAL"] and self.config['INTERNAL']):
                 self.target_force -= self.KF_I * self.force_integral[0]
 
-        if(time_to_circle == 0): 
+        if self.time_old <= self.T_CIRCLE and self.T_CIRCLE < self.time:
             self.TASK_PHASE = 4
             print("Entering circle phase")
         
@@ -598,4 +595,5 @@ class ClassicalMPCContact:
         
         pin.framesForwardKinematics(self.robot.model, self.robot.data, q)
         
-        self.t_run = time.time() - self.T0 - self.time 
+        self.t_run = time.time() - self.T0 - self.time / self.config['simu_freq']
+        self.time_old = self.time

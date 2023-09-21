@@ -12,7 +12,7 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 from robot_properties_kuka.config import IiwaConfig
 
-from force_observer import ForceEstimator, MHForceEstimator, TorqueEstimator
+from force_observer import ForceEstimator, TorqueEstimator
 
 
 
@@ -64,17 +64,11 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
                     m[k].differential.costs.costs["ctrlRegGrav"].weight = 0.
                     m[k].differential.costs.costs["force"].cost.residual.reference = pin.Force(target_force[k])
                     
-        # get predicted force from rigid model (careful : expressed in LOCAL !!!)
-        fpred = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf.actInv(ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f).vector
-        problem_formulation_time = time.time()
-        t_child_1 =  problem_formulation_time - t
         # Solve OCP 
         ddp.solve(xs_init, us_init, maxiter=nb_iter, isFeasible=False)
-        solve_time = time.time()
-        ddp_iter = ddp.iter
-        t_child =  solve_time - problem_formulation_time
+        t_child =  time.time() - t
         # Send solution to parent process + riccati gains
-        return ddp.us[0], ddp.xs[1], ddp.K[0], fpred, t_child, ddp_iter, t_child_1, ddp.KKT
+        return ddp.us[0], ddp.xs[1], ddp.K[0], t_child, ddp.iter, ddp.KKT
 
 
 
@@ -282,12 +276,12 @@ class ClassicalMPCContact:
         self.target_position_y = self.target_position[:,1] 
         self.target_position_z = self.target_position[:,2]
 
-        self.target_joint_traj = np.zeros(N_circle)
-        self.target_joint_traj = [self.x0[2] + 0.2 * np.sin(freq*(2*np.pi)*i*self.dt_simu) for i in range(N_circle)]
+        self.target_joint_traj = [self.x0[2] for i in range(N_circle)]
+        N_JOINT_CIRCLE = int(10 / freq / self.dt_simu)
+        self.target_joint_traj[2000:2000+N_JOINT_CIRCLE] = [0.2 * np.sin(freq*(2*np.pi)*i*self.dt_simu) for i in range(N_JOINT_CIRCLE)]
+
         self.target_joint = self.x0[2]*np.ones(self.Nh+1)
-        # import matplotlib.pyplot as plt
-        # plt.plot(self.target_joint_traj, label='pos')
-        # plt.show()
+        
                 
         if(self.config['USE_DELTA_TAU']):
             logger.warning("Using USE_DELTA_TAU")
@@ -355,6 +349,11 @@ class ClassicalMPCContact:
         logger.debug("Start of circle phase in simu cycles = "+str(self.T_CIRCLE))
         logger.debug("OCP to SIMU time ratio = "+str(self.OCP_TO_SIMU_ratio))
 
+        self.time_df = 0.
+        self.t_child, self.t_child_1 = 0, 0
+        self.time = 0.
+        self.time_old = 0.
+
 
     def warmup(self, thread):
         # Warm start 
@@ -364,7 +363,7 @@ class ClassicalMPCContact:
         self.ddp.us = [self.u0 for i in range(self.Nh)]
         self.is_plan_updated = False
 
-        self.tau_ff, self.x_des, self.K, self.fpred, self.t_child, self.ddp_iter, self.t_child_1, self.KKT  = solveOCP(self.joint_positions[self.controlled_joint_ids], 
+        self.tau_ff, self.x_des, self.K, self.t_child, self.ddp_iter, self.KKT  = solveOCP(self.joint_positions[self.controlled_joint_ids], 
                                                                                         self.joint_velocities[self.controlled_joint_ids], 
                                                                                         self.ddp, 
                                                                                         self.nb_iter,
@@ -373,9 +372,6 @@ class ClassicalMPCContact:
                                                                                         self.TASK_PHASE,
                                                                                         self.target_force, 
                                                                                         self.target_joint)
-
-        if(self.pinRef != pin.LOCAL):
-            self.fpred = self.lwaMc.act(pin.Force(self.fpred)).vector
             
         self.check = 0
         self.nb_iter = self.config['maxiter']
@@ -384,9 +380,14 @@ class ClassicalMPCContact:
     
 
     def run(self, thread):  
-        t1 = time.time()
 
-        # # # # # # # # # 
+
+        if thread.ti == 0:
+            self.T0 = time.time()        
+            
+        self.time = (time.time() - self.T0) * self.config['plan_freq']
+        
+        
         # Read sensors  #
         # # # # # # # # # 
         q = self.joint_positions[self.controlled_joint_ids]
@@ -421,9 +422,6 @@ class ClassicalMPCContact:
                     
         self.contact_force_3d_measured = self.contact_force_6d_measured[:3]
         
-        # if(thread.ti > self.T_CIRCLE + 1000 and thread.ti < self.T_CIRCLE + 4000):
-        #     self.contact_force_3d_measured[0] += 10
-
 
         alpha = 0.
         alpha2 = 0.95
@@ -433,12 +431,16 @@ class ClassicalMPCContact:
         # # # # # # # # # 
         # # Update OCP  #
         # # # # # # # # # 
-        time_to_reach   = int(thread.ti - self.T_REACH)
-        time_to_track   = int(thread.ti - self.T_TRACK)
-        time_to_contact = int(thread.ti - self.T_CONTACT)
-        time_to_ramp    = int(thread.ti - self.T_RAMP)
-        time_to_circle  = int(thread.ti - self.T_CIRCLE)
+        # time_to_reach   = int(thread.ti - self.T_REACH)
+        # time_to_track   = int(thread.ti - self.T_TRACK)
+        # time_to_contact = int(thread.ti - self.T_CONTACT)
+        # time_to_ramp    = int(thread.ti - self.T_RAMP)
+        # time_to_circle  = int(thread.ti - self.T_CIRCLE)
 
+        
+        time_to_contact = int(self.time - self.T_CONTACT)
+        time_to_ramp    = int(self.time - self.T_RAMP)
+        time_to_circle  = int(self.time - self.T_CIRCLE)
 
         # compute integral
         if 0 <= time_to_contact:
@@ -447,7 +449,6 @@ class ClassicalMPCContact:
             
 
         # Delta F estimation:
-        t0 = time.time()
         if time_to_ramp > 0:
             if(self.config['USE_DELTA_F'] == True):
                 self.estimator.estimate(self.data_estimator, q, v, self.acc_est, self.tau_old, self.delta_f, self.force_est)
@@ -463,17 +464,16 @@ class ClassicalMPCContact:
                     for m in self.ddp.problem.runningModels:
                         m.differential.delta_tau = - self.delta_tau
                     self.ddp.problem.terminalModel.differential.delta_tau = - self.delta_tau
-        self.time_df = time.time() - t0
 
-        if(time_to_reach == 0): 
+        if self.time_old <= self.T_REACH and self.T_REACH < self.time:
             print("Entering reaching phase")
             self.TASK_PHASE = 1
 
-        if(time_to_track == 0): 
+        if self.time_old <= self.T_TRACK and self.T_TRACK < self.time:
             print("Entering tracking phase")
             self.TASK_PHASE = 2
 
-        if(time_to_contact == 0): 
+        if self.time_old <= self.T_CONTACT and self.T_CONTACT < self.time:
             # Record end-effector position at the time of the contact switch
             self.position_at_contact_switch = self.robot.data.oMf[self.contactFrameId].translation.copy()
             self.target_position[:,:] = self.position_at_contact_switch.copy()
@@ -500,7 +500,7 @@ class ClassicalMPCContact:
             self.target_force_ty = self.target_force[:,4] 
             self.target_force_tz = self.target_force[:,5]
             
-        if(time_to_circle == 0): 
+        if self.time_old <= self.T_CIRCLE and self.T_CIRCLE < self.time:
             self.TASK_PHASE = 4
             print("Entering circle phase")
 
@@ -525,11 +525,10 @@ class ClassicalMPCContact:
         # Solve OCP #
         # # # # # # #  
         # If planning cycle, fetch OCP solution
-        self.t_child, self.t_child_1 = 0, 0
         if thread.ti % int(self.sim_to_plan_ratio) == 0:         
 
             self.count = 0
-            self.tau_ff, self.x_des, self.K, self.fpred, self.t_child, self.ddp_iter, self.t_child_1, self.KKT = solveOCP(q, v, 
+            self.tau_ff, self.x_des, self.K, self.t_child, self.ddp_iter, self.KKT = solveOCP(q, v, 
                                                                 self.ddp,
                                                                 self.nb_iter,
                                                                 self.target_position, 
@@ -538,20 +537,13 @@ class ClassicalMPCContact:
                                                                 self.target_force,
                                                                 self.target_joint)
 
-            if(self.pinRef != pin.LOCAL):
-                self.fpred = self.lwaMc.act(pin.Force(self.fpred)).vector
                 
 
         # # # # # # # # 
         # Send policy #
         # # # # # # # #
 
-        # Riccati policy (optional) on (q,v) 
-        if(self.config['RICCATI']):
-            self.tau_riccati = self.K[:,:self.nq+self.nv] @ (self.x_des[:self.nq+self.nv] - np.concatenate([q, v]))
-            self.tau  = self.tau_ff + self.tau_riccati
-        else:
-            self.tau = self.tau_ff
+        self.tau = self.tau_ff
         
         if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['INTERNAL'] == False ):
             Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:self.nc, self.controlled_joint_ids]
@@ -589,4 +581,5 @@ class ClassicalMPCContact:
         
         pin.framesForwardKinematics(self.robot.model, self.robot.data, q)
 
-        self.t_run = time.time() - t1
+        self.t_run = time.time() - self.T0 - self.time  / self.config['simu_freq']
+        self.time_old = self.time

@@ -39,15 +39,15 @@ model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
 controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
 print(controlled_joint_ids)
 # Load config file
-CONFIG_NAME = 'config'
-# CONFIG_NAME = 'config36d'
+# CONFIG_NAME = 'config'
+CONFIG_NAME = 'config36d'
 
 CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = False
+SIM = True
 SAVE = False
 
 # Create data Plottger
@@ -60,11 +60,11 @@ print("N_start = ", N_START)
 
 if(SIM):
     data_path = '/home/skleff/Desktop/delta_f_real_exp/video/'
-    data_name = 'config_SIM_2023-09-21T11:25:31.058883_test.mds'
+    data_name = 'config36d_SIM_2023-09-21T18:46:12.597831_test.mds'
     
 else:
     data_path =  '/home/skleff/Desktop/delta_f_real_exp/video/'
-    data_name = 'config_REAL_2023-09-21T16:14:41.677292_FL_perturbation_2.mds'
+    data_name = 'config36d_SIM_2023-09-21T18:44:08.249811_test.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
@@ -79,7 +79,7 @@ time_lin = np.linspace(0, N/ config['plan_freq'], (N))
 
 
 plt.figure()
-plt.plot(r.data['time'] , time_lin, label="thead.ti time")
+plt.plot(r.data['time'] , time_lin * config['simu_freq'], label="thead.ti time")
 plt.plot(r.data['time'] , r.data['time'], '--', label="real time")
 plt.legend()
 plt.grid()
@@ -107,20 +107,20 @@ print("COMPUTE_TOTAL", np.sum(r.data['t_run'][7000:7000+N_TOTAL]))
 if(FILTER > 0):
     r.data['contact_force_3d_measured'][:N] = analysis_utils.moving_average_filter(r.data['contact_force_3d_measured'][:N].copy(), FILTER)
 
-# target_joint = np.zeros((N,nq))
-# target_joint[:, 2] = r.data['target_joint'][:,0]
+target_joint = np.zeros((N,nq))
+target_joint[:, 2] = r.data['target_joint'][:,0]
 
-# s.plot_joint_pos( [r.data['x_des'][:,:nq],
-#                    r.data['joint_positions'][:,controlled_joint_ids],
-#                    target_joint],
-#                    ['pred', 
-#                     'mea',
-#                     'ref'],
-#                    ['b', 
-#                     'r',
-#                     'k'],
-#                    linestyle=['solid', 'solid', 'dotted'],
-#                    ylims=[model.lowerPositionLimit, model.upperPositionLimit] )
+s.plot_joint_pos( [r.data['x_des'][:,:nq],
+                   r.data['joint_positions'][:,controlled_joint_ids],
+                   target_joint],
+                   ['pred', 
+                    'mea',
+                    'ref'],
+                   ['b', 
+                    'r',
+                    'k'],
+                   linestyle=['solid', 'solid', 'dotted'],
+                   ylims=[model.lowerPositionLimit, model.upperPositionLimit] )
 # s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x_des'][:,nq:nq+nv]], # r.data['x'][:,nq:nq+nv], r.data['x1'][:,nq:nq+nv]],
 #                   ['mea', 'pred'], # 'pred0', 'pred1'], 
 #                   ['r', 'b'], #[0.2, 0.2, 0.2, 0.5], 'b', 'g']) 

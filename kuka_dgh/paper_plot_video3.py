@@ -64,16 +64,16 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 
-data_path =  '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy/'
+data_path =  '/home/skleff/Desktop/delta_f_real_exp/video/'
     
 label1 = r'Force Integral'
 label2 = r'$\Delta F$ (PM)'
 
 
 print("Load data 1...")
-r1 = DataReader(data_path+'config36d_REAL_2023-09-13T11:40:58.242183_no_ee_cost_FI_new_cost.mds')
+r1 = DataReader(data_path+'config36d_REAL_2023-09-21T18:52:55.022903_energy_integral.mds')
 print("Load data 2...")
-r2 = DataReader(data_path+'config36d_REAL_2023-09-13T11:47:06.972500_no_ee_cost_DF_interne_new_cost.mds')
+r2 = DataReader(data_path+'config36d_REAL_2023-09-21T18:50:58.342199_energy_df.mds')
 
 
 N = min(r1.data['tau'].shape[0], r2.data['tau'].shape[0])
@@ -151,7 +151,7 @@ time_lin = np.linspace(0, (N-N_START) / config['simu_freq'], (N-N_START))
 color_list = ['b', 'r']
 
 
-ANIMATION = True
+ANIMATION = False
 LINEWIDTH = 4
 ALPHA = 0.8
  

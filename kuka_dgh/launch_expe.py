@@ -17,8 +17,8 @@ from force_feedback_dgh.demos.utils.find_contact_point import compute_sensor_fra
 
 
 
-from controller import ClassicalMPCContact
-# from controller36d import ClassicalMPCContact
+# from controller import ClassicalMPCContact
+from controller36d import ClassicalMPCContact
 from core_mpc import path_utils, sim_utils
 from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
@@ -26,8 +26,8 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 SIM = False
 
 DGM_PARAMS_PATH = "/home/skleff/ws/workspace/install/robot_properties_kuka/lib/python3.8/site-packages/robot_properties_kuka/robot_properties_kuka/dynamic_graph_manager/dgm_parameters_iiwa.yaml"
-CONFIG_NAME = 'config' 
-# CONFIG_NAME = 'config36d'
+# CONFIG_NAME = 'config' 
+CONFIG_NAME = 'config36d'
 CONFIG_PATH = CONFIG_NAME+".yml"
 
 
@@ -55,7 +55,7 @@ _, _, cMs, _ = compute_sensor_frame_transform(pin_robot, IiwaReducedConfig.cad_o
 if SIM:
     config['T_tot'] = 400
     # Sim env + set initial state 
-    env = BulletEnvWithGround(p.DIRECT)
+    env = BulletEnvWithGround(p.GUI)
     robot_simulator = env.add_robot(IiwaReducedRobot(controlled_joints=CONTROLLED_JOINTS, qref=QREF))
     robot_simulator.pin_robot = pin_robot 
     q_init = np.asarray(config['q0'] )
@@ -106,18 +106,18 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/video/"
-suffix = "_FL_perturbation_2"
+suffix = "_energy_integral"
 
 
 if SIM:
-    thread_head.start_logging(20, prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
+    thread_head.start_logging(38, prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
     # thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
-    thread_head.sim_run_timed(int(20*config['simu_freq']))
+    thread_head.sim_run_timed(int(38*config['simu_freq']))
     thread_head.stop_logging()
     # thread_head.plot_timing()
 else:
     thread_head.start()
-    thread_head.start_logging(28, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
+    thread_head.start_logging(38, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
     # thread_head.start_logging(30, prefix+CONFIG_NAME+"_REAL_"+str(datetime.now().isoformat())+suffix+".mds")
     
 # reccord times for circles:
