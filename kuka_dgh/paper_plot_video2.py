@@ -73,7 +73,7 @@ label2 = r'FL + $\Delta F$ (PM)'
 
 
 N = min(r1.data['tau'].shape[0], r2.data['tau'].shape[0])
-N = 25000
+N = 25849
  
 
 PART = 2
@@ -193,7 +193,7 @@ fig.align_ylabels()
 # fig.tight_layout()
 
 
-T = int((N-N_START)/1000)
+T = (N-N_START)/1000
 PPS = 100  # Point per second
 
 N_FRAMES = int(T * PPS)

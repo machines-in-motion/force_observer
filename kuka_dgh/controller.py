@@ -16,15 +16,19 @@ from robot_properties_kuka.config import IiwaConfig
 from force_observer import ForceEstimator, MHForceEstimator, TorqueEstimator
 
 
-@profile
 def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_force):
         t = time.time()
         # Update initial state + warm-start
+        
         x = np.concatenate([q, v])
         ddp.problem.x0 = x
+        
+
         xs_init = list(ddp.xs[1:]) + [ddp.xs[-1]]
         xs_init[0] = x
         us_init = list(ddp.us[1:]) + [ddp.us[-1]] 
+      
+            
         # Update OCP for reaching phase
         if(TASK_PHASE == 1):
             for k in range(ddp.problem.T):
@@ -345,6 +349,9 @@ class ClassicalMPCContact:
         self.time_df = 0.
         self.t_child, self.t_child_1 = 0, 0
 
+        self.time = 0.
+
+
     def warmup(self, thread):
         # Warm start 
         self.nb_iter = 100 
@@ -367,9 +374,16 @@ class ClassicalMPCContact:
         self.nb_iter = self.config['maxiter']
         self.sent = False
     
-    @profile
+        self.T_START = 0.
+    
     def run(self, thread):  
-        t1 = time.time()
+        
+        if thread.ti == 0:
+            self.T0 = time.time()        
+
+
+        
+        self.time = time.time() - self.T0
               
         # # # # # # # # # 
         # Read sensors  #
@@ -417,22 +431,28 @@ class ClassicalMPCContact:
 
         # # # # # # # # # 
         # # Update OCP  #
-        # # # # # # # # # 
+        # # # # # # # # 
+        
         # time_to_reach   = thread.ti - self.T_REACH
         # time_to_track   = thread.ti - self.T_TRACK
-        time_to_contact = thread.ti - self.T_CONTACT
+        # time_to_contact = thread.ti - self.T_CONTACT
         # time_to_ramp    = thread.ti - self.T_RAMP
-        time_to_circle  = thread.ti - self.T_CIRCLE
+        # time_to_circle  = thread.ti - self.T_CIRCLE
 
+        time_to_reach   = int(self.time * self.config['plan_freq'] - self.T_REACH)
+        time_to_track   = int(self.time * self.config['plan_freq'] - self.T_TRACK)
+        time_to_contact = int(self.time * self.config['plan_freq'] - self.T_CONTACT)
+        time_to_ramp    = int(self.time * self.config['plan_freq'] - self.T_RAMP)
+        time_to_circle  = int(self.time * self.config['plan_freq'] - self.T_CIRCLE)
 
         # compute integral
-        if self.T_RAMP <= thread.ti and self.config["FORCE_INTEGRAL"]:
+        if 0. <= time_to_ramp and self.config["FORCE_INTEGRAL"]:
             self.force_integral[0] = self.alpha_f * self.force_integral[0] + (self.force_est[2] - self.coef_target_force * self.target_force_traj[time_to_contact, 2]) * self.dt_simu
             self.force_integral[0] = np.core.umath.maximum(np.core.umath.minimum(self.force_integral[0], 100), -100)
                 
         # Delta F estimation:
         
-        if thread.ti > self.T_RAMP:
+        if time_to_ramp > 0.:
             if(self.config['USE_DELTA_F'] == True):
                 self.estimator.estimate(self.data_estimator, q, v, self.acc_est, self.tau_old, np.array([self.delta_f]), np.array([self.force_est[2]]))
                 # Safety clipping (using np.core is 4 times faster than np.clip)
@@ -451,11 +471,11 @@ class ClassicalMPCContact:
         # Update OCP for reaching phase                   
                     
 
-        if(thread.ti == self.T_REACH): 
+        if(time_to_reach == 0): 
             print("Entering reaching phase")
             self.TASK_PHASE = 1
 
-        if(thread.ti == self.T_TRACK): 
+        if(time_to_track == 0): 
             print("Entering tracking phase")
             self.TASK_PHASE = 2
 
@@ -481,7 +501,7 @@ class ClassicalMPCContact:
         if(time_to_circle == 0): 
             self.TASK_PHASE = 4
             print("Entering circle phase")
-
+        
         if(0 <= time_to_circle):
             # set position refs over current horizon
             tf  = time_to_circle + (self.Nh+1)*self.OCP_TO_SIMU_ratio
@@ -521,12 +541,11 @@ class ClassicalMPCContact:
         # else:
         self.tau = self.tau_ff
         
-
+        Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
         # Mismatch correction as feedforward term
         if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['INTERNAL'] == False ):
-            # Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-            # self.tau -= Jac.T @ np.array([0., 0., float(self.delta_f)]) 
-            self.tau -= pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[2, self.controlled_joint_ids] * self.delta_f 
+                        # self.tau -= Jac.T @ np.array([0., 0., float(self.delta_f)]) 
+            self.tau -= Jac[2] * self.delta_f 
             
             
             
@@ -534,7 +553,6 @@ class ClassicalMPCContact:
             self.tau += self.delta_tau 
 
         if( self.config["FORCE_INTEGRAL"] and 0 <= time_to_contact and self.config['INTERNAL'] == False ):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau += self.KF_I * Jac.T @ np.array([0., 0., self.force_integral[0]])
             
             
@@ -544,11 +562,10 @@ class ClassicalMPCContact:
         
         # Lateral force model
         if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact ):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau -= Jac.T @ np.array([self.force_est[0], self.force_est[1], 0.])
             
         if( self.config['USE_COULOMB'] and 0 <= time_to_contact ):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+            # Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             pin.forwardKinematics(self.robot.model, self.robot.data, q, v)
             v_ee    = pin.getFrameVelocity(self.robot.model, self.robot.data, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED).linear
             v_ee[2] = 0.
@@ -581,4 +598,4 @@ class ClassicalMPCContact:
         
         pin.framesForwardKinematics(self.robot.model, self.robot.data, q)
         
-        self.t_run = time.time() - t1
+        self.t_run = time.time() - self.T0 - self.time 

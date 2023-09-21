@@ -5,7 +5,6 @@
 simu_freq: 1000        # Simulation frequency in Hz
 plan_freq: 1000       # Planning frequency
 # T_tot: 15             # Simu duration (s)-
-RICCATI: False 
 
 # Definition of the contact surface in the simulator
 # It is aligned with the LOCAL contact frame by default
@@ -53,11 +52,11 @@ pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '1Dz'
 
 # Lateral force model
-USE_LATERAL_FRICTION: True
+USE_LATERAL_FRICTION: False
 USE_COULOMB: False
 
 # Mismtach correction
-USE_DELTA_F: True
+USE_DELTA_F: False
 FORCE_INTEGRAL: False
 INTERNAL: False
 USE_DELTA_TAU: False

@@ -55,7 +55,7 @@ _, _, cMs, _ = compute_sensor_frame_transform(pin_robot, IiwaReducedConfig.cad_o
 if SIM:
     config['T_tot'] = 400
     # Sim env + set initial state 
-    env = BulletEnvWithGround(p.GUI)
+    env = BulletEnvWithGround(p.DIRECT)
     robot_simulator = env.add_robot(IiwaReducedRobot(controlled_joints=CONTROLLED_JOINTS, qref=QREF))
     robot_simulator.pin_robot = pin_robot 
     q_init = np.asarray(config['q0'] )
@@ -106,13 +106,13 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/video/"
-suffix = "_FL_pertubation_1"
+suffix = "_DEFAULT"
 
 
 if SIM:
-    thread_head.start_logging(15, prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
+    thread_head.start_logging(20, prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
     # thread_head.start_logging(int(config['T_tot']), prefix+CONFIG_NAME+"_SIM_"+str(datetime.now().isoformat())+suffix+".mds")
-    thread_head.sim_run_timed(int(15*config['simu_freq']))
+    thread_head.sim_run_timed(int(20*config['simu_freq']))
     thread_head.stop_logging()
     # thread_head.plot_timing()
 else:

@@ -39,15 +39,15 @@ model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
 controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
 print(controlled_joint_ids)
 # Load config file
-# CONFIG_NAME = 'config'
-CONFIG_NAME = 'config36d'
+CONFIG_NAME = 'config'
+# CONFIG_NAME = 'config36d'
 
 CONFIG_PATH = CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = False 
+SIM = False
 SAVE = False
 
 # Create data Plottger
@@ -59,28 +59,50 @@ N_START = int(config['T_CIRCLE'] * config['simu_freq'])
 print("N_start = ", N_START)
 
 if(SIM):
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_dtau/'
-    data_name = 'config36d_REAL_2023-09-15T13:07:28.199420_df_int.mds'
+    data_path = '/home/skleff/Desktop/delta_f_real_exp/video/'
+    data_name = 'config_SIM_2023-09-21T11:25:31.058883_test.mds'
     
 else:
-    data_path =  '/home/skleff/Desktop/delta_f_real_exp/3d/integral/energy_dtau_final/'
-    data_name = 'config36d_REAL_2023-09-15T18:53:28.530608_FI.mds'
+    data_path =  '/home/skleff/Desktop/delta_f_real_exp/video/'
+    data_name = 'config_REAL_2023-09-21T11:34:55.079355_test_no_RT.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'
 
+
+
 r = DataReader(data_path+data_name)
 N = r.data['tau'].shape[0]
 
-# fig, ax = plt.subplots(4, 1, sharex='col') 
-# ax[0].plot(r.data['KKT'], label='KKT residual')
-# # ax[0].plot(N*[1./config['plan_freq']], label= 'mpc')
-# ax[1].plot(r.data['time_df'], label='DF_time')
-# ax[1].plot(N*[1./config['plan_freq']], label= 'mpc')
-# ax[2].plot(r.data['ddp_iter'], label='ddp iter')
-# ax[3].plot(r.data['t_run'], label='t_run')
-# ax[3].plot(N*[1./config['plan_freq']], label= 'mpc')
-# ax[0].legend(); ax[1].legend(); ax[2].legend(); ax[3].legend()
+time_lin = np.linspace(0, N/ config['plan_freq'], (N))
+
+
+
+plt.figure()
+plt.plot(r.data['time'] , time_lin, label="thead.ti time")
+plt.plot(r.data['time'] , r.data['time'], '--', label="real time")
+plt.legend()
+plt.grid()
+# plt.show()
+
+
+
+fig, ax = plt.subplots(4, 1, sharex='col') 
+ax[0].plot(r.data['KKT'], label='KKT residual')
+# ax[0].plot(N*[1./config['plan_freq']], label= 'mpc')
+ax[1].plot(r.data['time_df'], label='DF_time')
+ax[1].plot(N*[1./config['plan_freq']], label= 'mpc')
+ax[2].plot(r.data['ddp_iter'], label='ddp iter')
+ax[3].plot(r.data['t_run'], label='t_run')
+ax[3].plot(N*[1./config['plan_freq']], label= 'mpc')
+ax[0].legend(); ax[1].legend(); ax[2].legend(); ax[3].legend()
+
+
+PHASE_TIME = 6283
+N_TOTAL = 3 * PHASE_TIME
+print("N_TOTAL", N_TOTAL * 1e-3)
+print("COMPUTE_TOTAL", np.sum(r.data['t_run'][7000:7000+N_TOTAL]))
+
 
 if(FILTER > 0):
     r.data['contact_force_3d_measured'][:N] = analysis_utils.moving_average_filter(r.data['contact_force_3d_measured'][:N].copy(), FILTER)
@@ -169,6 +191,12 @@ fig_p, _ = s.plot_ee_pos( [p_mea,
                ['r',  'k'], 
                linestyle=['solid', 'dotted'])
 
+plt.figure(figsize=(20, 10))
+plt.plot(r.data['time'], p_mea[:,0], 'r', label='x pos Measured')
+plt.plot(r.data['time'], target_position[:, 0], 'k', label='x pos ref')
+plt.grid()
+plt.legend()
+
 # v_mea = get_v_(r.data['joint_velocities'], r.data['x_des'][:,nq:nq+nv], pinrobot.model, pinrobot.model.getFrameId('contact'))
 
 
@@ -206,25 +234,29 @@ target[Tc+N_ramp:, 2] = FZ_MAX
 
 
 # Plot forces
-r.data['compensation'] = np.zeros((N,3))
 fig_f, _ = s.plot_soft_contact_force([
-                           r.data['compensation'][:,:3], 
                            r.data['contact_force_3d_measured'][:,:3], 
                            r.data['force_est'], 
                            target_force_3d,
                            target],
-                          ['comp', 
-                           'Measured', 
+                          ['Measured', 
                            'Filtered',
                            'Target (modified)', 
                            'Target',
                            'Predicted'], 
-                          ['y', 'r', 'g', 'b', 'k'],
+                          ['r', 'g', 'b', 'k'],
                           linestyle=['solid', 'solid', 'solid', 'dotted', 'dotted'])#,
                         #   ylims=[[-50,-50, 0], [50, 50, 1070]])
-# plot force integral
-# plt.figure()
-# plt.plot(r.data['force_integral'])
+
+
+plt.figure(figsize=(20, 10))
+plt.plot(r.data['time'], r.data['contact_force_3d_measured'][:,2], 'r', label='Measured')
+plt.plot(r.data['time'], r.data['force_est'][:,2], 'g', label='Filtered')
+plt.plot(r.data['time'], target_force_3d[:, 2], 'b', label='Target (modified)')
+plt.plot(r.data['time'], target[:, 2], 'k', label='Target')
+plt.grid()
+plt.legend()
+
 
 
 if CONFIG_NAME == 'config':
