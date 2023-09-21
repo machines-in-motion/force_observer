@@ -52,7 +52,7 @@ pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '1Dz'
 
 # Lateral force model
-USE_LATERAL_FRICTION: False
+USE_LATERAL_FRICTION: True
 USE_COULOMB: False
 
 # Mismtach correction

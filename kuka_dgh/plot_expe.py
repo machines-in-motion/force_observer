@@ -53,7 +53,7 @@ SAVE = False
 # Create data Plottger
 s = SimpleDataPlotter()
 
-FILTER = 1
+FILTER = 400
 
 N_START = int(config['T_CIRCLE'] * config['simu_freq']) 
 print("N_start = ", N_START)
@@ -64,7 +64,7 @@ if(SIM):
     
 else:
     data_path =  '/home/skleff/Desktop/delta_f_real_exp/video/'
-    data_name = 'config_REAL_2023-09-21T11:34:55.079355_test_no_RT.mds'
+    data_name = 'config_REAL_2023-09-21T16:14:41.677292_FL_perturbation_2.mds'
     
 # data_path = '/home/skleff/Desktop/soft_contact_real_exp/paper+video_datasets/slow/'
 # data_name = 'reduced_soft_mpc_contact1d_REAL_2023-07-07T14:09:22.468998_slow_exp_2'

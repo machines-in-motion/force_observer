@@ -106,7 +106,7 @@ else:
 thread_head.switch_controllers(ctrl)
 
 prefix = "/home/skleff/Desktop/delta_f_real_exp/video/"
-suffix = "_DEFAULT"
+suffix = "_FL_perturbation_2"
 
 
 if SIM:
