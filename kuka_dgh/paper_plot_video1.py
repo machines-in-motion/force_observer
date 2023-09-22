@@ -77,7 +77,7 @@ r3 = DataReader(data_path+'config_REAL_2023-09-21T11:53:34.390174_FL_DF_PM.mds')
 
 label1 = 'Default'
 label2 = 'FL'
-label3 = r'FL + $\Delta F$ (PM)'
+label3 = r'FL + $\Delta F$'
 
 
 N_TOT = min(r1.data['tau'].shape[0], r2.data['tau'].shape[0])
@@ -151,36 +151,36 @@ color_list = ['b', 'g', 'r', 'y']
 
 print("PLOTTING")
 
-# fig, (ax1, ax2) = plt.subplots(2, 1, sharex='col', figsize=(60, 18))
-fig, (ax1, ax2) = plt.subplots(2, 1, sharex='col', figsize=(85, 20))
+
+fig, (ax1, ax2) = plt.subplots(2, 1, sharex='col', figsize=(68, 16))
 
 fig.canvas.draw() 
 
-ax1.plot(time_lin_1, target_force, color='k', linewidth=4, linestyle='--', label='Reference', alpha=0.5) 
+ax1.plot(time_lin_1, target_force, color='k', linewidth=6, linestyle='--', label='Reference', alpha=0.5) 
 ax1.grid(linewidth=1)
 ax2.grid(linewidth=1) 
 ax2.set_ylim(0., 0.03)
 ax1.set_xlim(time_lin_1[0], time_lin_1[-1])
 ax1.set_ylim(25., 90.)
 ax2.set_xlim(time_lin_1[0], time_lin_1[-1])
-ax1.set_ylabel('Force (N)', fontsize=70)
-ax2.set_ylabel('Position error (m)', fontsize=70)
-ax2.set_xlabel('Time (s)', fontsize=70)
+ax1.set_ylabel('Force (N)', fontsize=56)
+ax2.set_ylabel('Position error (m)', fontsize=56)
+ax2.set_xlabel('Time (s)', fontsize=56)
 
-ax1.tick_params(axis = 'y', labelsize=60)
-ax2.tick_params(axis = 'x', labelsize=60)
-ax2.tick_params(axis = 'y', labelsize=60)
+ax1.tick_params(axis = 'y', labelsize=48)
+ax2.tick_params(axis = 'x', labelsize=48)
+ax2.tick_params(axis = 'y', labelsize=48)
 ax1.tick_params(labelbottom=False)  
 ax1.set_yticks([30, 50, 70, 90])
 
-line1a, = ax1.plot(time_lin_1[0:1], force_1[0:1], animated=True, color=color_list[0], linewidth=4, label=label1, alpha=0.8)
-line1b, = ax1.plot(time_lin_2[0:1], force_2[0:1], animated=True, color=color_list[1], linewidth=4, label=label2, alpha=0.8)
-line1c, = ax1.plot(time_lin_3[0:1], force_3[0:1], animated=True, color=color_list[2], linewidth=4, label=label3, alpha=0.8)
+line1a, = ax1.plot(time_lin_1[0:1], force_1[0:1], animated=True, color=color_list[0], linewidth=6, label=label1, alpha=0.8)
+line1b, = ax1.plot(time_lin_2[0:1], force_2[0:1], animated=True, color=color_list[1], linewidth=6, label=label2, alpha=0.8)
+line1c, = ax1.plot(time_lin_3[0:1], force_3[0:1], animated=True, color=color_list[2], linewidth=6, label=label3, alpha=0.8)
 
 
-line2a, = ax2.plot(time_lin_1[0:1], pos_error_1[0:1], animated=True, color=color_list[0], linewidth=4, label=label1, alpha=0.8)
-line2b, = ax2.plot(time_lin_2[0:1], pos_error_2[0:1], animated=True, color=color_list[1], linewidth=4, label=label2, alpha=0.8)
-line2c, = ax2.plot(time_lin_3[0:1], pos_error_3[0:1], animated=True, color=color_list[2], linewidth=4, label=label3, alpha=0.8)
+line2a, = ax2.plot(time_lin_1[0:1], pos_error_1[0:1], animated=True, color=color_list[0], linewidth=6, label=label1, alpha=0.8)
+line2b, = ax2.plot(time_lin_2[0:1], pos_error_2[0:1], animated=True, color=color_list[1], linewidth=6, label=label2, alpha=0.8)
+line2c, = ax2.plot(time_lin_3[0:1], pos_error_3[0:1], animated=True, color=color_list[2], linewidth=6, label=label3, alpha=0.8)
 
 # Task phases
 PHASE_TIME = 6283
@@ -188,16 +188,16 @@ ax1.axvline(PHASE_TIME/1000., color='k', linewidth=4, linestyle='-', alpha=1.)
 ax1.axvline(2*PHASE_TIME/1000., color='k', linewidth=4, linestyle='-', alpha=1.)
 ax2.axvline(PHASE_TIME/1000., color='k', linewidth=4, linestyle='-', alpha=1.)
 ax2.axvline(2*PHASE_TIME/1000., color='k', linewidth=4, linestyle='-', alpha=1.)
-fig.text(0.22, 0.89, 'Slow', transform=fig.transFigure, fontdict={'size':70})
-fig.text(0.5, 0.89, 'Medium',transform=fig.transFigure, fontdict={'size':70})
-fig.text(0.80, 0.89, 'Fast',transform=fig.transFigure, fontdict={'size':70})
+fig.text(0.22, 0.90, 'Slow', transform=fig.transFigure, fontdict={'size':70})
+fig.text(0.5, 0.90, 'Medium',transform=fig.transFigure, fontdict={'size':70})
+fig.text(0.82, 0.90, 'Fast',transform=fig.transFigure, fontdict={'size':70})
 
 line = [line1a, line1b, line1c, line2a, line2b, line2c]
 
-ax1.legend(loc="upper left", framealpha=0.95, fontsize=47) 
+ax1.legend(loc="upper left", framealpha=0.95, fontsize=40) 
 
 fig.align_ylabels()
-plt.tight_layout(pad=6)
+plt.tight_layout(pad=1)
 
 
 PPS = 100  # Point per second

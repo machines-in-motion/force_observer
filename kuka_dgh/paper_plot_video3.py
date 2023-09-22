@@ -63,7 +63,7 @@ FILTER = 400
 data_path =  '/home/skleff/Desktop/delta_f_real_exp/video/'
     
 label1 = r'Force Integral'
-label2 = r'$\Delta F$ (PM)'
+label2 = r'$\Delta F$'
 
 
 print("Load data 1...")
@@ -157,83 +157,73 @@ color_list = ['b', 'r']
 
 
 ANIMATION = True
-LINEWIDTH = 4
+LINEWIDTH = 6
 ALPHA = 0.8
  
 
 print("PLOTTING")
 
-fig, (ax1, ax2, ax3, ax4) = plt.subplots(4, 1, sharex='col', figsize=(55, 22))
+fig, (ax1, ax2, ax3) = plt.subplots(3, 1, sharex='col', figsize=(55, 13.5))
  
 
 ax1.grid(linewidth=1) 
 ax2.grid(linewidth=1) 
 ax3.grid(linewidth=1) 
-ax4.grid(linewidth=1) 
 
 ax1.set_xlim(time_lin_1[0], time_lin_1[-1])
 ax2.set_xlim(time_lin_1[0], time_lin_1[-1])
 ax3.set_xlim(time_lin_1[0], time_lin_1[-1])
-ax4.set_xlim(time_lin_1[0], time_lin_1[-1])
 
 ax1.set_ylim(0., 0.7)
-ax2.set_ylim(0., 0.02)
-ax3.set_ylim(0., 1.1)
-ax4.set_ylim(0., 1.6)
+ax2.set_ylim(0., 1.1)
+ax3.set_ylim(0., 1.6)
    
 ax1.set_ylabel('Energy cost ', fontsize=45)
-ax2.set_ylabel('Force cost ' , fontsize=45)
-ax3.set_ylabel('Other terms ', fontsize=45)
-ax4.set_ylabel('Total cost ' , fontsize=45)
+ax2.set_ylabel('Other terms ', fontsize=45)
+ax3.set_ylabel('Total cost ' , fontsize=45)
 
-ax4.set_xlabel('Time (s)', fontsize=45)
+ax3.set_xlabel('Time (s)', fontsize=45)
 
 ax1.tick_params(axis = 'y', labelsize=38)
 ax2.tick_params(axis = 'y', labelsize=38)
 ax3.tick_params(axis = 'y', labelsize=38)
-ax4.tick_params(axis = 'y', labelsize=38)
 
-ax4.tick_params(axis = 'x', labelsize=38)
+ax3.tick_params(axis = 'x', labelsize=38)
 
 ax1.tick_params(labelbottom=False)  
 ax2.tick_params(labelbottom=False)  
-ax3.tick_params(labelbottom=False)  
 
 
 if ANIMATION:
     fig.canvas.draw() 
 
     line1_r1, = ax1.plot(time_lin_1[0:1], tau_cost_list_r1[0:1], animated=True, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
-    line2_r1, = ax2.plot(time_lin_1[0:1], force_cost_list_r1[0:1], animated=True, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
-    line3_r1, = ax3.plot(time_lin_1[0:1], state_cost_list_r1[0:1] + rotation_cost_list_r1[0:1], animated=True, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
-    line4_r1, = ax4.plot(time_lin_1[0:1], cost_list_r1[0:1] , animated=True, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
+    line2_r1, = ax2.plot(time_lin_1[0:1], state_cost_list_r1[0:1] + rotation_cost_list_r1[0:1] + force_cost_list_r1[0:1], animated=True, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
+    line3_r1, = ax3.plot(time_lin_1[0:1], cost_list_r1[0:1] , animated=True, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
 
     line1_r2, = ax1.plot(time_lin_2[0:1], tau_cost_list_r2[0:1], animated=True, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
-    line2_r2, = ax2.plot(time_lin_2[0:1], force_cost_list_r2[0:1], animated=True, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
-    line3_r2, = ax3.plot(time_lin_2[0:1], state_cost_list_r2[0:1] + rotation_cost_list_r2[0:1], animated=True, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
-    line4_r2, = ax4.plot(time_lin_2[0:1], cost_list_r2[0:1], animated=True, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
+    line2_r2, = ax2.plot(time_lin_2[0:1], state_cost_list_r2[0:1] + rotation_cost_list_r2[0:1] + force_cost_list_r2[0:1], animated=True, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
+    line3_r2, = ax3.plot(time_lin_2[0:1], cost_list_r2[0:1], animated=True, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
    
 else:
     line1_r1, = ax1.plot(time_lin_1, tau_cost_list_r1, animated=False, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
-    line2_r1, = ax2.plot(time_lin_1, force_cost_list_r1, animated=False, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
-    line3_r1, = ax3.plot(time_lin_1, state_cost_list_r1 + rotation_cost_list_r1, animated=False, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
-    line4_r1, = ax4.plot(time_lin_1, cost_list_r1 , animated=False, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
+    line2_r1, = ax2.plot(time_lin_1, state_cost_list_r1 + rotation_cost_list_r1 + force_cost_list_r1, animated=False, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
+    line3_r1, = ax3.plot(time_lin_1, cost_list_r1 , animated=False, color=color_list[0], linewidth=LINEWIDTH, label=label1, alpha=ALPHA)
 
     line1_r2, = ax1.plot(time_lin_2, tau_cost_list_r2, animated=False, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
-    line2_r2, = ax2.plot(time_lin_2, force_cost_list_r2, animated=False, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
-    line3_r2, = ax3.plot(time_lin_2, state_cost_list_r2 + rotation_cost_list_r2, animated=False, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
-    line4_r2, = ax4.plot(time_lin_2, cost_list_r2 , animated=False, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
+    line2_r2, = ax2.plot(time_lin_2, state_cost_list_r2 + rotation_cost_list_r2 + force_cost_list_r2, animated=False, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
+    line3_r2, = ax3.plot(time_lin_2, cost_list_r2 , animated=False, color=color_list[1], linewidth=LINEWIDTH, label=label2, alpha=ALPHA)
 
 
 
 ax1.legend(loc="upper right", framealpha=0.95, fontsize=30) 
 fig.align_ylabels()
-plt.tight_layout(pad=6)
+plt.tight_layout(pad=3)
 
 
 if ANIMATION:
 
-    line = [line1_r1, line2_r1, line3_r1, line4_r1, line1_r2, line2_r2, line3_r2, line4_r2]
+    line = [line1_r1, line2_r1, line3_r1, line1_r2, line2_r2, line3_r2]
 
     PPS = 100  # Point per second
 
@@ -256,15 +246,13 @@ if ANIMATION:
         mask1 = time_lin_1 < t
         # import pdb; pdb.set_trace()
         line[0].set_data(time_lin_1[mask1], tau_cost_list_r1[mask1])
-        line[1].set_data(time_lin_1[mask1], force_cost_list_r1[mask1])
-        line[2].set_data(time_lin_1[mask1], state_cost_list_r1[mask1]+rotation_cost_list_r1[mask1])
-        line[3].set_data(time_lin_1[mask1], cost_list_r1[mask1])
+        line[1].set_data(time_lin_1[mask1], state_cost_list_r1[mask1]+rotation_cost_list_r1[mask1]+force_cost_list_r1[mask1])
+        line[2].set_data(time_lin_1[mask1], cost_list_r1[mask1])
         
         mask2 = time_lin_2 < t
-        line[4].set_data(time_lin_2[mask2], tau_cost_list_r2[mask2])
-        line[5].set_data(time_lin_2[mask2], force_cost_list_r2[mask2])
-        line[6].set_data(time_lin_2[mask2], state_cost_list_r2[mask2]+rotation_cost_list_r2[mask2])
-        line[7].set_data(time_lin_2[mask2], cost_list_r2[mask2])
+        line[3].set_data(time_lin_2[mask2], tau_cost_list_r2[mask2])
+        line[4].set_data(time_lin_2[mask2], state_cost_list_r2[mask2]+rotation_cost_list_r2[mask2]+force_cost_list_r2[mask2])
+        line[5].set_data(time_lin_2[mask2], cost_list_r2[mask2])
 
         
         # fig.text(0.5, 0.92, str(np.mean(round(cost_list_r2[0:t:SKIP], 2))), transform=fig.transFigure, fontdict={'size':35})
