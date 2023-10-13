@@ -16,15 +16,19 @@ from robot_properties_kuka.config import IiwaConfig
 from force_observer import ForceEstimator, MHForceEstimator, TorqueEstimator
 
 
-
 def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_force):
         t = time.time()
         # Update initial state + warm-start
+        
         x = np.concatenate([q, v])
         ddp.problem.x0 = x
+        
+
         xs_init = list(ddp.xs[1:]) + [ddp.xs[-1]]
         xs_init[0] = x
         us_init = list(ddp.us[1:]) + [ddp.us[-1]] 
+      
+            
         # Update OCP for reaching phase
         if(TASK_PHASE == 1):
             for k in range(ddp.problem.T):
@@ -68,16 +72,11 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
             ddp.problem.terminalModel.differential.costs.costs["translation"].cost.residual.reference = target_reach[-1]    
         
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
-        fpred = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].jMf.actInv(ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f).linear
-        problem_formulation_time = time.time()
-        t_child_1 =  problem_formulation_time - t
         # Solve OCP 
         ddp.solve(xs_init, us_init, maxiter=nb_iter, isFeasible=False)
         solve_time = time.time()
-        ddp_iter = ddp.iter
-        t_child =  solve_time - problem_formulation_time
         # Send solution to parent process + riccati gains
-        return ddp.us[0], ddp.xs[1], ddp.K[0], fpred, t_child, ddp_iter, t_child_1, ddp.KKT
+        return ddp.us[0], ddp.xs[1], ddp.K[0], solve_time - t, ddp.iter, ddp.KKT
 
 
 
@@ -149,7 +148,7 @@ class ClassicalMPCContact:
         self.dt_plan = 1./self.config['plan_freq']
         self.dt_simu = 1./self.config['simu_freq']
         self.ocp_to_sim_ratio = 1. / ( self.config['simu_freq'] * self.dt_ocp )
-        self.sim_to_plan_ratio = self.config['simu_freq']/self.config['plan_freq']
+        self.sim_to_plan_ratio = int(self.config['simu_freq']/self.config['plan_freq'])
         self.OCP_TO_SIMU_ratio = int(self.dt_ocp/self.dt_simu)
         # Create OCP
         self.oMc = contact_placement
@@ -203,7 +202,7 @@ class ClassicalMPCContact:
         self.lwaMc.translation = np.zeros(3)
         if(not self.RUN_SIM):
             f6d_sensor  = pin.Force(self.ft_sensor_wrench)
-            self.contact_force_6d_measured_sensor = f6d_sensor.vector.copy()
+            # self.contact_force_6d_measured_sensor = f6d_sensor.vector.copy()
             f6d_local   = self.cMs.act(f6d_sensor)
             f6d_world   = self.lwaMc.act(self.cMs.act(f6d_sensor))  
         else:
@@ -236,18 +235,30 @@ class ClassicalMPCContact:
 
         # Circle trajectory 
         N_total_pos = int((self.config['T_tot'] - self.config['T_REACH'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio)
-        N_circle = int((self.config['T_tot'] - self.config['T_CIRCLE'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio )
+        N_circle    = int((self.config['T_tot'] - self.config['T_CIRCLE'])/self.dt_simu + self.Nh*self.OCP_TO_SIMU_ratio )
         self.target_position_traj = np.zeros( (N_total_pos, 3) )
         # absolute desired position
         self.oPc_offset = np.asarray(self.config['oPc_offset'])
         self.pdes = np.asarray(self.config['contactPosition']) + self.oPc_offset
-        radius = 0.07 ; omega = 3.
-        # radius = 0.0 ; omega = 3.
-
-        self.target_position_traj[0:N_circle, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
-                                                              self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
-                                                              self.pdes[2]]) for i in range(N_circle)]
-        self.target_position_traj[N_circle:, :] = self.target_position_traj[N_circle-1,:]
+        
+        PHASE_TIME = 6283 # in cycles
+        # SLOW
+        radius = 0.07 ; omega = 1.
+        self.target_position_traj[0:PHASE_TIME, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
+                                                                self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
+                                                                self.pdes[2]]) for i in range(PHASE_TIME)]
+        # MEDIUM
+        omega = 3.
+        self.target_position_traj[PHASE_TIME:2*PHASE_TIME, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
+                                                                           self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
+                                                                           self.pdes[2]]) for i in range(PHASE_TIME)]
+        # FAST
+        omega = 6.
+        self.target_position_traj[2*PHASE_TIME:3*PHASE_TIME, :] = [np.array([self.pdes[0] + radius * (1-np.cos(i*self.dt_simu*omega)), 
+                                                                             self.pdes[1] - radius * np.sin(i*self.dt_simu*omega),
+                                                                             self.pdes[2]]) for i in range(PHASE_TIME)]
+        self.target_position_traj[3*PHASE_TIME:, :] = self.target_position_traj[3*PHASE_TIME-1,:]
+        # import matplotlib.pyplot as plt
         # plt.plot(self.target_position_traj, label='pos')
         # plt.show()
         # Targets over one horizon (initially = absolute target position)
@@ -335,6 +346,12 @@ class ClassicalMPCContact:
         logger.debug("OCP to SIMU time ratio = "+str(self.OCP_TO_SIMU_ratio))
 
         self.compensation = np.zeros(3)
+        self.time_df = 0.
+        self.t_child, self.t_child_1 = 0, 0
+
+        self.time = 0.
+        self.time_old = 0.
+
 
     def warmup(self, thread):
         # Warm start 
@@ -344,7 +361,7 @@ class ClassicalMPCContact:
         self.ddp.us = [self.u0 for i in range(self.Nh)]
         self.is_plan_updated = False
 
-        self.tau_ff, self.x_des, self.K, self.fpred, self.t_child, self.ddp_iter, self.t_child_1, self.KKT = solveOCP(self.joint_positions[self.controlled_joint_ids], 
+        self.tau_ff, self.x_des, self.K, self.t_child, self.ddp_iter, self.KKT = solveOCP(self.joint_positions[self.controlled_joint_ids], 
                                                                                         self.joint_velocities[self.controlled_joint_ids], 
                                                                                         self.ddp, 
                                                                                         self.nb_iter,
@@ -353,16 +370,20 @@ class ClassicalMPCContact:
                                                                                         self.TASK_PHASE,
                                                                                         self.target_force)
 
-        if(self.pinRef != pin.LOCAL):
-            self.fpred = self.lwaMc.rotation @ self.fpred
             
         self.check = 0
         self.nb_iter = self.config['maxiter']
         self.sent = False
     
-
+    
     def run(self, thread):  
-        t1 = time.time()
+        
+        if thread.ti == 0:
+            self.T0 = time.time()        
+
+
+        
+        self.time = (time.time() - self.T0) * self.config['plan_freq']
               
         # # # # # # # # # 
         # Read sensors  #
@@ -384,18 +405,18 @@ class ClassicalMPCContact:
         self.lwaMc.translation = np.zeros(3)
         if(not self.RUN_SIM):
             f6d_sensor         = pin.Force(fs)
-            self.contact_force_6d_measured_sensor = f6d_sensor.vector.copy()
-            f6d_local          = self.cMs.act(f6d_sensor) 
+            # self.contact_force_6d_measured_sensor = f6d_sensor.vector.copy()
+            # f6d_local          = self.cMs.act(f6d_sensor) 
             f6d_world          = self.lwaMc.act(self.cMs.act(f6d_sensor))           
         else:
             #### CAREFUL : PyBullet forces are in WORLD by default
-            f6d_local   = self.lwaMc.actInv(pin.Force(self.ft_sensor_wrench))
+            # f6d_local   = self.lwaMc.actInv(pin.Force(self.ft_sensor_wrench))
             f6d_world   = pin.Force(self.ft_sensor_wrench) 
         
-        if(self.pinRef == pin.LOCAL):
-            self.contact_force_3d_measured = f6d_local.vector[:3].copy()
-        else:
-            self.contact_force_3d_measured = f6d_world.linear.copy()
+        # if(self.pinRef == pin.LOCAL):
+        #     self.contact_force_3d_measured = f6d_local.vector[:3].copy()
+        # else:
+        self.contact_force_3d_measured = f6d_world.linear.copy()
         
             
 
@@ -410,22 +431,26 @@ class ClassicalMPCContact:
 
         # # # # # # # # # 
         # # Update OCP  #
-        # # # # # # # # # 
-        time_to_reach   = int(thread.ti - self.T_REACH)
-        time_to_track   = int(thread.ti - self.T_TRACK)
-        time_to_contact = int(thread.ti - self.T_CONTACT)
-        time_to_ramp    = int(thread.ti - self.T_RAMP)
-        time_to_circle  = int(thread.ti - self.T_CIRCLE)
+        # # # # # # # # 
+        
+        # time_to_reach   = thread.ti - self.T_REACH
+        # time_to_track   = thread.ti - self.T_TRACK
+        # time_to_contact = thread.ti - self.T_CONTACT
+        # time_to_ramp    = thread.ti - self.T_RAMP
+        # time_to_circle  = thread.ti - self.T_CIRCLE
 
+        time_to_contact = int(self.time - self.T_CONTACT)
+        time_to_ramp    = int(self.time - self.T_RAMP)
+        time_to_circle  = int(self.time - self.T_CIRCLE)
 
         # compute integral
-        if 0 <= time_to_ramp and self.config["FORCE_INTEGRAL"]:
+        if 0. <= time_to_ramp and self.config["FORCE_INTEGRAL"]:
             self.force_integral[0] = self.alpha_f * self.force_integral[0] + (self.force_est[2] - self.coef_target_force * self.target_force_traj[time_to_contact, 2]) * self.dt_simu
             self.force_integral[0] = np.core.umath.maximum(np.core.umath.minimum(self.force_integral[0], 100), -100)
                 
         # Delta F estimation:
-        t0 = time.time()
-        if time_to_ramp > 0:
+        
+        if time_to_ramp > 0.:
             if(self.config['USE_DELTA_F'] == True):
                 self.estimator.estimate(self.data_estimator, q, v, self.acc_est, self.tau_old, np.array([self.delta_f]), np.array([self.force_est[2]]))
                 # Safety clipping (using np.core is 4 times faster than np.clip)
@@ -440,20 +465,18 @@ class ClassicalMPCContact:
                     for m in self.ddp.problem.runningModels:
                         m.differential.delta_tau = - self.delta_tau
                     self.ddp.problem.terminalModel.differential.delta_tau = - self.delta_tau
-        self.time_df = time.time() - t0
                     
         # Update OCP for reaching phase                   
                     
-
-        if(time_to_reach == 0): 
+        if self.time_old <= self.T_REACH and self.T_REACH < self.time:
             print("Entering reaching phase")
             self.TASK_PHASE = 1
 
-        if(time_to_track == 0): 
+        if self.time_old <=self.T_TRACK and self.T_TRACK < self.time:
             print("Entering tracking phase")
             self.TASK_PHASE = 2
-
-        if(time_to_contact == 0): 
+    
+        if self.time_old <= self.T_CONTACT and self.T_CONTACT < self.time:
             # Record end-effector position at the time of the contact switch
             self.position_at_contact_switch = self.robot.data.oMf[self.contactFrameId].translation.copy()
             self.target_position[:,:] = self.position_at_contact_switch.copy()
@@ -465,28 +488,25 @@ class ClassicalMPCContact:
 
         if 0 <= time_to_contact:
             # set force refs over current horizon
-            ti  = time_to_contact
-            tf  = ti + (self.Nh+1)*self.OCP_TO_SIMU_ratio
-            self.target_force = self.coef_target_force * self.target_force_traj[ti:tf:self.OCP_TO_SIMU_ratio, 2]
+            tf  = time_to_contact + (self.Nh+1)*self.OCP_TO_SIMU_ratio
+            self.target_force = self.coef_target_force * self.target_force_traj[time_to_contact:tf:self.OCP_TO_SIMU_ratio, 2]
             if( self.config['USE_DELTA_F'] and self.config['INTERNAL']):
                 self.target_force += self.delta_f
             if( self.config["FORCE_INTEGRAL"] and self.config['INTERNAL']):
                 self.target_force -= self.KF_I * self.force_integral[0]
 
-        if(time_to_circle == 0): 
+        if self.time_old <= self.T_CIRCLE and self.T_CIRCLE < self.time:
             self.TASK_PHASE = 4
             print("Entering circle phase")
-
+        
         if(0 <= time_to_circle):
             # set position refs over current horizon
-            ti  = time_to_circle
-            tf  = ti + (self.Nh+1)*self.OCP_TO_SIMU_ratio
+            tf  = time_to_circle + (self.Nh+1)*self.OCP_TO_SIMU_ratio
             # Target in (x,y)  = circle trajectory + offset to start from current position instead of absolute target
-            offset_xy = self.position_at_contact_switch[:2] - self.pdes[:2]
-            self.target_position[:,:2] = self.target_position_traj[ti:tf:self.OCP_TO_SIMU_ratio,:2] + offset_xy
+            self.target_position[:,:2] = self.target_position_traj[time_to_circle:tf:self.OCP_TO_SIMU_ratio,:2] + self.position_at_contact_switch[:2] - self.pdes[:2]
             # Target in z is fixed to the anchor at switch (equals absolute target if RESET_ANCHOR = False)
             # No position tracking in z : redundant with zero activation weight on z
-            self.target_position[:,2]  = self.robot.data.oMf[self.contactFrameId].translation[2].copy()
+            # self.target_position[:,2]  = self.robot.data.oMf[self.contactFrameId].translation[2].copy()
             # Record target signals
             self.target_position_x = self.target_position[:,0] 
             self.target_position_y = self.target_position[:,1] 
@@ -496,10 +516,9 @@ class ClassicalMPCContact:
         # Solve OCP #
         # # # # # # #  
         # If planning cycle, fetch OCP solution
-        self.t_child, self.t_child_1 = 0, 0
-        if thread.ti % int(self.sim_to_plan_ratio) == 0:         
+        if thread.ti % self.sim_to_plan_ratio == 0:         
 
-            self.tau_ff, self.x_des, self.K, self.fpred, self.t_child, self.ddp_iter, self.t_child_1, self.KKT = solveOCP(q, v, 
+            self.tau_ff, self.x_des, self.K, self.t_child, self.ddp_iter, self.KKT = solveOCP(q, v, 
                                                                 self.ddp,
                                                                 self.nb_iter,
                                                                 self.target_position, 
@@ -507,32 +526,30 @@ class ClassicalMPCContact:
                                                                 self.TASK_PHASE,
                                                                 self.target_force)
 
-            if(self.pinRef != pin.LOCAL):
-                self.fpred = self.lwaMc.rotation @ self.fpred
-                
 
         # # # # # # # # 
         # Send policy #
         # # # # # # # #     
 
         # Riccati policy (optional) on (q,v) 
-        if(self.config['RICCATI']):
-            self.tau_riccati = self.K[:,:self.nq+self.nv] @ (self.x_des[:self.nq+self.nv] - np.concatenate([q, v]))
-            self.tau  = self.tau_ff + self.tau_riccati
-        else:
-            self.tau = self.tau_ff
+        # if(self.config['RICCATI']):
+        #     self.tau_riccati = self.K[:,:self.nq+self.nv] @ (self.x_des[:self.nq+self.nv] - np.concatenate([q, v]))
+        #     self.tau  = self.tau_ff + self.tau_riccati
+        # else:
+        self.tau = self.tau_ff
         
-
+        Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
         # Mismatch correction as feedforward term
         if( self.config['USE_DELTA_F'] and 0 <= time_to_contact and self.config['INTERNAL'] == False ):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
-            self.tau -= Jac.T @ np.array([0., 0., float(self.delta_f)]) 
-
+                        # self.tau -= Jac.T @ np.array([0., 0., float(self.delta_f)]) 
+            self.tau -= Jac[2] * self.delta_f 
+            
+            
+            
         if(self.config['USE_DELTA_TAU'] and self.config['INTERNAL'] == False and 0 <= time_to_contact):
             self.tau += self.delta_tau 
 
         if( self.config["FORCE_INTEGRAL"] and 0 <= time_to_contact and self.config['INTERNAL'] == False ):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau += self.KF_I * Jac.T @ np.array([0., 0., self.force_integral[0]])
             
             
@@ -542,11 +559,10 @@ class ClassicalMPCContact:
         
         # Lateral force model
         if( self.config['USE_LATERAL_FRICTION'] and 0 <= time_to_contact ):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             self.tau -= Jac.T @ np.array([self.force_est[0], self.force_est[1], 0.])
             
         if( self.config['USE_COULOMB'] and 0 <= time_to_contact ):
-            Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
+            # Jac = pin.computeFrameJacobian(self.robot.model, self.robot.data, q, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED)[:3, self.controlled_joint_ids]
             pin.forwardKinematics(self.robot.model, self.robot.data, q, v)
             v_ee    = pin.getFrameVelocity(self.robot.model, self.robot.data, self.contactFrameId, pin.LOCAL_WORLD_ALIGNED).linear
             v_ee[2] = 0.
@@ -579,4 +595,5 @@ class ClassicalMPCContact:
         
         pin.framesForwardKinematics(self.robot.model, self.robot.data, q)
         
-        self.t_run = time.time() - t1
+        self.t_run = time.time() - self.T0 - self.time / self.config['simu_freq']
+        self.time_old = self.time
