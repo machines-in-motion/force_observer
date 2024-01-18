@@ -30,7 +30,7 @@ DAMContactDeltaTau::
         const bool enable_force)
     : Base(state, actuation, contacts, costs, JMinvJt_damping, enable_force) ,
       enable_force_(enable_force) {
-  sobec_contacts_ = boost::static_pointer_cast<sobec::ContactModelMultipleTpl<double>>(contacts);
+  croco_contacts_ = boost::static_pointer_cast<crocoddyl::ContactModelMultipleTpl<double>>(contacts);
   delta_tau_ = VectorXd::Zero(state->get_nv());
 }
 
@@ -48,7 +48,7 @@ void DAMContactDeltaTau::calc(
     throw_pretty("Invalid argument: "
                  << "u has wrong dimension (it should be " + std::to_string(this->get_nu()) + ")");
   }
-  const std::size_t nc = sobec_contacts_->get_nc();
+  const std::size_t nc = croco_contacts_->get_nc();
   Data* d = static_cast<Data*>(data.get());
   const Eigen::VectorBlock<const Eigen::Ref<const VectorXd>, Eigen::Dynamic> q = x.head(this->get_state()->get_nq());
   const Eigen::VectorBlock<const Eigen::Ref<const VectorXd>, Eigen::Dynamic> v = x.tail(this->get_state()->get_nv());
@@ -61,7 +61,7 @@ void DAMContactDeltaTau::calc(
 //     d->pinocchio.M.diagonal() += this->get_armature();
 //   }
   this->get_actuation()->calc(d->multibody.actuation, x, u);
-  sobec_contacts_->calc(d->multibody.contacts, x);
+  croco_contacts_->calc(d->multibody.contacts, x);
 
 #ifndef NDEBUG
   Eigen::FullPivLU<MatrixXd> Jc_lu(d->multibody.contacts->Jc.topRows(nc));
@@ -74,8 +74,8 @@ void DAMContactDeltaTau::calc(
                              d->multibody.contacts->Jc.topRows(nc), d->multibody.contacts->a0.head(nc),
                              0.);
   d->xout = d->pinocchio.ddq;
-  sobec_contacts_->updateAcceleration(d->multibody.contacts, d->pinocchio.ddq);
-  sobec_contacts_->updateForce(d->multibody.contacts, d->pinocchio.lambda_c);
+  croco_contacts_->updateAcceleration(d->multibody.contacts, d->pinocchio.ddq);
+  croco_contacts_->updateForce(d->multibody.contacts, d->pinocchio.lambda_c);
 
   // Computing the cost value and residuals
   this->get_costs()->calc(d->costs, x, u);

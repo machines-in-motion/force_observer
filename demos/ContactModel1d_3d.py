@@ -5,7 +5,7 @@ import numpy as np
 np.set_printoptions(precision=6, linewidth=180, suppress=True)
 # np.random.seed(1)
 
-from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
+from croco_mpc_utils.utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 import crocoddyl
@@ -147,7 +147,7 @@ class DAMRigidContact1D3D(crocoddyl.DifferentialActionModelAbstract):
 
             # Compute skew term to be added to rnea derivatives if we are in LWA 
             if(self.pinRefFrame == pin.LOCAL_WORLD_ALIGNED):
-                data.pinocchio.dtau_dq[:self.nv, :self.nv] += data.multibody.contacts.contacts['contact'].drnea_skew_term 
+                data.pinocchio.dtau_dq[:self.nv, :self.nv] += data.multibody.contacts.contacts['contact'].dtau_dq 
                 # missing skew term for delta_f 
                 # pin.skew(data.pinocchio.oMf[self.frameId].rotation.T[:,2] * data.pinocchio.lambda_c)
                 if(self.nc == 1):

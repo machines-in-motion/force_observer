@@ -4,7 +4,7 @@ BOOST_PYTHON_MODULE(force_observer_pywrap) {
 
     namespace bp = boost::python;
 
-    bp::import("sobec");
+    bp::import("crocoddyl");
 
     mim::estimator::exposeEstimator(); 
     mim::estimator::exposeEstimatorTau(); 

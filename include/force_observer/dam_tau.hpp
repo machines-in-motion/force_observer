@@ -4,32 +4,31 @@
 
 #include <stdexcept>
 
-#include <sobec/crocomplements/contact/contact-fwddyn.hpp> 
-#include <sobec/fwd.hpp>
-
 #include <Eigen/Dense>
+
+#include <crocoddyl/multibody/actions/contact-fwddyn.hpp>
 
 namespace mim {
 namespace estimator {
 
-// class sobec::newcontacts::DifferentialActionModelContactFwdDynamics;
+// class crocoddyl::DifferentialActionModelContactFwdDynamics;
 
 /**
  * @brief Differential action model for contact forward dynamics in multibody
  * systems with torque model mismatch
  *
  * This class is derived from
- * `sobec::newcontacts::DifferentialActionModelContactFwdDynamicsTpl` with the additional
+ * `crocoddyl::DifferentialActionModelContactFwdDynamicsTpl` with the additional
  * feature that it allows to propagate the estimated model mismatch delta_tau
  * through the forward dynamics model
  *
  */
 class DAMContactDeltaTau: 
-    public sobec::newcontacts::DifferentialActionModelContactFwdDynamics {
+    public crocoddyl::DifferentialActionModelContactFwdDynamics {
  public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
-  typedef sobec::newcontacts::DifferentialActionModelContactFwdDynamicsTpl<double> Base;
+  typedef crocoddyl::DifferentialActionModelContactFwdDynamicsTpl<double> Base;
   typedef crocoddyl::DifferentialActionDataContactFwdDynamicsTpl<double> Data;
   typedef crocoddyl::MathBaseTpl<double> MathBase;
   typedef crocoddyl::CostModelSumTpl<double> CostModelSum;
@@ -86,7 +85,7 @@ class DAMContactDeltaTau:
 
  private:
   bool enable_force_;
-  boost::shared_ptr<crocoContactModelMultiple> sobec_contacts_;
+  boost::shared_ptr<crocoContactModelMultiple> croco_contacts_;
   VectorXd delta_tau_; 
 };
 

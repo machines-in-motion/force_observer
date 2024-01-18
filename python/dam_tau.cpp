@@ -1,9 +1,6 @@
 
 #include "force_observer/python.hpp"
 #include "force_observer/dam_tau.hpp"
-// #include "crocoddyl/fwd.hpp" 
-// #include "sobec/fwd.hpp"
-// #include <eigenpy/eigenpy.hpp>
 
 namespace mim {
 namespace estimator {
@@ -14,7 +11,7 @@ void exposeDAMTau() {
   bp::register_ptr_to_python<boost::shared_ptr< DAMContactDeltaTau> >();
 
   bp::class_<DAMContactDeltaTau,
-             bp::bases<sobec::newcontacts::DifferentialActionModelContactFwdDynamics> >(
+             bp::bases<crocoddyl::DifferentialActionModelContactFwdDynamics> >(
       "DAMContactDeltaTau",
       "Differential action model for contact forward dynamics in multibody "
       "systems.\n\n"

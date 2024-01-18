@@ -22,7 +22,6 @@ logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 
 # Check installed pkg
-import sobec
 from force_observer import DAMContactDeltaTau
 
 
@@ -89,7 +88,7 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
                                 inv_damping=0., 
                                 enable_force=True)
         else:
-            dam = sobec.DifferentialActionModelContactFwdDynamics(state, 
+            dam = crocoddyl.DifferentialActionModelContactFwdDynamics(state, 
                                 actuation, 
                                 crocoddyl.ContactModelMultiple(state, actuation.nu), 
                                 crocoddyl.CostModelSum(state, nu=actuation.nu), 
@@ -123,14 +122,14 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
     if torque_offset:
         dam_t = DAMContactDeltaTau(state, 
                             actuation, 
-                            sobec.ContactModelMultiple(state, actuation.nu), 
+                            crocoddyl.ContactModelMultiple(state, actuation.nu), 
                             crocoddyl.CostModelSum(state, nu=actuation.nu), 
                                 inv_damping=0., 
                                 enable_force=True)
     else:
-        dam_t = sobec.DifferentialActionModelContactFwdDynamics(state, 
+        dam_t = crocoddyl.DifferentialActionModelContactFwdDynamics(state, 
                                 actuation, 
-                                sobec.ContactModelMultiple(state, actuation.nu), 
+                                crocoddyl.ContactModelMultiple(state, actuation.nu), 
                                 crocoddyl.CostModelSum(state, nu=actuation.nu), 
                                 inv_damping=0., 
                                 enable_force=True)

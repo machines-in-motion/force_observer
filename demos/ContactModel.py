@@ -5,7 +5,7 @@ import numpy as np
 np.set_printoptions(precision=6, linewidth=180, suppress=True)
 # np.random.seed(1)
 
-from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
+from croco_mpc_utils.utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 import crocoddyl
@@ -29,7 +29,7 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         self.parentId = self.pinocchio.frames[self.frameId].parent
         self.jMf = self.pinocchio.frames[self.frameId].placement
 
-        self.pinRefFrame = pinRefFrame
+        # self.pinRefFrame = pinRefFrame
 
         self.nc = contactModelSum.nc
         self.nv = self.pinocchio.nv
@@ -123,6 +123,7 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
         # Constrained dynamics
         else: 
             pin.computeRNEADerivatives(self.pinocchio, data.pinocchio, q, v, data.xout, data.multibody.contacts.fext) # 3D derivative with fext including delta_f
+            self.contacts.updateRneaDiff(data.multibody.contacts, data.pinocchio)
             if(self.nc == 1):
                 data.Kinv = pin.getKKTContactDynamicMatrixInverse(self.pinocchio, data.pinocchio, data.multibody.contacts.Jc.reshape((1, self.nv))) # Kinv has nc=1 
             else:
@@ -130,12 +131,7 @@ class DAMRigidContact(crocoddyl.DifferentialActionModelAbstract):
 
             # Contact derivatives
             self.contacts.calcDiff(data.multibody.contacts, x) 
-
-            # Compute skew term to be added to rnea derivatives if we are in LWA 
-            if(self.pinRefFrame == pin.LOCAL_WORLD_ALIGNED):
-                data.pinocchio.dtau_dq[:self.nv, :self.nv] += data.multibody.contacts.contacts['contact'].drnea_skew_term 
-
-
+            
             # Extract Kinv blocks
             a_partial_dtau = data.Kinv[:self.nv, :self.nv]
             a_partial_da = data.Kinv[:self.nv, -self.nc:]
