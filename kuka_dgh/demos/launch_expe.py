@@ -8,7 +8,7 @@ from mim_robots.pybullet.env import BulletEnvWithGround
 from mim_robots.robot_list import MiM_Robots
 import pathlib
 import os
-python_path = pathlib.Path('.').absolute().parent/'kuka_dgh'
+python_path = pathlib.Path('.').absolute().parent
 os.sys.path.insert(1, str(python_path))
 print(python_path)
 import launch_utils
@@ -50,7 +50,7 @@ _, _, cMs, _ = compute_sensor_frame_transform(pin_robot, mount_piece_type='shell
 # # # # # # # # # # # # #
 if SIM:
     # Sim env + set initial state 
-    config['T_tot'] = 400              
+    config['T_tot'] = 30              
     env = BulletEnvWithGround(p.GUI)
     robot_simulator = load_bullet_wrapper('iiwa_ft_sensor_shell', locked_joints=LOCKED_JOINTS)
     robot_simulator.pin_robot = pin_robot 

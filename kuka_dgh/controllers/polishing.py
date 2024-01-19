@@ -4,7 +4,7 @@ import mim_solvers
 import time
 
 import sys
-sys.path.append("../demos/utils")
+sys.path.append("../utils")
 from ocp_utils import OptimalControlProblemClassicalWithObserver
 from force_observer import ForceEstimator, MHForceEstimator, TorqueEstimator
 
