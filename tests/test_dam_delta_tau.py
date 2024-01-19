@@ -1,3 +1,7 @@
+'''
+Test that the C++ class DAMContactDeltaTau matches Crocoddyl DAM
+when delta_tau = 0
+'''
 import pinocchio as pin
 import example_robot_data as robex
 import numpy as np
@@ -5,7 +9,6 @@ from numpy.linalg import norm
 np.set_printoptions(precision=4, linewidth=180)
 import crocoddyl
 from force_observer import DAMContactDeltaTau
-import sobec
 
 nc = 3
 pinRefFrame = pin.LOCAL_WORLD_ALIGNED
@@ -76,15 +79,16 @@ for _, nc in enumerate(CONTACT_DIMS):
             terminalCostModel = crocoddyl.CostModelSum(state)
             # Contact model 
             # Create 3D contact on the en-effector frame
-            contactModel = sobec.ContactModelMultiple(state, actuation.nu)
+            contactModel = crocoddyl.ContactModelMultiple(state, actuation.nu)
             # contact_position = robot.data.oMf[contact_frame_id].copy()
             baumgarte_gains  = np.array([0., 0.])
             if(nc == 3):
-                contactItem = sobec.ContactModel3D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, baumgarte_gains, pinRefFrame) 
+                contactItem = crocoddyl.ContactModel3D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, pinRefFrame, actuation.nu, baumgarte_gains) 
             elif(nc == 6):
-                contactItem = sobec.ContactModel6D(state, contact_frame_id, robot.data.oMf[contact_frame_id], baumgarte_gains, pinRefFrame) 
+                contactItem = crocoddyl.ContactModel6D(state, contact_frame_id, robot.data.oMf[contact_frame_id], pinRefFrame, actuation.nu, baumgarte_gains) 
             elif(nc == 1 or nc == 0):
-                contactItem = sobec.ContactModel1D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation, actuation.nu, baumgarte_gains, sobec.Vector3MaskType.z, pinRefFrame) 
+                M = pin.SE3.Identity()
+                contactItem = crocoddyl.ContactModel1D(state, contact_frame_id, robot.data.oMf[contact_frame_id].translation[2], pinRefFrame, M.rotation, actuation.nu, baumgarte_gains) 
             else: pass
             # Populate contact model with contacts
             if(nc == 0):
@@ -97,7 +101,7 @@ for _, nc in enumerate(CONTACT_DIMS):
             xResidual = crocoddyl.ResidualModelState(state, x0 )
             xRegCost = crocoddyl.CostModelResidual(state, xResidual)
             desired_wrench = np.array([0., 0., -100., 0., 0., 0.])
-            frameForceResidual = sobec.ResidualModelContactForce(state, contact_frame_id, pin.Force(desired_wrench), nc, actuation.nu)
+            frameForceResidual = crocoddyl.ResidualModelContactForce(state, contact_frame_id, pin.Force(desired_wrench), nc, actuation.nu)
             contactForceCost = crocoddyl.CostModelResidual(state, frameForceResidual)
             runningCostModel.addCost("stateReg", xRegCost, 1e-2)
             runningCostModel.addCost("ctrlRegGrav", uRegCost, 1e-4)
@@ -108,27 +112,27 @@ for _, nc in enumerate(CONTACT_DIMS):
             # Create DAM delta_tau and classical DAM
             DAM = DAMContactDeltaTau(state, actuation, contactModel, runningCostModel, 0., enable_force=True)
             DAD = DAM.createData()
-            DAM_sobec = sobec.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, runningCostModel, 0., enable_force=True)
-            DAD_sobec = DAM_sobec.createData()
+            DAM_crocoddyl = crocoddyl.DifferentialActionModelContactFwdDynamics(state, actuation, contactModel, runningCostModel, 0., enable_force=True)
+            DAD_crocoddyl = DAM_crocoddyl.createData()
 
             # Check that DAM and DAM delta_tau are equivalent when delta_tau = 0
             DAM.delta_tau = np.zeros(nv) 
             DAM.calc(DAD, x0, tau0)
             DAM.calcDiff(DAD, x0, tau0)
-            DAM_sobec.calc(DAD_sobec, x0, tau0)
-            DAM_sobec.calcDiff(DAD_sobec, x0, tau0)
-            assert(norm(DAD.xout - DAD_sobec.xout) <= TOL)
-            assert(norm(DAD.Fx - DAD_sobec.Fx) <= TOL)
-            assert(norm(DAD.Fu - DAD_sobec.Fu) <= TOL)
+            DAM_crocoddyl.calc(DAD_crocoddyl, x0, tau0)
+            DAM_crocoddyl.calcDiff(DAD_crocoddyl, x0, tau0)
+            assert(norm(DAD.xout - DAD_crocoddyl.xout) <= TOL)
+            assert(norm(DAD.Fx - DAD_crocoddyl.Fx) <= TOL)
+            assert(norm(DAD.Fu - DAD_crocoddyl.Fu) <= TOL)
 
-            assert(norm(DAD.pinocchio.dtau_dq - DAD_sobec.pinocchio.dtau_dq) <= TOL)
-            assert(norm(DAD.df_dx - DAD_sobec.df_dx) <= TOL)
-            assert(norm(DAD.df_du - DAD_sobec.df_du) <= TOL)
+            assert(norm(DAD.pinocchio.dtau_dq - DAD_crocoddyl.pinocchio.dtau_dq) <= TOL)
+            assert(norm(DAD.df_dx - DAD_crocoddyl.df_dx) <= TOL)
+            assert(norm(DAD.df_du - DAD_crocoddyl.df_du) <= TOL)
 
             # Check that they differ when delta_tau is not zero
             # DAM.delta_tau = np.random.rand(nv)
             DAM.calc(DAD, x0, tau0)
-            # assert(norm(DAD.xout - DAD_sobec.xout) > TOL)
+            # assert(norm(DAD.xout - DAD_crocoddyl.xout) > TOL)
 
             # Compute derivative of DAM delta_tau and check against NumDiff
             DAM.calcDiff(DAD, x0, tau0)
@@ -139,25 +143,31 @@ for _, nc in enumerate(CONTACT_DIMS):
                 return dad.xout
 
             def df_dam(dam, dad, q, v, u):
+                '''
+                Careful: cd.fext contains the contact force (spatial) expressed at the parent joint level
+                while DAD.df_dx is already expressed in the desired frame of reference
+                So we need to be transform cd.fext through jMf^-1 (in LOCAL) or lwaMf*jMf^-1 (in LWA)
+                    Special case of contact 1D: there can be an additional rotation that
+                    rotates the z-axis of the reference frame in any arbitrary direction
+                '''
                 dam.calc(dad, np.concatenate([q,v]), u)
                 cd = dad.multibody.contacts.contacts['contact']
                 if(nc == 1):
                     if(pinRefFrame == pin.LOCAL):
-                        return jMf.actInv(cd.f).vector[2]
+                        return jMf.actInv(M.actInv(cd.fext)).vector[2]
                     else:
                         lwaMf = dad.pinocchio.oMf[contact_frame_id].copy() ; lwaMf.translation = np.zeros(3)
-                        return lwaMf.act(jMf.actInv(cd.f)).vector[2]
+                        return M.act(lwaMf.act(jMf.actInv(cd.fext))).vector[2]
                 else:
                     if(pinRefFrame == pin.LOCAL):
-                        return jMf.actInv(cd.f).vector[:nc]
+                        return jMf.actInv(cd.fext).vector[:nc]
                     else:
                         lwaMf = dad.pinocchio.oMf[contact_frame_id].copy() ; lwaMf.translation = np.zeros(3)
-                        return lwaMf.act(jMf.actInv(cd.f)).vector[:nc]
+                        return lwaMf.act(jMf.actInv(cd.fext)).vector[:nc]
 
             def tau_dam(dam, dad, q, v, u):
                 pin.rnea(dam.pinocchio, dad.pinocchio, q, v, dad.xout, dad.multibody.contacts.fext)
-                return dad.pinocchio.tau 
-
+                return dad.pinocchio.tau
 
 
             # Joint acc derivatives

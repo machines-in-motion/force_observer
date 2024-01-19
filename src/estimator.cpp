@@ -87,6 +87,7 @@ void ForceEstimator::estimate(
         pinocchio::getFrameJacobian(pinocchio_, d->pinocchio, frameId_, ref_, d->J);
         d->J1 = d->J.topRows(nc_);
     }
+    
     d->alpha0 -= baumgarte_gains_[1] * d->nu;
     if(nc_delta_f_ == 3 && nc_ == 1){
         pinocchio::getFrameJacobian(pinocchio_, d->pinocchio, frameId_, ref_, d->J);
@@ -101,7 +102,6 @@ void ForceEstimator::estimate(
     d->A.block(0, nv_, nv_, nc_) = d->J1.transpose();
     d->A.block(0, nv_+nc_, nv_, nc_delta_f_) = d->J2.transpose();
     d->A.block(nv_, 0, nc_, nv_) = d->J1;
-
     d->g.head(nv_) = -Q_.cwiseProduct(a);
     d->g.segment(nv_, nc_) = -R_.cwiseProduct(F_mes);
     d->g.tail(nc_delta_f_)= - P_.cwiseProduct(df_prior);

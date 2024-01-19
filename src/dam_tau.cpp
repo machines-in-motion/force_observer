@@ -63,13 +63,6 @@ void DAMContactDeltaTau::calc(
   this->get_actuation()->calc(d->multibody.actuation, x, u);
   croco_contacts_->calc(d->multibody.contacts, x);
 
-#ifndef NDEBUG
-  Eigen::FullPivLU<MatrixXd> Jc_lu(d->multibody.contacts->Jc.topRows(nc));
-
-  if (Jc_lu.rank() < d->multibody.contacts->Jc.topRows(nc).rows() && JMinvJt_damping_ == Scalar(0.)) {
-    throw_pretty("A damping factor is needed as the contact Jacobian is not full-rank");
-  }
-#endif
   pinocchio::forwardDynamics(this->get_pinocchio(), d->pinocchio, d->multibody.actuation->tau + delta_tau_,
                              d->multibody.contacts->Jc.topRows(nc), d->multibody.contacts->a0.head(nc),
                              0.);

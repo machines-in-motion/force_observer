@@ -1,3 +1,8 @@
+'''
+Test python protoype of modified DAM 
+ - numdiff derivatives 
+ - equivalent with Crocoddyl DAM when delta_f = 0
+'''
 import pinocchio as pin
 import example_robot_data as robex
 import numpy as np
@@ -6,8 +11,9 @@ import crocoddyl
 
 import pathlib
 import os
-python_path = pathlib.Path('.').absolute()/'demos'
+python_path = pathlib.Path('.').absolute().parent.parent/'demos'
 os.sys.path.insert(1, str(python_path))
+print(python_path)
 
 from ContactModel import DAMRigidContact
 from ContactModel1d_3d import DAMRigidContact1D3D
@@ -201,5 +207,3 @@ assert(np.linalg.norm(DAD_croco.Lxu - DAD2.Lxu)<=TOL)
 assert(np.linalg.norm(DAD_croco.Luu - DAD2.Luu)<=TOL)   
 assert(np.linalg.norm(DAD_croco.df_dx - DAD2.df_dx[:nc])<=TOL)   
 assert(np.linalg.norm(DAD_croco.df_du - DAD2.df_du[:nc])<=TOL)   
-
-print("OK !")

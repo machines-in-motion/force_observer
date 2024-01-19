@@ -1,6 +1,8 @@
 #include "force_observer/python.hpp"
 #include "force_observer/estimator.hpp"
 
+#include <eigenpy/eigenpy.hpp>
+
 namespace mim {
 namespace estimator {
 

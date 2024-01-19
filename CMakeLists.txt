@@ -6,6 +6,7 @@ set(PROJECT_NAME force_observer)
 set(PROJECT_DESCRIPTION "Force estimation project.")
 set(PROJECT_URL https://github.com/${PROJECT_NAMESPACE}/${PROJECT_NAME})
 
+add_compile_options(-fno-stack-protector)
 # Project options
 option(BUILD_PYTHON_INTERFACE "Build the python binding" ON)
 option(SUFFIX_SO_VERSION "Suffix library name with its version" ON)
@@ -42,7 +43,7 @@ find_package(Boost REQUIRED COMPONENTS unit_test_framework)
 
 add_project_dependency(pinocchio REQUIRED)
 add_project_dependency(crocoddyl REQUIRED)
-add_project_dependency(eigenpy 2.7.10 REQUIRED)
+add_project_dependency(eigenpy REQUIRED)
 find_package(proxsuite REQUIRED)
 
 if(BUILD_PYTHON_INTERFACE)
