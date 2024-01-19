@@ -78,9 +78,6 @@ print("N_start = ", N_START)
 if(FILTER > 0):
     r.data['contact_force_3d_measured'][:N] = analysis_utils.moving_average_filter(r.data['contact_force_3d_measured'][:N].copy(), FILTER)
 
-# target_joint = np.zeros((N,nq))
-# target_joint[:, 2] = r.data['target_joint'][:,0]
-
 s.plot_joint_pos( [r.data['x_des'][:,:nq],
                    r.data['joint_positions'][:,controlled_joint_ids]],
                 #    target_joint],
@@ -161,14 +158,9 @@ plt.legend()
 
 
 target_force_3d = np.zeros((N, 3))
-if CONFIG_NAME == 'normal_force':
-    target_force_3d[:,0] = r.data['target_force_fx'][:,0]
-    target_force_3d[:,1] = r.data['target_force_fy'][:,0]
-    target_force_3d[:,2] = r.data['target_force_fz'][:,0]
-else:
-    target_force_3d[:,0] = r.data['target_force'][:,0]*0.
-    target_force_3d[:,1] = r.data['target_force'][:,0]*0.
-    target_force_3d[:,2] = r.data['target_force'][:,0]
+target_force_3d[:,0] = r.data['target_force'][:,0]*0.
+target_force_3d[:,1] = r.data['target_force'][:,0]*0.
+target_force_3d[:,2] = r.data['target_force'][:,0]
 
 force_delta_f = np.zeros((N, 3))
 force_delta_f[:,2] = np.array(r.data['contact_force_3d_measured'][:,2]) + np.array(r.data['delta_f'])[:,0]
@@ -183,11 +175,6 @@ FZ_MAX = config['frameForceRef'][2]
 FX_MAX = config['frameForceRef'][0]
 target[Tc:Tc+N_ramp, 2] = [FZ_MIN + (FZ_MAX - FZ_MIN)*i/N_ramp for i in range(N_ramp)]
 target[Tc+N_ramp:, 2] = FZ_MAX
-# if CONFIG_NAME == 'config36d':
-#     freq = 0.02
-#     # target[Tc+N_ramp:, 2] = [FZ_MAX + 40.*np.round(freq * (2*np.pi) * i / config['ctrl_freq'] - int(freq * (2*np.pi) * i / config['ctrl_freq'])) for i in range(N-N_ramp-Tc)]
-#     target[Tc+N_ramp:, 2] = [FZ_MAX + 50.*(np.round(freq * (2*np.pi) * i / config['ctrl_freq'] - int(freq * (2*np.pi) * i / config['ctrl_freq']))-0.5) for i in range(N-N_ramp-Tc)]
-
 
 
 
@@ -218,152 +205,26 @@ plt.legend()
 
 
 
-if CONFIG_NAME == 'polishing':
-    # Compute average tracking error for each circle
-    CIRCLE_PERIOD_IN_CYCLES = int(2*np.pi/3.*1000)
-    N_START = N_START
-    N_CIRCLE = int((N-N_START)/CIRCLE_PERIOD_IN_CYCLES)
-    N = N_START + CIRCLE_PERIOD_IN_CYCLES * N_CIRCLE
+# Compute average tracking error for each circle
+CIRCLE_PERIOD_IN_CYCLES = int(2*np.pi/3.*1000)
+N_START = N_START
+N_CIRCLE = int((N-N_START)/CIRCLE_PERIOD_IN_CYCLES)
+N = N_START + CIRCLE_PERIOD_IN_CYCLES * N_CIRCLE
 
-    error_traj = np.abs(r.data['contact_force_3d_measured'][N_START:, 2] - target[N_START:, 2])
-    mean_errors = [np.mean(error_traj[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(N_CIRCLE)]
-    print(mean_errors)
+error_traj = np.abs(r.data['contact_force_3d_measured'][N_START:, 2] - target[N_START:, 2])
+mean_errors = [np.mean(error_traj[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(N_CIRCLE)]
+print(mean_errors)
 
-    print(" Fz mean abs error [1:] = ", np.mean(mean_errors[1:]), r'$\pm$', np.std(mean_errors[1:]))
-    print(" Fz mean abs error      = ", np.mean(mean_errors), r'$\pm$', np.std(mean_errors))
-    # print(" F3d mean abs error = ", np.mean(np.linalg.norm(np.abs(r.data['contact_force_3d_measured'][N_START:N, :] - target[N_START:, :]))))
-
-
-    error_traj_pos = np.abs(p_mea[N_START:, :2] - target_position[N_START:, :2])
-    mean_error_pos = [np.mean(error_traj_pos[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(1, N_CIRCLE)]
-    # print(mean_errors)
-    print( ": POS mean abs error      = ",  np.mean(mean_error_pos), "  +-  ", np.std(mean_error_pos))
-    print('\n')    
-    
-    
-else:
-    print(" F_xy mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, :2] - target[N_START:N, :2])))
-    print(" Fz mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target[N_START:N, 2])))
-    print(" F mean abs error      = ", np.mean(np.abs(r.data['contact_force_3d_measured'][N_START:N] - target[N_START:N])))
+print(" Fz mean abs error [1:] = ", np.mean(mean_errors[1:]), r'$\pm$', np.std(mean_errors[1:]))
+print(" Fz mean abs error      = ", np.mean(mean_errors), r'$\pm$', np.std(mean_errors))
+# print(" F3d mean abs error = ", np.mean(np.linalg.norm(np.abs(r.data['contact_force_3d_measured'][N_START:N, :] - target[N_START:, :]))))
 
 
-
-    
-    
-# Compute energy
-if CONFIG_NAME == 'normal_force':
-    if SIM:
-        print("Total energy = ",  np.mean([np.linalg.norm(u) for u in r.data['tau'][N_START:, controlled_joint_ids]]))
-    else:
-        torque_list = [np.linalg.norm(u1+u2) for u1, u2 in zip(r.data['tau'][N_START:, controlled_joint_ids], r.data['tau_gravity'][:,controlled_joint_ids])]
-        print("Avg Torque = ",  np.mean([np.linalg.norm(u) for u in torque_list]) )
-        
-        torque_square_norm = [np.linalg.norm(u)**2 for u in torque_list]
-        print("Avg Square Torque = ",  np.mean(torque_square_norm) )
-
-        CIRCLE_PERIOD_IN_CYCLES = int(1000 / 0.5)
-        print(CIRCLE_PERIOD_IN_CYCLES)
-        N_CIRCLE = int((N-N_START)/CIRCLE_PERIOD_IN_CYCLES)
-        N = N_START + CIRCLE_PERIOD_IN_CYCLES * N_CIRCLE
-        print(N_CIRCLE)
-        
-        def mean_std(np_array):
-            np_array = [np.mean(np_array[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(1, N_CIRCLE)]
-            return np.mean(np_array), np.std(np_array)
-                    
-        mean_torque_errors = [np.mean(torque_square_norm[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(N_CIRCLE)]
-        # print("Avg Square Torque [1:] = ", np.mean(mean_torque_errors[1:]), r'$\pm$', np.std(mean_torque_errors[1:]))
-        m , std = mean_std(torque_square_norm)
-        print("Avg Square Torque [1:] = ", m, r'$\pm$', std)
-        # print("Avg Square Torque      = ", np.mean(mean_torque_errors), r'$\pm$', np.std(mean_torque_errors))
-
-
-
-
-    cost_list = []
-    force_cost_list = []
-    state_cost_list = []
-    tau_cost_list = []
-    rotation_cost_list = []
-    for t in range(N- N_START):
-        index = N_START  + t
-
-        f = r.data['contact_force_3d_measured'][index][:3]   
-        q = r.data['joint_positions'][index,controlled_joint_ids]
-        v = r.data['joint_velocities'][index,controlled_joint_ids]
-        x = np.concatenate([q, v])
-        if SIM:
-            tau = r.data['tau'][index, controlled_joint_ids] 
-        else:
-            tau = r.data['tau'][index, controlled_joint_ids] + r.data['tau_gravity'][index,controlled_joint_ids]
-
-        rotation = pin.utils.rpyToMatrix(get_rpy_(r.data['joint_positions'][index,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact')))
-
-        f_ref = config['frameForceRef'][:3]
-        xref = np.array([0., 1.0471975511965976, r.data['target_joint'][index, 0], -1.1344640137963142, 0.2,  0.7853981633974483, 0.,0.,0.,0.,0.,0.])
-        tau_ref = np.zeros(tau.shape)
-        rotation_ref = pin.utils.rpyToMatrix(np.pi, 0, np.pi)
-
-
-
-        force_cost = 0.5 * config['frameForceWeight'] * (f - f_ref).T @ np.diag(config['frameForceWeights'][:3])@ (f - f_ref)
-        # force_cost = 0.5 * config['frameForceWeight'] * (f - f_ref).T @ np.diag(np.array([0, 0., 0.01]))@ (f - f_ref)
-        force_cost_list.append(force_cost)
-
-
-        state_cost = 0.5 * config['stateRegWeight'] * (x - xref).T @ np.diag(config['stateRegWeights'])@ (x - xref)
-        state_cost_list.append(state_cost)
-
-        tau_cost =  0.5 * 0.0008 * (tau - tau_ref).T @ (tau - tau_ref)
-        tau_cost_list.append(tau_cost)
-
-
-        rot_residual = pin.log3(rotation_ref.T @ rotation) 
-        rotation_cost = 0.5 * config['frameRotationWeight'] * rot_residual.T @ np.diag(config['frameRotationWeights']) @ rot_residual
-        rotation_cost_list.append(rotation_cost)
-
-
-        cost_list.append(force_cost + state_cost + tau_cost + rotation_cost)
-
-
-
-    cost_list = np.array(cost_list)
-    force_cost_list = np.array(force_cost_list)
-    state_cost_list = np.array(state_cost_list)
-    tau_cost_list = np.array(tau_cost_list)
-    rotation_cost_list = np.array(rotation_cost_list)
-
-
-
-    if not SIM:
-        mean , std = mean_std(cost_list)
-        print("total cost ", mean, ' +- ', std)
-
-
-        mean , std = mean_std(force_cost_list)
-        print("force cost ", mean, ' +- ', std)
-
-
-        mean , std = mean_std(state_cost_list)
-        print("state cost ", mean, ' +- ', std)
-
-        mean , std = mean_std(tau_cost_list)
-        print("tau cost ", mean, ' +- ', std)
-
-
-        mean , std = mean_std(rotation_cost_list)
-        print("rotation cost ", mean, ' +- ', std)
-
-
-    plt.figure()
-    plt.plot(cost_list, label="total cost")
-    plt.plot(force_cost_list, label="force cost")
-    plt.plot(state_cost_list, label="state cost")
-    plt.plot(tau_cost_list, label="tau cost")
-    plt.plot(rotation_cost_list, label="rotation cost")
-    plt.legend()
-    plt.show()
-
+error_traj_pos = np.abs(p_mea[N_START:, :2] - target_position[N_START:, :2])
+mean_error_pos = [np.mean(error_traj_pos[t*CIRCLE_PERIOD_IN_CYCLES:(t+1)*CIRCLE_PERIOD_IN_CYCLES]) for t in range(1, N_CIRCLE)]
+# print(mean_errors)
+print( ": POS mean abs error      = ",  np.mean(mean_error_pos), "  +-  ", np.std(mean_error_pos))
+print('\n')    
 
 # if(SAVE):
 #     fig_f.savefig(data_path+data_name+'_force.png')
