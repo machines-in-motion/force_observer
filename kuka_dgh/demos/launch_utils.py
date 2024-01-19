@@ -89,7 +89,6 @@ POLISHING_LOGS = ['KKT',
                   'delta_f',
                   'force_est',
                   'contact_force_3d_measured',
-                #   'target_joint',
                   'target_position_x',
                   'target_position_y',
                   'target_position_z']

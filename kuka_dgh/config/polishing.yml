@@ -58,7 +58,7 @@ USE_LATERAL_FRICTION: True
 USE_COULOMB: False
 
 # Mismtach correction
-USE_DELTA_F: False
+USE_DELTA_F: True
 FORCE_INTEGRAL: False
 INTERNAL: False
 USE_DELTA_TAU: False

@@ -34,7 +34,7 @@ config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 # Load data 
-SIM = True
+SIM = False
 
 # Create data Plottger
 s = SimpleDataPlotter()
@@ -47,9 +47,10 @@ if(SIM):
     
 else:
     data_path = '/tmp/'
-    data_name = '' 
+    data_name = 'polishing_REAL_2024-01-19T18:31:38.701941test' 
 
 r       = DataReader(data_path+data_name+'.mds')
+print("\n reading "+data_path+data_name+'.mds\n')
 N       = r.data['absolute_time'].shape[0]
 print("Total number of control cycles = ", N)
 time_lin = np.linspace(0, N/ config['plan_freq'], (N))
@@ -69,9 +70,8 @@ for i in range(4):
 PHASE_TIME = 6283
 N_TOTAL = 3 * PHASE_TIME
 print("N_TOTAL", N_TOTAL * 1e-3)
-# print("COMPUTE_TOTAL", np.sum(r.data['t_run'][7000:7000+N_TOTAL]))
 
-FILTER = 400
+FILTER = 10
 N_START = int(config['T_CIRCLE'] * config['ctrl_freq']) 
 print("N_start = ", N_START)
 
@@ -92,62 +92,52 @@ s.plot_joint_pos( [r.data['x_des'][:,:nq],
                     'k'],
                    linestyle=['solid', 'solid', 'dotted'],
                    ylims=[model.lowerPositionLimit, model.upperPositionLimit] )
-# s.plot_joint_vel( [r.data['joint_velocities'][:,controlled_joint_ids], r.data['x_des'][:,nq:nq+nv]], # r.data['x'][:,nq:nq+nv], r.data['x1'][:,nq:nq+nv]],
-#                   ['mea', 'pred'], # 'pred0', 'pred1'], 
-#                   ['r', 'b'], #[0.2, 0.2, 0.2, 0.5], 'b', 'g']) 
-#                   ylims=[-model.velocityLimit, +model.velocityLimit] )
 
+if(config['USE_DELTA_F']):
+    plt.figure()
+    plt.plot(np.array(r.data['delta_f']))
+    plt.title("delta_f")
 
-# s.plot_joint_vel( [r.data['a'][:,controlled_joint_ids],
-#                    r.data['acc_est'][:,controlled_joint_ids]],
-#                   ['a mea', 'a smooth' ], # 'pred0', 'pred1'], 
-#                   ['r', 'c'] )
-
-# if(config['USE_DELTA_F']):
-#     plt.figure()
-#     plt.plot(np.array(r.data['delta_f']))
-#     plt.title("delta_f")
-
-# if(config['USE_DELTA_TAU']):
-#     s.plot_joint_tau( [r.data['delta_tau']], 
-#                       ['delta_tau'], 
-#                       ['r'])
+if(config['USE_DELTA_TAU']):
+    s.plot_joint_tau( [r.data['delta_tau']], 
+                      ['delta_tau'], 
+                      ['r'])
 
 # For SIM robot only
-# if(SIM):
-#     s.plot_joint_tau( [r.data['tau'], 
-#                        r.data['tau_ff'], 
-#                        r.data['tau_riccati'], 
-#                        r.data['tau_gravity']],
-#                       ['total', 
-#                        'ff', 
-#                        'riccati', 
-#                        'gravity'], 
-#                       ['r', 
-#                        'g', 
-#                        'b', 
-#                        [0.2, 0.2, 0.2, 0.5]],
-#                       ylims=[-model.effortLimit, +model.effortLimit] )
-# # For REAL robot only !! DEFINITIVE FORMULA !!
-# else:
-#     # Our self.tau was subtracted gravity, so we add it again
-#     # joint_torques_measured DOES include the gravity torque from KUKA
-#     # There is a sign mismatch in the axis so we use a minus sign
-#     s.plot_joint_tau( [-r.data['joint_cmd_torques'][:,controlled_joint_ids], 
-#                        r.data['joint_torques_measured'][:,controlled_joint_ids], 
-#                        r.data['tau'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
-#                        r.data['tau_ff'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
-#                      r.data['tau_gravity'][:,controlled_joint_ids]],
-#                     #    r.data['joint_ext_torques'][:,controlled_joint_ids]], 
-#                   ['-cmd (FRI)', 
-#                    'Measured', 
-#                    'Desired (sent to robot) [+g(q)]', 
-#                    'tau_ff (OCP solution) [+g(q)]', 
-#                    'g(q)',
-#                    'EXT'], 
-#                   ['k', 'r', 'b', 'g', 'y'],
-#                   ylims=[-model.effortLimit, +model.effortLimit],
-#                   linestyle=['dotted', 'solid', 'solid', 'solid', 'solid'])
+if(SIM):
+    s.plot_joint_tau( [r.data['tau'], 
+                       r.data['tau_ff'], 
+                       r.data['tau_riccati'], 
+                       r.data['tau_gravity']],
+                      ['total', 
+                       'ff', 
+                       'riccati', 
+                       'gravity'], 
+                      ['r', 
+                       'g', 
+                       'b', 
+                       [0.2, 0.2, 0.2, 0.5]],
+                      ylims=[-model.effortLimit, +model.effortLimit] )
+# For REAL robot only !! DEFINITIVE FORMULA !!
+else:
+    # Our self.tau was subtracted gravity, so we add it again
+    # joint_torques_measured DOES include the gravity torque from KUKA
+    # There is a sign mismatch in the axis so we use a minus sign
+    s.plot_joint_tau( [-r.data['joint_cmd_torques'][:,controlled_joint_ids], 
+                       r.data['joint_torques_measured'][:,controlled_joint_ids], 
+                       r.data['tau'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
+                       r.data['tau_ff'][:,controlled_joint_ids] + r.data['tau_gravity'][:,controlled_joint_ids],
+                     r.data['tau_gravity'][:,controlled_joint_ids]],
+                    #    r.data['joint_ext_torques'][:,controlled_joint_ids]], 
+                  ['-cmd (FRI)', 
+                   'Measured', 
+                   'Desired (sent to robot) [+g(q)]', 
+                   'tau_ff (OCP solution) [+g(q)]', 
+                   'g(q)',
+                   'EXT'], 
+                  ['k', 'r', 'b', 'g', 'y'],
+                  ylims=[-model.effortLimit, +model.effortLimit],
+                  linestyle=['dotted', 'solid', 'solid', 'solid', 'solid'])
 
 
 p_mea = pin_utils.get_p_(r.data['joint_positions'][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
@@ -168,12 +158,10 @@ plt.plot(r.data['absolute_time'], target_position[:, 0], 'k', label='x pos ref')
 plt.grid()
 plt.legend()
 
-# v_mea = get_v_(r.data['joint_velocities'], r.data['x_des'][:,nq:nq+nv], pinrobot.model, pinrobot.model.getFrameId('contact'))
-
 
 
 target_force_3d = np.zeros((N, 3))
-if CONFIG_NAME == 'config36d':
+if CONFIG_NAME == 'normal_force':
     target_force_3d[:,0] = r.data['target_force_fx'][:,0]
     target_force_3d[:,1] = r.data['target_force_fy'][:,0]
     target_force_3d[:,2] = r.data['target_force_fz'][:,0]
@@ -230,7 +218,7 @@ plt.legend()
 
 
 
-if CONFIG_NAME == 'config':
+if CONFIG_NAME == 'polishing':
     # Compute average tracking error for each circle
     CIRCLE_PERIOD_IN_CYCLES = int(2*np.pi/3.*1000)
     N_START = N_START
@@ -263,7 +251,7 @@ else:
     
     
 # Compute energy
-if CONFIG_NAME == 'config36d':
+if CONFIG_NAME == 'normal_force':
     if SIM:
         print("Total energy = ",  np.mean([np.linalg.norm(u) for u in r.data['tau'][N_START:, controlled_joint_ids]]))
     else:

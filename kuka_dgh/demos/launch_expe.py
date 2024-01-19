@@ -24,7 +24,7 @@ import pinocchio as pin
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # Choose experiment, load config and import controller  #  
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # 
-SIM           = True
+SIM           = False
 EXP_NAME      = 'polishing' # <<<<<<<<<<<<< Choose experiment here (cf. launch_utils)
 config        = launch_utils.load_config_file(EXP_NAME)
 MPCController = launch_utils.import_mpc_controller(EXP_NAME)
