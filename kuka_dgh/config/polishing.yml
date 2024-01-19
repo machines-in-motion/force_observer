@@ -2,7 +2,7 @@
 # TASK  : normal force task
 
 # MPC & sim parameters
-simu_freq: 1000        # Simulation frequency in Hz
+ctrl_freq: 1000        # Simulation frequency in Hz
 plan_freq: 1000       # Planning frequency
 # T_tot: 15             # Simu duration (s)-
 
@@ -26,7 +26,8 @@ T_CIRCLE: 7.
 dt: 0.006                       # OCP integration step 
 N_h: 4                          # Horizon length in nodes
 maxiter: 3
-# q0: [0., 0.34, 0., -0.75, 0., 0., 0.]               # Initial robot joint configuration
+solver_termination_tolerance: 0.0001                 # Tolerance on KKT residual 
+use_filter_line_search: True 
 q0: [0., 1.0471975511965976, 0., -1.1344640137963142, 0.2,  0.7853981633974483]               # Initial robot joint configuration
 dq0: [0.,0.,0.,0.,0.,0.]                         # Initial robot joint velocity
 
@@ -48,6 +49,7 @@ contacts:
     }
 contactPosition: [0.65, 0., 0.01] # table
 oPc_offset: [0., 0., 0.] 
+contactFrameName: 'contact'
 pinRefFrame: 'LOCAL_WORLD_ALIGNED'
 contactType: '1Dz'
 

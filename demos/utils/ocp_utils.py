@@ -10,14 +10,14 @@
 
 import crocoddyl
 import numpy as np
-from classical_mpc import ocp
 
 import numpy as np
 import pinocchio as pin
 import matplotlib.pyplot as plt
-from core_mpc import pin_utils
 
-from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
+import croco_mpc_utils.pinocchio_utils as pin_utils
+from croco_mpc_utils import ocp 
+from croco_mpc_utils.utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 
@@ -41,14 +41,43 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
     '''
     super().check_config()
 
-  def initialize(self, x0, torque_offset=False, callbacks=False):
+  def create_differential_action_model(self, state, actuation, torque_offset):
     '''
-    Initializes OCP and FDDP solver from config parameters and initial state
+    Initialize a differential action model with or without contacts
+    '''
+    # If there are contacts, defined constrained DAM
+    contactModels = []
+    if(self.nb_contacts > 0):
+      for ct in self.contacts:
+        contactModels.append(self.create_contact_model(ct, state, actuation))   
+      if torque_offset:
+          dam = DAMContactDeltaTau(state, 
+                              actuation, 
+                              crocoddyl.ContactModelMultiple(state, actuation.nu), 
+                              crocoddyl.CostModelSum(state, nu=actuation.nu), 
+                              inv_damping=0., 
+                              enable_force=True)
+      else:
+          dam = crocoddyl.DifferentialActionModelContactFwdDynamics(state, 
+                              actuation, 
+                              crocoddyl.ContactModelMultiple(state, actuation.nu), 
+                              crocoddyl.CostModelSum(state, nu=actuation.nu), 
+                              inv_damping=0., 
+                              enable_force=True)
+    # Otherwise just create free DAM
+    else:
+      dam = crocoddyl.DifferentialActionModelFreeFwdDynamics(state, 
+                                                              actuation, 
+                                                              crocoddyl.CostModelSum(state, nu=actuation.nu))
+    return dam, contactModels
+
+  def initialize(self, x0, torque_offset=False):
+    '''
+    Initializes an Optimal Control Problem (OCP) from YAML config parameters and initial state
       INPUT: 
           x0          : initial state of shooting problem
-          callbacks   : display Crocoddyl's DDP solver callbacks
       OUTPUT:
-        FDDP solver
+          crocoddyl.ShootingProblem object 
 
      A cost term on a variable z(x,u) has the generic form w * a( r( z(x,u) - z0 ) )
      where w <--> cost weight, e.g. 'stateRegWeight' in config file
@@ -57,96 +86,25 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
            a <--> weighted activation, with weights e.g. 'stateRegWeights' in config file 
            z <--> can be state x, control u, frame position or velocity, contact force, etc.
     ''' 
-    
   # State and actuation models
     state = crocoddyl.StateMultibody(self.rmodel)
     actuation = crocoddyl.ActuationModelFull(state)
   
   # Contact or not ?
-    if(not hasattr(self, 'contacts')):
-      self.nb_contacts = 0
-    else:
-      self.nb_contacts = len(self.contacts)
-      self.contact_types = [ct['contactModelType'] for ct in self.contacts]
-      logger.debug("Detected "+str(len(self.contacts))+" contacts with types = "+str(self.contact_types))
+    self.parse_contacts()
 
   # Create IAMs
     runningModels = []
     for i in range(self.N_h):  
-      # Create DAM (Contact or FreeFwd)
-        # Initialize contact model if necessary and create appropriate DAM
-        if(self.nb_contacts > 0):
-          contactModels = []
-          for ct in self.contacts:
-            contactModels.append(self.create_contact_model(ct, state, actuation))
-        
-        if torque_offset:
-            dam = DAMContactDeltaTau(state, 
-                                actuation, 
-                                crocoddyl.ContactModelMultiple(state, actuation.nu), 
-                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                inv_damping=0., 
-                                enable_force=True)
-        else:
-            dam = crocoddyl.DifferentialActionModelContactFwdDynamics(state, 
-                                actuation, 
-                                crocoddyl.ContactModelMultiple(state, actuation.nu), 
-                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                inv_damping=0., 
-                                enable_force=True)
-      # Create IAM from DAM
+      # Create DAM (Contact or FreeFwd), IAM Euler and initialize costs+contacts
+        dam, contactModels = self.create_differential_action_model(state, actuation, torque_offset) 
         runningModels.append(crocoddyl.IntegratedActionModelEuler(dam, stepTime=self.dt))
-        
-      # Create and add cost function terms to current IAM
-        self.init_running_cost_model(state, actuation, runningModels[i])
+        self.init_running_model(state, actuation, runningModels[i], contactModels)
 
-      # Armature 
-        # Add armature to current IAM
-        runningModels[i].differential.armature = np.asarray(self.armature)
-
-      # Contact model
-        # Add contact model to current IAM
-        if(self.nb_contacts > 0):
-          for k,contactModel in enumerate(contactModels):
-            runningModels[i].differential.contacts.addContact(self.contacts[k]['contactModelFrameName'], contactModel, active=self.contacts[k]['active'])
-
-
-  # Terminal DAM (Contact or FreeFwd)
-    # If contact, initialize terminal contact model and create terminal DAMContactDyn
-    if(self.nb_contacts > 0):
-      contactModels = []
-      for ct in self.contacts:
-        contactModels.append(self.create_contact_model(ct, state, actuation))
-
-    # Create terminal DAMContactDyn
-    if torque_offset:
-        dam_t = DAMContactDeltaTau(state, 
-                            actuation, 
-                            crocoddyl.ContactModelMultiple(state, actuation.nu), 
-                            crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                inv_damping=0., 
-                                enable_force=True)
-    else:
-        dam_t = crocoddyl.DifferentialActionModelContactFwdDynamics(state, 
-                                actuation, 
-                                crocoddyl.ContactModelMultiple(state, actuation.nu), 
-                                crocoddyl.CostModelSum(state, nu=actuation.nu), 
-                                inv_damping=0., 
-                                enable_force=True)
-        
-  # Create terminal IAM from terminal DAM
+    # Terminal model
+    dam_t, contactModels = self.create_differential_action_model(state, actuation, torque_offset)  
     terminalModel = crocoddyl.IntegratedActionModelEuler( dam_t, stepTime=0. )
-
-  # Create and add terminal cost models to terminal IAM
-    self.init_terminal_cost_model(state, actuation, terminalModel)
-
-  # Add armature
-    terminalModel.differential.armature = np.asarray(self.armature)   
-  
-  # Add contact model
-    if(self.nb_contacts > 0):
-      for k,contactModel in enumerate(contactModels):
-        terminalModel.differential.contacts.addContact(self.contacts[k]['contactModelFrameName'], contactModel, active=self.contacts[k]['active'])
+    self.init_terminal_model(state, actuation, terminalModel, contactModels)
     
     logger.info("Created IAMs.")  
 
@@ -154,26 +112,128 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
 
   # Create the shooting problem
     problem = crocoddyl.ShootingProblem(x0, runningModels, terminalModel)
-  
-  # Creating the DDP solver 
-    ddp = crocoddyl.SolverGNMS(problem)
-  
-  # Callbacks
-    if(callbacks):
-      ddp.setCallbacks([crocoddyl.CallbackLogger(),
-                        crocoddyl.CallbackVerbose()])
-  
-  # Finish
-    logger.info("OCP is ready")
-    logger.info("    COSTS   = "+str(self.WHICH_COSTS))
-    if(self.nb_contacts > 0):
-      logger.info("    self.nb_contacts = "+str(self.nb_contacts))
-      for ct in self.contacts:
-        logger.info("      Found [ "+str(ct['contactModelType'])+" ] (Baumgarte stab. gains = "+str(ct['contactModelGains'])+" , active = "+str(ct['active'])+" )")
-    else:
-      logger.info("    self.nb_contacts = "+str(self.nb_contacts))
-    return ddp
 
+  # Finish
+    self.success_log()
+    return problem
+
+#   def initialize(self, x0, torque_offset=False, callbacks=False):
+#     '''
+#     Initializes OCP and FDDP solver from config parameters and initial state
+#       INPUT: 
+#           x0          : initial state of shooting problem
+#           callbacks   : display Crocoddyl's DDP solver callbacks
+#       OUTPUT:
+#         FDDP solver
+
+#      A cost term on a variable z(x,u) has the generic form w * a( r( z(x,u) - z0 ) )
+#      where w <--> cost weight, e.g. 'stateRegWeight' in config file
+#            r <--> residual model depending on some reference z0, e.g. 'stateRegRef'
+#                   When ref is set to 'DEFAULT' in YAML file, default references hard-coded here are used
+#            a <--> weighted activation, with weights e.g. 'stateRegWeights' in config file 
+#            z <--> can be state x, control u, frame position or velocity, contact force, etc.
+#     ''' 
+    
+#   # State and actuation models
+#     state = crocoddyl.StateMultibody(self.rmodel)
+#     actuation = crocoddyl.ActuationModelFull(state)
+  
+#   # Contact or not ?
+#     if(not hasattr(self, 'contacts')):
+#       self.nb_contacts = 0
+#     else:
+#       self.nb_contacts = len(self.contacts)
+#       self.contact_types = [ct['contactModelType'] for ct in self.contacts]
+#       logger.debug("Detected "+str(len(self.contacts))+" contacts with types = "+str(self.contact_types))
+
+#   # Create IAMs
+#     runningModels = []
+#     for i in range(self.N_h):  
+#       # Create DAM (Contact or FreeFwd)
+#         # Initialize contact model if necessary and create appropriate DAM
+#         if(self.nb_contacts > 0):
+#           contactModels = []
+#           for ct in self.contacts:
+#             contactModels.append(self.create_contact_model(ct, state, actuation))
+        
+#         if torque_offset:
+#             dam = DAMContactDeltaTau(state, 
+#                                 actuation, 
+#                                 crocoddyl.ContactModelMultiple(state, actuation.nu), 
+#                                 crocoddyl.CostModelSum(state, nu=actuation.nu), 
+#                                 inv_damping=0., 
+#                                 enable_force=True)
+#         else:
+#             dam = crocoddyl.DifferentialActionModelContactFwdDynamics(state, 
+#                                 actuation, 
+#                                 crocoddyl.ContactModelMultiple(state, actuation.nu), 
+#                                 crocoddyl.CostModelSum(state, nu=actuation.nu), 
+#                                 inv_damping=0., 
+#                                 enable_force=True)
+#       # Create IAM from DAM
+#         runningModels.append(crocoddyl.IntegratedActionModelEuler(dam, stepTime=self.dt))
+        
+#       # Create and add cost function terms to current IAM
+#         self.init_running_cost_model(state, actuation, runningModels[i])
+
+#       # Armature 
+#         # Add armature to current IAM
+#         runningModels[i].differential.armature = np.asarray(self.armature)
+
+#       # Contact model
+#         # Add contact model to current IAM
+#         if(self.nb_contacts > 0):
+#           for k,contactModel in enumerate(contactModels):
+#             runningModels[i].differential.contacts.addContact(self.contacts[k]['contactModelFrameName'], contactModel, active=self.contacts[k]['active'])
+
+
+#   # Terminal DAM (Contact or FreeFwd)
+#     # If contact, initialize terminal contact model and create terminal DAMContactDyn
+#     if(self.nb_contacts > 0):
+#       contactModels = []
+#       for ct in self.contacts:
+#         contactModels.append(self.create_contact_model(ct, state, actuation))
+
+#     # Create terminal DAMContactDyn
+#     if torque_offset:
+#         dam_t = DAMContactDeltaTau(state, 
+#                             actuation, 
+#                             crocoddyl.ContactModelMultiple(state, actuation.nu), 
+#                             crocoddyl.CostModelSum(state, nu=actuation.nu), 
+#                                 inv_damping=0., 
+#                                 enable_force=True)
+#     else:
+#         dam_t = crocoddyl.DifferentialActionModelContactFwdDynamics(state, 
+#                                 actuation, 
+#                                 crocoddyl.ContactModelMultiple(state, actuation.nu), 
+#                                 crocoddyl.CostModelSum(state, nu=actuation.nu), 
+#                                 inv_damping=0., 
+#                                 enable_force=True)
+        
+#   # Create terminal IAM from terminal DAM
+#     terminalModel = crocoddyl.IntegratedActionModelEuler( dam_t, stepTime=0. )
+
+#   # Create and add terminal cost models to terminal IAM
+#     self.init_terminal_cost_model(state, actuation, terminalModel)
+
+#   # Add armature
+#     terminalModel.differential.armature = np.asarray(self.armature)   
+  
+#   # Add contact model
+#     if(self.nb_contacts > 0):
+#       for k,contactModel in enumerate(contactModels):
+#         terminalModel.differential.contacts.addContact(self.contacts[k]['contactModelFrameName'], contactModel, active=self.contacts[k]['active'])
+    
+#     logger.info("Created IAMs.")  
+
+
+
+#   # Create the shooting problem
+#     problem = crocoddyl.ShootingProblem(x0, runningModels, terminalModel)
+  
+#   # Finish
+#     self.success_log()
+#     return problem
 
 
 

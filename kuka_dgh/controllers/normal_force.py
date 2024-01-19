@@ -72,7 +72,7 @@ def solveOCP(q, v, ddp, nb_iter, target_reach, force_weight, TASK_PHASE, target_
 
 
 
-class ClassicalMPCContact:
+class KukaNormalForceMPC:
 
     def __init__(self, head, robot, config, f0, contact_placement, cMs, run_sim, controlled_joints_names=["A1", "A2", "A3", "A4", "A5", "A6", "A7"]):
         """
