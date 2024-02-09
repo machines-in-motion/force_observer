@@ -1,17 +1,19 @@
-import sys
-sys.path.append("../../")
-from force_feedback_dgh.demos.utils.plot_utils import SimpleDataPlotter
 from mim_data_utils import DataReader
-from core_mpc.pin_utils import *
 import numpy as np
-import pinocchio as pin
 import matplotlib.pyplot as plt 
-from core_mpc import path_utils
-from core_mpc.pin_utils import get_p_
-from core_mpc import analysis_utils 
 
-from robot_properties_kuka.config import IiwaConfig, IiwaReducedConfig
+import pathlib
+import os
+python_path = pathlib.Path('.').absolute().parent
+os.sys.path.insert(1, str(python_path))
+print(python_path)
+from utils import path_utils, pin_utils
+from plot_utils import SimpleDataPlotter
+from utils.reduced_model import get_controlled_joint_ids
+from utils import analysis_utils
 
+import croco_mpc_utils.pinocchio_utils as pin_utils
+from mim_robots.robot_loader import load_pinocchio_wrapper
 
 
 import matplotlib
@@ -23,69 +25,55 @@ import matplotlib.pyplot as plt
 import time
 
 
-pinrobot = IiwaConfig.buildRobotWrapper()
-model = pinrobot.model
-data = model.createData()
-frameId = model.getFrameId('contact')
-nq = model.nq ; nv = model.nv ; nc = 3
-# Overwrite effort limit as in DGM
-model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
-
-
-
 # Load robot model
-CONTROLLED_JOINTS = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6']
-QREF              = np.zeros(7)
-pinrobot = IiwaReducedConfig.buildRobotWrapper(controlled_joints=CONTROLLED_JOINTS, qref=QREF)
-full_robot = IiwaConfig.buildRobotWrapper()
-full_model = full_robot.model
-model = pinrobot.model
-data = model.createData()
-frameId = model.getFrameId('contact')
+LOCKED_JOINTS = ['A7']
+pinrobot = load_pinocchio_wrapper('iiwa_ft_sensor_shell', locked_joints=LOCKED_JOINTS)
+model    = pinrobot.model
+data     = model.createData()
+frameId  = model.getFrameId('contact')
 nq = model.nq ; nv = model.nv ; nc = 1
 # Overwrite effort limit as in DGM
 model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
-controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
-print(controlled_joint_ids)
-# Load config file
-CONFIG_NAME = 'config'
-# CONFIG_NAME = 'config36d'
+controlled_joint_ids = get_controlled_joint_ids('iiwa_ft_sensor_shell', locked_joints=LOCKED_JOINTS)
 
-CONFIG_PATH = CONFIG_NAME+".yml"
+# Load config file
+CONFIG_NAME = 'polishing'
+CONFIG_PATH = "config/"+CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
+
 # Load data 
-SAVE = False
+SIM = False
 
 # Create data Plottger
 s = SimpleDataPlotter()
 
+
 FILTER = 400
-data_path = '/home/skleff/Desktop/delta_f_real_exp/video/'
+data_path = '/home/skleff/Desktop/ICRA24/dataset_force_offset_ICRA_2024/sanding/friction_compensation/'
 
 
 print("Load data 1...")
-r1 = DataReader(data_path+'config_REAL_2023-09-21T16:14:41.677292_FL_perturbation_2.mds') 
+r1 = DataReader(data_path+'config_REAL_2023-09-13T19_42_59.978248_medium_coulomb.mds') 
 print("Load data 2...")
-# r2 = r1 
-r2 = DataReader(data_path+'config_REAL_2023-09-21T16:09:53.109844_FL_DF_PM_perturbation_2.mds') 
+r2 = r1 
+# r2 = DataReader(data_path+'config_REAL_2023-09-21T16:09:53.109844_FL_DF_PM_perturbation_2.mds') 
 
 
 label1 = 'FL'
 label2 = r'FL + $\Delta F$'
  
 
-PART = 2
+PART = 1
 
 
 N_TOT = min(r1.data['tau'].shape[0], r2.data['tau'].shape[0])
 
 T = 6283 * 3 / config['plan_freq']
 
-
-time_lin1 = r1.data['time']
-time_lin2 = r2.data['time']
+time_lin1 = np.linspace(0, N_TOT/ config['plan_freq'], (N_TOT)) #r1.data['time']
+time_lin2 = np.linspace(0, N_TOT/ config['plan_freq'], (N_TOT)) #r2.data['time']
 
 N_START_1 = np.sum(time_lin1 < config['T_CIRCLE'])
 N_START_2 = np.sum(time_lin2 < config['T_CIRCLE'])
@@ -217,7 +205,7 @@ t0 = time.time()
 
 time_lin = np.linspace(0, T, N_FRAMES)
 ani = FuncAnimation(fig, animate, frames=time_lin, repeat=False, interval = SKIP, init_func = init, blit=True)
-folder = '/home/skleff/Desktop/delta_f_real_exp/video/'
+folder = data_path #'/home/skleff/Desktop/delta_f_real_exp/video/'
 
 ani.save(folder + 'animation_FL_vs_DF_perturbation_' + str(PART) + '.mp4')
 
