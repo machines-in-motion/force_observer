@@ -1,58 +1,57 @@
-import sys
-sys.path.append("/home/skleff/ws/workspace/src/")
-from force_feedback_dgh.demos.utils.plot_utils import SimpleDataPlotter
 from mim_data_utils import DataReader
-from core_mpc.pin_utils import *
-from core_mpc import path_utils
 import numpy as np
-import pinocchio as pin
-from robot_properties_kuka.config import IiwaConfig, IiwaReducedConfig
-from robot_properties_kuka.config import IiwaConfig
-from core_mpc.pin_utils import get_p_, get_v_, get_rpy_
+import matplotlib.pyplot as plt 
 
-pinrobot = IiwaConfig.buildRobotWrapper()
-model = pinrobot.model
-data = model.createData()
-frameId = model.getFrameId('contact')
-nq = model.nq ; nv = model.nv ; nc = 3
-# Overwrite effort limit as in DGM
-model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
+import pathlib
+import os
+python_path = pathlib.Path('.').absolute().parent
+os.sys.path.insert(1, str(python_path))
+print(python_path)
+from utils import path_utils, pin_utils
+from plot_utils import SimpleDataPlotter
+from utils.reduced_model import get_controlled_joint_ids
+from utils import analysis_utils
 
-
+import croco_mpc_utils.pinocchio_utils as pin_utils
+from mim_robots.robot_loader import load_pinocchio_wrapper
 
 # Load robot model
-CONTROLLED_JOINTS = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6']
-QREF              = np.zeros(7)
-pinrobot = IiwaReducedConfig.buildRobotWrapper(controlled_joints=CONTROLLED_JOINTS, qref=QREF)
-full_robot = IiwaConfig.buildRobotWrapper()
-full_model = full_robot.model
-model = pinrobot.model
-data = model.createData()
-frameId = model.getFrameId('contact')
+LOCKED_JOINTS = ['A7']
+pinrobot = load_pinocchio_wrapper('iiwa_ft_sensor_shell', locked_joints=LOCKED_JOINTS)
+model    = pinrobot.model
+data     = model.createData()
+frameId  = model.getFrameId('contact')
 nq = model.nq ; nv = model.nv ; nc = 1
 # Overwrite effort limit as in DGM
 model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
-controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
-print(controlled_joint_ids)
+controlled_joint_ids = get_controlled_joint_ids('iiwa_ft_sensor_shell', locked_joints=LOCKED_JOINTS)
 
-# CONFIG_NAME = 'config'
-CONFIG_NAME = 'config36d'
-
-CONFIG_PATH = CONFIG_NAME+".yml"
+# Load config file
+CONFIG_NAME = 'normal_force'
+CONFIG_PATH = "config/"+CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 
-PLOT = "SOTA"
-# PLOT = "LATERAL_MODE"
+# Load data 
+SIM = False
+
+# Create data Plottger
+s = SimpleDataPlotter()
+
+
+# PLOT = "SOTA"
+PLOT = "LATERAL_MODE"
 # PLOT = "DF_DTAU"
+
+SAVE_PLOT = False 
 
 color_list = ['b', 'g', 'r', 'y']
 
 if PLOT == "SOTA":
     omega = 3
     print("Load data 1...")
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
+    data_path = '/home/skleff/Desktop/ICRA24/dataset_force_offset_ICRA_2024/sanding/friction_compensation'
     r1 = DataReader(data_path+'config_REAL_2023-09-13T19:41:20.484038_medium_default.mds') 
     # r1 = DataReader("/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df/"+'config_REAL_2023-09-15T15:05:44.793654_FI.mds') 
     print("Load data 2...")
@@ -74,7 +73,7 @@ if PLOT == "LATERAL_MODE":
     # TASK = "fast"
 
 
-    data_path = '/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/'
+    data_path = '/home/skleff/Desktop/ICRA24/dataset_force_offset_ICRA_2024/sanding/friction_compensation/'
 
     if TASK == "slow":    
         print("Load data 1...")
@@ -88,11 +87,11 @@ if PLOT == "LATERAL_MODE":
 
     if TASK == "medium":    
         print("Load data 1...")
-        r1 = DataReader(data_path+'config_REAL_2023-09-13T19:41:20.484038_medium_default.mds') 
+        r1 = DataReader(data_path+'config_REAL_2023-09-13T19_41_20.484038_medium_default.mds') 
         print("Load data 2...")
-        r2 = DataReader(data_path+'config_REAL_2023-09-13T19:42:59.978248_medium_coulomb.mds')  
+        r2 = DataReader(data_path+'config_REAL_2023-09-13T19_42_59.978248_medium_coulomb.mds')  
         print("Load data 3...")
-        r3 = DataReader(data_path+'config_REAL_2023-09-13T19:44:20.481230_medium_ff.mds') 
+        r3 = DataReader(data_path+'config_REAL_2023-09-13T19_44_20.481230_medium_ff.mds') 
 
         omega = 3
 
@@ -190,7 +189,7 @@ matplotlib.rcParams["ps.fonttype"] = 42
     
 
 def compute_pos_error_traj(r):
-    p_mea = get_p_(r.data['joint_positions'][N_START:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
+    p_mea = pin_utils.get_p_(r.data['joint_positions'][N_START:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
     return np.sqrt((p_mea[:, 0] - r.data['target_position_x'][N_START:,0])**2 + (p_mea[:, 1] - r.data['target_position_y'][N_START:,1])**2)
 
 
@@ -240,14 +239,13 @@ ax1.tick_params(labelbottom=False)
 
 fig0.tight_layout()
 
-
-
-if PLOT == "SOTA":
-    fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/' + PLOT + '_with_pos.pdf', bbox_inches="tight")
-if PLOT == "LATERAL_MODE":
-    fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/' + TASK + '_with_pos.pdf', bbox_inches="tight")
-if PLOT == "DF_DTAU":
-    fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df_final/' + PLOT + '._with_pos.pdf', bbox_inches="tight")
+if(SAVE_PLOT):
+    if PLOT == "SOTA":
+        fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/' + PLOT + '_with_pos.pdf', bbox_inches="tight")
+    if PLOT == "LATERAL_MODE":
+        fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/' + TASK + '_with_pos.pdf', bbox_inches="tight")
+    if PLOT == "DF_DTAU":
+        fig0.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df_final/' + PLOT + '._with_pos.pdf', bbox_inches="tight")
 
 
 
@@ -271,13 +269,13 @@ plt.tick_params(axis = 'y', labelsize=22)
 plt.tick_params(axis = 'x', labelsize=22)
 
    
-
-if PLOT == "SOTA":
-    fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/' + PLOT + '.pdf', bbox_inches="tight")
-if PLOT == "LATERAL_MODE":
-    fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/' + TASK + '.pdf', bbox_inches="tight")
-if PLOT == "DF_DTAU":
-    fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df_final/' + PLOT + '.pdf', bbox_inches="tight")
+if(SAVE_PLOT):
+    if PLOT == "SOTA":
+        fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/' + PLOT + '.pdf', bbox_inches="tight")
+    if PLOT == "LATERAL_MODE":
+        fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/lat_model/' + TASK + '.pdf', bbox_inches="tight")
+    if PLOT == "DF_DTAU":
+        fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/sanding/d_tau_vs_df_final/' + PLOT + '.pdf', bbox_inches="tight")
 
 
 
