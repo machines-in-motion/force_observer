@@ -1,57 +1,47 @@
-import sys
-sys.path.append("/home/skleff/ws/workspace/src/")
-from force_feedback_dgh.demos.utils.plot_utils import SimpleDataPlotter
 from mim_data_utils import DataReader
-from core_mpc.pin_utils import *
-from core_mpc import path_utils
 import numpy as np
-import pinocchio as pin
-from robot_properties_kuka.config import IiwaConfig, IiwaReducedConfig
-from robot_properties_kuka.config import IiwaConfig
+import matplotlib.pyplot as plt 
 
-pinrobot = IiwaConfig.buildRobotWrapper()
-model = pinrobot.model
-data = model.createData()
-frameId = model.getFrameId('contact')
-nq = model.nq ; nv = model.nv ; nc = 3
-# Overwrite effort limit as in DGM
-model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
+import pathlib
+import os
+python_path = pathlib.Path('.').absolute().parent
+os.sys.path.insert(1, str(python_path))
+print(python_path)
+from utils import path_utils, pin_utils
+from plot_utils import SimpleDataPlotter
+from utils.reduced_model import get_controlled_joint_ids
+from utils import analysis_utils
 
-
+import croco_mpc_utils.pinocchio_utils as pin_utils
+from mim_robots.robot_loader import load_pinocchio_wrapper
 
 # Load robot model
-CONTROLLED_JOINTS = ['A1', 'A2', 'A3', 'A4', 'A5', 'A6']
-QREF              = np.zeros(7)
-pinrobot = IiwaReducedConfig.buildRobotWrapper(controlled_joints=CONTROLLED_JOINTS, qref=QREF)
-full_robot = IiwaConfig.buildRobotWrapper()
-full_model = full_robot.model
-model = pinrobot.model
-data = model.createData()
-frameId = model.getFrameId('contact')
+LOCKED_JOINTS = ['A7']
+pinrobot = load_pinocchio_wrapper('iiwa_ft_sensor_shell', locked_joints=LOCKED_JOINTS)
+model    = pinrobot.model
+data     = model.createData()
+frameId  = model.getFrameId('contact')
 nq = model.nq ; nv = model.nv ; nc = 1
 # Overwrite effort limit as in DGM
 model.effortLimit = np.array([100, 100, 50, 50, 20, 10, 10])
-controlled_joint_ids = [full_model.joints[full_model.getJointId(joint_name)].idx_q for joint_name in CONTROLLED_JOINTS]
-print(controlled_joint_ids)
+controlled_joint_ids = get_controlled_joint_ids('iiwa_ft_sensor_shell', locked_joints=LOCKED_JOINTS)
 
-# CONFIG_NAME = 'config'
-CONFIG_NAME = 'config36d'
-
-CONFIG_PATH = CONFIG_NAME+".yml"
+# Load config file
+CONFIG_NAME = 'normal_force'
+CONFIG_PATH = "config/"+CONFIG_NAME+".yml"
 config      = path_utils.load_yaml_file(CONFIG_PATH)
 
 
 
-data_path = '/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/'
-    
+data_path = '/home/skleff/Desktop/ICRA24/dataset_force_offset_ICRA_2024/3d/integral/step_final/'
 print("Load data 1...")
-r1 = DataReader(data_path+'config36d_REAL_2023-09-13T17:55:41.465521_baseline.mds')  
+r1 = DataReader(data_path+'config36d_REAL_2023-09-13T17_55_41.465521_baseline.mds')  
 print("Load data 2...")
-r2 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:54.221924_df_int.mds') 
+r2 = DataReader(data_path+'config36d_REAL_2023-09-13T17_54_54.221924_df_int.mds') 
 print("Load data 3...")
-r3 = DataReader(data_path+'config36d_REAL_2023-09-13T17:53:02.723577_df_ext.mds') 
+r3 = DataReader(data_path+'config36d_REAL_2023-09-13T17_53_02.723577_df_ext.mds') 
 print("Load data 4...")
-r4 = DataReader(data_path+'config36d_REAL_2023-09-13T17:54:03.901817_FI.mds')
+r4 = DataReader(data_path+'config36d_REAL_2023-09-13T17_54_03.901817_FI.mds')
 
 label1 = 'Default'
 label2 = 'Estimation (Model)'
@@ -151,23 +141,30 @@ plt.xlabel('Time (s)', fontsize=26)
 plt.tick_params(axis = 'y', labelsize=22)
 plt.tick_params(axis = 'x', labelsize=22)
 
-fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/step_response.pdf', bbox_inches="tight")
+# if(SAVE):
+#     fig1.savefig('/home/skleff/Desktop/delta_f_real_exp/3d/integral/step/step_response.pdf', bbox_inches="tight")
 
 
+# Generate Table III of the paper
 def print_error(r, label):
+    # Compute average tracking error for each circle
+    error_x = np.abs(r.data['contact_force_3d_measured'][N_START:N, 0] - target_force_3d[N_START:N, 0])
+    error_y = np.abs(r.data['contact_force_3d_measured'][N_START:N, 1] - target_force_3d[N_START:N, 1])
+    error_z = np.abs(r.data['contact_force_3d_measured'][N_START:N, 2] - target_force_3d[N_START:N, 2])
+    print(label, " Fx mean abs error      = ", np.mean(error_x))#, r'$\pm$', np.std(error_x))
+    print(label, " Fy mean abs error      = ", np.mean(error_y))#, r'$\pm$', np.std(error_y))
+    print(label, " Fz mean abs error      = ", np.mean(error_z))#, r'$\pm$', np.std(error_z))
     error = np.abs(r.data['contact_force_3d_measured'][N_START:N] - target_force_3d[N_START:N])
-    print(label, " Fx mean abs error      = ", np.mean(error[:, 0]))
-    print(label, " Fy mean abs error      = ", np.mean(error[:, 1]))
-    print(label, " Fz mean abs error      = ", np.mean(error[:, 2]))
-    print(label, " F mean abs error      = ",  np.mean(error))
+    error = np.mean(error, axis=1)
+    # print("error = ", error)
+    print(label, " F3d mean abs error      = ", np.mean(error)) #, r'$\pm$', np.std(error))
     print('\n')
+
 
 print_error(r1, label1)
 print_error(r2, label2)
 print_error(r3, label3)
 print_error(r4, label4)
-
-
 
 plt.show()
 plt.close('all')
