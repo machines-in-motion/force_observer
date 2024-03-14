@@ -10,12 +10,12 @@ import os
 python_path = pathlib.Path('.').absolute().parent
 os.sys.path.insert(1, str(python_path))
 print(python_path)
-from utils import path_utils, pin_utils
+from utils import path_utils
 from plot_utils import SimpleDataPlotter
 from utils.reduced_model import get_controlled_joint_ids
 from utils import analysis_utils
 
-import croco_mpc_utils.pinocchio_utils as pin_utils
+from croco_mpc_utils.pinocchio_utils import *
 from mim_robots.robot_loader import load_pinocchio_wrapper
 
 
@@ -53,7 +53,7 @@ SIM = False
 s = SimpleDataPlotter()
 
 
-FILTER = 300
+FILTER = 20
 data_path = '/home/skleff/Videos/classical_mpc_coulomb/'
 
 
@@ -64,79 +64,81 @@ label1 = 'Classical MPC'
  
 
 PART = 1
-
-
 N_TOT = r1.data['tau'].shape[0]
-
 T = 6283 * 3 / config['plan_freq']
+time_lin1 = r1.data['absolute_time'] 
+N_START = np.sum(time_lin1 < config['T_CIRCLE'])
+N_END = np.sum(time_lin1 <= T + config['T_CIRCLE'])
+print("T       = ", T)
+print("N_TOT   = ", N_TOT)
+print("N_START = ", N_START)
+print("N_END = ", N_END)
+print("----")
 
-time_lin1 = r1.data['absolute_time'] #np.linspace(0, N_TOT/ config['plan_freq'], (N_TOT)) #r1.data['time']
-# time_lin2 = np.linspace(0, N_TOT/ config['plan_freq'], (N_TOT)) #r2.data['time']
 
-N_START_1 = np.sum(time_lin1 < config['T_CIRCLE'])
-# N_START_2 = np.sum(time_lin2 < config['T_CIRCLE'])
+# Split trajectory (skip some frames) to reduce animation size 
+SPLIT = 10
+print("SPLIT = ", SPLIT)
+time_lin1_split = time_lin1[N_START:N_END:SPLIT] - config['T_CIRCLE']
 
-N_END_1 = np.sum(time_lin1 <= T + config['T_CIRCLE'])
-# N_END_2 = np.sum(time_lin2 <= T + config['T_CIRCLE'])
+# Extract measured signals of force and position
+force_1_split = r1.data['contact_force_3d_measured'][N_START:N_END:SPLIT, 2:3]
+p_mea1_split = get_p_(r1.data['joint_positions'][N_START:N_END:SPLIT,controlled_joint_ids][:,controlled_joint_ids], pinrobot.model, pinrobot.model.getFrameId('contact'))
 
 if(FILTER > 0):
-    print("FILTERING")
-    force_1 = analysis_utils.moving_average_filter(r1.data['contact_force_3d_measured'][N_START_1:N_END_1, 2:3].copy(), FILTER)
-    # force_2 = analysis_utils.moving_average_filter(r2.data['contact_force_3d_measured'][N_START_2:N_END_2, 2:3].copy(), FILTER) 
-else:
-    force_1 = r1.data['contact_force_3d_measured'][N_START_1:N_END_1, 2:3]
-    # force_2 = r2.data['contact_force_3d_measured'][N_START_2:N_END_2, 2:3] 
+    force_1_split = analysis_utils.moving_average_filter(force_1_split.copy(), FILTER)
 
 
-# delta_F =  analysis_utils.moving_average_filter(r2.data['delta_f'][N_START_2:N_END_2].copy(), 100) 
-
-
-
-SPLIT = 10
-time_lin_1 = time_lin1[N_START_1:N_END_1:SPLIT] - config['T_CIRCLE']
-# time_lin_2 = time_lin2[N_START_2:N_END_2:SPLIT] - config['T_CIRCLE']
-
-
-force_1 = force_1[::SPLIT]
-# force_2 = force_2[::SPLIT]
-
-# delta_F = delta_F[::SPLIT]
-
-target_force = np.zeros(time_lin_1.shape)
+# Extract reference signals of force and position
+target_force = np.zeros(time_lin1_split.shape)
 target_force[:] = config['frameForceRef'][2]
-
-
-color_list = ['b', 'g', 'r', 'y']
-
+target_position_1 = np.zeros((N_TOT, 3))
+target_position_1[:,0] = r1.data['target_position_x'][:N_TOT, 0]
+target_position_1[:,1] = r1.data['target_position_y'][:N_TOT, 0]
+target_position_1[:,2] = r1.data['target_position_z'][:N_TOT, 0]
+target_position_split = target_position_1[N_START:N_END:SPLIT]
+err1_split = np.linalg.norm(p_mea1_split[:, :2] - target_position_split[:, :2], axis=1)*1e3
 
 print("PLOTTING")
 
-fig, ax1 = plt.subplots(1, 1, sharex='col', figsize=(68, 16))
+color_list = ['b', 'g', 'r', 'y']
 
+WITH_POSITION_PLOT = False
+if(WITH_POSITION_PLOT):
+    fig, (ax1, ax2) = plt.subplots(2, 1, sharex='col', figsize=(68, 16))
+else:
+    fig, ax1 = plt.subplots(1, 1, sharex='col', figsize=(68, 16))
 fig.canvas.draw() 
 
-ax1.plot(time_lin_1, target_force, color='k', linewidth=6, linestyle='--', label='Reference', alpha=0.5) 
+ax1.plot(time_lin1_split, target_force, color='k', linewidth=10, linestyle='--', label='Reference', alpha=0.6) 
 ax1.grid(linewidth=1)
-# ax2.grid(linewidth=1) 
-# ax2.set_ylim(-20, 40)
-ax1.set_xlim(time_lin_1[0], time_lin_1[-1])
+ax1.set_xlim(time_lin1_split[0], time_lin1_split[-1])
 ax1.set_ylim(34., 60.)
-# ax2.set_xlim(time_lin_1[0], time_lin_1[-1])
-ax1.set_ylabel('Force (N)', fontsize=56)
-# ax2.set_ylabel(r'$\Delta F$ Estimate (N)', fontsize=56)
-# ax2.set_xlabel('Time (s)', fontsize=56)
-
+ax1.set_ylabel('Normal force (N)', fontsize=48)
 ax1.tick_params(axis = 'y', labelsize=48)
-# ax2.tick_params(axis = 'x', labelsize=48)
-# ax2.tick_params(axis = 'y', labelsize=48)
 ax1.tick_params(labelbottom=False)  
 
+# Ax 2 (position)
+if(WITH_POSITION_PLOT):
+    ax2.plot(time_lin1_split, np.zeros_like(err1_split), linestyle='--', marker=None, color='k', linewidth=10, alpha=0.6, label='Reference')
+    ax2.grid(linewidth=1)
+    ax2.set_xlim(time_lin1_split[0], time_lin1_split[-1])
+    ax2.set_ylim(-1., 50.)
+    ax2.set_ylabel('Position error (mm)', fontsize=48)
+    ax2.set_xlabel('Time (s)', fontsize=48)
+    ax2.tick_params(axis = 'x', labelsize=48)
+    ax2.tick_params(axis = 'y', labelsize=48)
+    ax2.xaxis.set_major_formatter(plt.FormatStrFormatter('%.0f'))
 
 if PART == 1:
-    line_f_r1, = ax1.plot(time_lin_1[0:1], force_1[0:1], animated=True, color=color_list[1], linewidth=6, label=label1, alpha=0.8)
-    # line_df_r1, = ax2.plot(time_lin_1[0:1], np.zeros(time_lin_1[0:1].shape), animated=True, color=color_list[1], linewidth=6, label=label1, alpha=0.8)
-    line = [line_f_r1]
-    
+    line_f_r1, = ax1.plot(time_lin1_split[0:1], force_1_split[0:1], animated=True, color='b', linewidth=10, label=label1, alpha=0.9)
+
+    if(WITH_POSITION_PLOT):
+        line_p_r1, = ax2.plot(time_lin1_split[0:1], err1_split[0:1], animated=True, color='b', linewidth=10, label=label1, alpha=0.9)
+        line = [line_f_r1, line_p_r1]
+    else:
+        line = [line_f_r1]
+        
 # if PART == 2:
 #     line_f_r1, = ax1.plot(time_lin_1[:], force_1[:], animated=True, color=color_list[1], linewidth=6, label=label1, alpha=0.8)
 #     line_f_r2, = ax1.plot(time_lin_2[0:1], force_2[0:1], animated=True, color=color_list[2], linewidth=6, label=label2, alpha=0.8)
@@ -185,9 +187,11 @@ def animate(t):
     This function will be called periodically by FuncAnimation. Frame parameter will be passed on each call as a counter. 
     """
     if PART == 1:
-        mask1 = time_lin_1 < t
-        line[0].set_data(time_lin_1[mask1], force_1[mask1])
-        # line[1].set_data(time_lin_1[mask1], np.zeros(time_lin_1[mask1].shape))
+        mask1 = time_lin1_split < t
+        line[0].set_data(time_lin1_split[mask1], force_1_split[mask1])
+        if(WITH_POSITION_PLOT):
+            line[1].set_data(time_lin1_split[mask1], err1_split[mask1.squeeze()])
+
     # if PART == 2:
     #     mask2 = time_lin_2 < t
     #     line[2].set_data(time_lin_2[mask2], force_2[mask2])
@@ -205,7 +209,7 @@ time_lin = np.linspace(0, T, N_FRAMES)
 ani = FuncAnimation(fig, animate, frames=time_lin, repeat=False, interval = SKIP, init_func = init, blit=True)
 folder = data_path 
 
-ani.save(folder + 'polishing_coulomb_animation' + '.mp4')
+ani.save(folder + 'polishing_coulomb_animation_NEW' + '.mp4')
 
 print("COMPUTE TIME = ", time.time() - t0)
 
