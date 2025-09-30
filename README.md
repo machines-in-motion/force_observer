@@ -9,6 +9,13 @@ MPC using force estimation for contact tasks
 - [PyBullet](https://pybullet.org/wordpress/)  
 - [bullet_utils](https://github.com/machines-in-motion/bullet_utils) 
 
+# Conda install 
+`conda create -n force_observer`
+
+`conda activate force_observer`
+
+`conda install -c conda-forge mim-solvers cmake proxsuite `
+
 # Install the C++ code (with optional bindings)
 `git clone` this repo
 

@@ -8,7 +8,7 @@ namespace estimator {
 namespace bp = boost::python;
 
 void exposeDAMTau() {
-  bp::register_ptr_to_python<boost::shared_ptr< DAMContactDeltaTau> >();
+  bp::register_ptr_to_python<std::shared_ptr< DAMContactDeltaTau> >();
 
   bp::class_<DAMContactDeltaTau,
              bp::bases<crocoddyl::DifferentialActionModelContactFwdDynamics> >(
@@ -22,10 +22,10 @@ void exposeDAMTau() {
       "include the armature, you need to use set_armature(). On the other "
       "hand, the\n"
       "stack of cost functions are implemented in CostModelSum().",
-      bp::init<boost::shared_ptr<crocoddyl::StateMultibody>,
-               boost::shared_ptr<crocoddyl::ActuationModelAbstract>,
-               boost::shared_ptr<crocoddyl::ContactModelMultiple>,
-               boost::shared_ptr<crocoddyl::CostModelSum>,
+      bp::init<std::shared_ptr<crocoddyl::StateMultibody>,
+               std::shared_ptr<crocoddyl::ActuationModelAbstract>,
+               std::shared_ptr<crocoddyl::ContactModelMultiple>,
+               std::shared_ptr<crocoddyl::CostModelSum>,
                bp::optional<double, bool> >(
           bp::args("self", "state", "actuation", "contacts", "costs",
                    "inv_damping", "enable_force"),

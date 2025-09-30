@@ -57,7 +57,7 @@ MHVaryingForceEstimator::MHVaryingForceEstimator(
     H_.bottomRightCorner(nc_, nc_) = P_.asDiagonal();
 
     // QP solver
-    qp_ = boost::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
+    qp_ = std::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
 
     if(baumgarte_gains_[0] > 1e-6){
         std::cout << "Error: the proportional gain of Baugmarte should be 0 !" << std::endl;
@@ -68,7 +68,7 @@ MHVaryingForceEstimator::MHVaryingForceEstimator(
 MHVaryingForceEstimator::~MHVaryingForceEstimator(){}
 
 void MHVaryingForceEstimator::estimate(
-                const boost::shared_ptr<MHVaryingForceEstimatorData>& data, 
+                const std::shared_ptr<MHVaryingForceEstimatorData>& data, 
                 std::vector<Eigen::VectorXd> q_list,
                 std::vector<Eigen::VectorXd> v_list,
                 std::vector<Eigen::VectorXd> a_list,
@@ -226,8 +226,8 @@ void MHVaryingForceEstimator::set_mask(const std::size_t mask) {
 }
 
 
-boost::shared_ptr<MHVaryingForceEstimatorData> MHVaryingForceEstimator::createData() {
-  return boost::make_shared<MHVaryingForceEstimatorData>(this);
+std::shared_ptr<MHVaryingForceEstimatorData> MHVaryingForceEstimator::createData() {
+  return std::make_shared<MHVaryingForceEstimatorData>(this);
 }
 
 }  // namespace mim

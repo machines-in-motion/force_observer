@@ -57,10 +57,10 @@ class DAMContactDeltaTau:
    * derivatives (default false)
    */
   DAMContactDeltaTau(
-      boost::shared_ptr<StateMultibody> state,
-      boost::shared_ptr<ActuationModelAbstract> actuation,
-      boost::shared_ptr<crocoContactModelMultiple> contacts,
-      boost::shared_ptr<CostModelSum> costs,
+      std::shared_ptr<StateMultibody> state,
+      std::shared_ptr<ActuationModelAbstract> actuation,
+      std::shared_ptr<crocoContactModelMultiple> contacts,
+      std::shared_ptr<CostModelSum> costs,
       const double JMinvJt_damping = 0.,
       const bool enable_force = false);
   virtual ~DAMContactDeltaTau();
@@ -73,11 +73,11 @@ class DAMContactDeltaTau:
    * @param[in] u     Control input \f$\mathbf{u}\in\mathbb{R}^{nu}\f$
    */
   virtual void calc(
-      const boost::shared_ptr<DifferentialActionDataAbstract>& data,
+      const std::shared_ptr<DifferentialActionDataAbstract>& data,
       const Eigen::Ref<const VectorXd>& x, const Eigen::Ref<const VectorXd>& u);
 
 //   virtual void calcDiff(
-//       const boost::shared_ptr<DifferentialActionDataAbstract>& data,
+//       const std::shared_ptr<DifferentialActionDataAbstract>& data,
 //       const Eigen::Ref<const VectorXd>& x, const Eigen::Ref<const VectorXd>& u);
 
   void set_delta_tau(const VectorXd& inDeltaTau) { delta_tau_ = inDeltaTau; } ;
@@ -85,7 +85,7 @@ class DAMContactDeltaTau:
 
  private:
   bool enable_force_;
-  boost::shared_ptr<crocoContactModelMultiple> croco_contacts_;
+  std::shared_ptr<crocoContactModelMultiple> croco_contacts_;
   VectorXd delta_tau_; 
 };
 

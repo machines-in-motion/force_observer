@@ -135,7 +135,7 @@ class ForceEstimator{
    * @param[in] df_prior Prior \f$\mathbf{u}\in\mathbb{R}^{nc}\f$
    * @param[in] F_mes    Measured force \f$\mathbf{u}\in\mathbb{R}^{nc_delta_f}\f$
    */
-  void estimate(const boost::shared_ptr<ForceEstimatorData>& data, 
+  void estimate(const std::shared_ptr<ForceEstimatorData>& data, 
                 const Eigen::Ref<const VectorXd>& q,
                 const Eigen::Ref<const VectorXd>& v,
                 const Eigen::Ref<const VectorXd>& a,
@@ -148,7 +148,7 @@ class ForceEstimator{
    *
    * @return Force estimator data
    */
-  boost::shared_ptr<ForceEstimatorData> createData();
+  std::shared_ptr<ForceEstimatorData> createData();
 
   // getters 
   pinocchio::Model& get_pinocchio() const;
@@ -200,7 +200,7 @@ class ForceEstimator{
     VectorXd R_;                                    //!< Force weight
     MatrixXd H_;                                    //!< QP param         
 
-    boost::shared_ptr<dense::QP<double>> qp_;                          //!< QP solver
+    std::shared_ptr<dense::QP<double>> qp_;                          //!< QP solver
 };
 
 

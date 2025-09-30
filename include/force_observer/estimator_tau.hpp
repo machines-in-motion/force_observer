@@ -130,7 +130,7 @@ class TorqueEstimator{
    * @param[in] dtau_prior Prior \f$\mathbf{u}\in\mathbb{R}^{nc}\f$
    * @param[in] F_mes      Measured force \f$\mathbf{u}\in\mathbb{R}^{nc_delta_f}\f$
    */
-  void estimate(const boost::shared_ptr<TorqueEstimatorData>& data, 
+  void estimate(const std::shared_ptr<TorqueEstimatorData>& data, 
                 const Eigen::Ref<const VectorXd>& q,
                 const Eigen::Ref<const VectorXd>& v,
                 const Eigen::Ref<const VectorXd>& a,
@@ -143,7 +143,7 @@ class TorqueEstimator{
    *
    * @return Force estimator data
    */
-  boost::shared_ptr<TorqueEstimatorData> createData();
+  std::shared_ptr<TorqueEstimatorData> createData();
 
   // getters 
   pinocchio::Model& get_pinocchio() const;
@@ -192,7 +192,7 @@ class TorqueEstimator{
     VectorXd R_;                                    //!< Force weight
     MatrixXd H_;                                    //!< QP param         
 
-    boost::shared_ptr<dense::QP<double>> qp_;                          //!< QP solver
+    std::shared_ptr<dense::QP<double>> qp_;                          //!< QP solver
 };
 
 

@@ -10,7 +10,7 @@ BOOST_AUTO_TEST_SUITE(BOOST_TEST_MODULE)
 
 BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     // Load robot model 
-    std::string URDF_PARAMS = "/home/kuka/workspace_demo/src/force_observer/tests/iiwa_ft_sensor_shell.urdf";
+    std::string URDF_PARAMS = "/home/skleff/misc_repos/force_observer/tests/iiwa_ft_sensor_shell.urdf";
     pinocchio::Model model;
     pinocchio::urdf::buildModel(URDF_PARAMS, model);
 
@@ -94,7 +94,7 @@ BOOST_AUTO_TEST_CASE(test_boost_estimator) {
     BOOST_CHECK( (forceEstimator.get_R() - R).isZero(TOL) );
 
     // Test estimator data
-    boost::shared_ptr<mim::estimator::MHForceEstimatorData> forceEstimatorData = forceEstimator.createData();
+    std::shared_ptr<mim::estimator::MHForceEstimatorData> forceEstimatorData = forceEstimator.createData();
     BOOST_CHECK( forceEstimatorData->F.isZero(TOL) );
     BOOST_CHECK( forceEstimatorData->delta_f.isZero(TOL) );
     BOOST_CHECK( forceEstimatorData->J.isZero(TOL) );

@@ -62,7 +62,7 @@ MHForceEstimator::MHForceEstimator(
 
     // std::cout <<  "A" <<  A << std::endl;
 
-    qp_ = boost::make_shared<sparse::QP<double, long long>>(sparse::QP<double, long long>(n_tot_, neq_, nin_));
+    qp_ = std::make_shared<sparse::QP<double, long long>>(sparse::QP<double, long long>(n_tot_, neq_, nin_));
 
 
     if(baumgarte_gains_[0] > 1e-6){
@@ -74,7 +74,7 @@ MHForceEstimator::MHForceEstimator(
 MHForceEstimator::~MHForceEstimator(){}
 
 void MHForceEstimator::estimate(
-                const boost::shared_ptr<MHForceEstimatorData>& data, 
+                const std::shared_ptr<MHForceEstimatorData>& data, 
                 const Eigen::Ref<const Eigen::VectorXd>& q_list,
                 const Eigen::Ref<const Eigen::VectorXd>& v_list,
                 const Eigen::Ref<const Eigen::VectorXd>& a_list,
@@ -250,8 +250,8 @@ void MHForceEstimator::set_mask(const std::size_t mask) {
 }
 
 
-boost::shared_ptr<MHForceEstimatorData> MHForceEstimator::createData() {
-  return boost::make_shared<MHForceEstimatorData>(this);
+std::shared_ptr<MHForceEstimatorData> MHForceEstimator::createData() {
+  return std::make_shared<MHForceEstimatorData>(this);
 }
 
 }  // namespace mim

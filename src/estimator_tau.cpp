@@ -41,7 +41,7 @@ TorqueEstimator::TorqueEstimator(
     H_.block(nv_, nv_, nc_, nc_) = R_.asDiagonal();
 
     // QP solver
-    qp_ = boost::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
+    qp_ = std::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
 
     if(baumgarte_gains_[0] > 1e-6){
         std::cout << "Error: the proportional gain of Baugmarte should be 0 !" << std::endl;
@@ -52,7 +52,7 @@ TorqueEstimator::TorqueEstimator(
 TorqueEstimator::~TorqueEstimator(){}
 
 void TorqueEstimator::estimate(
-                const boost::shared_ptr<TorqueEstimatorData>& data, 
+                const std::shared_ptr<TorqueEstimatorData>& data, 
                 const Eigen::Ref<const Eigen::VectorXd>& q,
                 const Eigen::Ref<const Eigen::VectorXd>& v,
                 const Eigen::Ref<const Eigen::VectorXd>& a,
@@ -195,9 +195,9 @@ void TorqueEstimator::set_mask(const std::size_t mask) {
 }
 
 
-boost::shared_ptr<TorqueEstimatorData> TorqueEstimator::createData() {
+std::shared_ptr<TorqueEstimatorData> TorqueEstimator::createData() {
 //   return boost::allocate_shared<TorqueEstimatorData>(Eigen::aligned_allocator<TorqueEstimatorData>(), this);
-  return boost::make_shared<TorqueEstimatorData>(this);
+  return std::make_shared<TorqueEstimatorData>(this);
 }
 
 }  // namespace mim
