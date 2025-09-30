@@ -17,21 +17,35 @@ Force-feedback MPC based on online estimation. This repo implements custom resid
 # Install from source
 ## Setup environment
 You can optionally use conda to setup your work environment
+
 `conda create -n force_observer`
+
 `conda activate force_observer`
+
 `conda install -c conda-forge mim-solvers cmake proxsuite`
+
 `conda install conda-forge::pyyaml`
+
 `conda install matplotlib`
+
 `conda install conda-forge::pybullet`
-Also check out `environment.yaml` to full conda environment. 
+
+Also check out `environment.yaml` to full conda environment. Then you can install manually the remaining machines-in-motion dependencies [croco_mpc_utils](https://github.com/machines-in-motion/mim_robots) and [mim_robots](https://github.com/machines-in-motion/mim_robots) (use the `pip install . --no-deps`).
+
 
 ## Build and install
 Then clone and build / install the code
+
 `git clone git@github.com:machines-in-motion/force_observer.git`
+
 `git submodule update --init`
+
 `mkdir build && cd build`
+
 `cmake .. -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX={INSTALL_DIR}`
+
 `make && sudo make install`
+
 To install inside the conda environment, you can use `-DCMAKE_INSTALL_PREFIX=$CONDA_PREFIX` (environment must be activated).
 
 # How to use it
