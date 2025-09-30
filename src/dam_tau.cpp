@@ -23,21 +23,21 @@ namespace estimator {
 
 DAMContactDeltaTau::
     DAMContactDeltaTau(
-        boost::shared_ptr<StateMultibody> state,
-        boost::shared_ptr<ActuationModelAbstract> actuation,
-        boost::shared_ptr<crocoContactModelMultiple> contacts,
-        boost::shared_ptr<CostModelSum> costs, const double JMinvJt_damping,
+        std::shared_ptr<StateMultibody> state,
+        std::shared_ptr<ActuationModelAbstract> actuation,
+        std::shared_ptr<crocoContactModelMultiple> contacts,
+        std::shared_ptr<CostModelSum> costs, const double JMinvJt_damping,
         const bool enable_force)
     : Base(state, actuation, contacts, costs, JMinvJt_damping, enable_force) ,
       enable_force_(enable_force) {
-  croco_contacts_ = boost::static_pointer_cast<crocoddyl::ContactModelMultipleTpl<double>>(contacts);
+  croco_contacts_ = std::static_pointer_cast<crocoddyl::ContactModelMultipleTpl<double>>(contacts);
   delta_tau_ = VectorXd::Zero(state->get_nv());
 }
 
 DAMContactDeltaTau::~DAMContactDeltaTau() {}
 
 void DAMContactDeltaTau::calc(
-    const boost::shared_ptr<DifferentialActionDataAbstract>& data, 
+    const std::shared_ptr<DifferentialActionDataAbstract>& data, 
     const Eigen::Ref<const VectorXd>& x,
     const Eigen::Ref<const VectorXd>& u) {
   if (static_cast<std::size_t>(x.size()) != this->get_state()->get_nx()) {

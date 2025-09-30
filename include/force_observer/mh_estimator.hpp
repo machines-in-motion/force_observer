@@ -132,7 +132,7 @@ class MHForceEstimator{
    * @param[in] df_prior Prior \f$\mathbf{u}\in\mathbb{R}^{nc}\f$
    * @param[in] F_mes    Measured force \f$\mathbf{u}\in\mathbb{R}^{nc}\f$
    */
-  void estimate(const boost::shared_ptr<MHForceEstimatorData>& data, 
+  void estimate(const std::shared_ptr<MHForceEstimatorData>& data, 
                 const Eigen::Ref<const VectorXd>& q_list,
                 const Eigen::Ref<const VectorXd>& v_list,
                 const Eigen::Ref<const VectorXd>& a_list,
@@ -145,7 +145,7 @@ class MHForceEstimator{
    *
    * @return Force estimator data
    */
-  boost::shared_ptr<MHForceEstimatorData> createData();
+  std::shared_ptr<MHForceEstimatorData> createData();
 
   // getters 
   std::size_t get_T() const;
@@ -203,7 +203,7 @@ class MHForceEstimator{
 
 
 
-    boost::shared_ptr<sparse::QP<double, long long>> qp_;                          //!< QP solver
+    std::shared_ptr<sparse::QP<double, long long>> qp_;                          //!< QP solver
 };
 
 

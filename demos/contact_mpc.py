@@ -11,7 +11,7 @@
 import sys
 sys.path.append('.')
 
-from core_mpc.misc_utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
+from croco_mpc_utils.utils import CustomLogger, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT
 logger = CustomLogger(__name__, GLOBAL_LOG_LEVEL, GLOBAL_LOG_FORMAT).logger
 
 
@@ -20,46 +20,51 @@ np.set_printoptions(precision=4, linewidth=180)
 RANDOM_SEED = 19
 np.random.seed(RANDOM_SEED)
 
-from core_mpc import path_utils, pin_utils, mpc_utils, misc_utils
-from core_mpc import ocp as ocp_utils
-from core_mpc import sim_utils as simulator_utils
+from utils import mpc_utils, ocp_utils, path_utils, pin_utils
+from utils import sim_utils as simulator_utils
+from croco_mpc_utils import pinocchio_utils as pin_utils
+from croco_mpc_utils.ocp_data import OCPDataHandlerClassical
 
-from classical_mpc.data import DDPDataHandlerClassical
-from ocp_utils import OptimalControlProblemClassicalWithObserver
-from mpc_utils import MPCDataHandlerClassicalWithEstimator
+from utils.ocp_utils import OptimalControlProblemClassicalWithObserver
+from utils.mpc_utils import MPCDataHandlerClassicalWithEstimator
 from estimator import Estimator
 
+from mim_robots.robot_loader import load_bullet_wrapper
+from mim_robots.pybullet.env import BulletEnvWithGround
 import pybullet as p
 
 import time
 import pinocchio as pin
+
+import mim_solvers
+
 jRc = np.eye(3)
 jpc = np.array([0, 0., 0.12])
 jMc = pin.SE3(jRc, jpc)
 
-def solveOCP(q, v, ddp, nb_iter, node_id_reach, target_reach, node_id_contact, TASK_PHASE, target_force):
+def solveOCP(q, v, solver, nb_iter, node_id_reach, target_reach, node_id_contact, TASK_PHASE, target_force):
         t = time.time()
         x = np.concatenate([q, v])
-        ddp.problem.x0 = x
-        xs_init = list(ddp.xs[1:]) + [ddp.xs[-1]]
+        solver.problem.x0 = x
+        xs_init = list(solver.xs[1:]) + [solver.xs[-1]]
         xs_init[0] = x
-        us_init = list(ddp.us[1:]) + [ddp.us[-1]] 
+        us_init = list(solver.us[1:]) + [solver.us[-1]] 
         # Get OCP nodes
-        m = list(ddp.problem.runningModels) + [ddp.problem.terminalModel]
+        m = list(solver.problem.runningModels) + [solver.problem.terminalModel]
         # Update OCP for reaching phase
         if(TASK_PHASE == 1):
             # If node id is valid
-            if(node_id_reach <= ddp.problem.T and node_id_reach >= 0):
+            if(node_id_reach <= solver.problem.T and node_id_reach >= 0):
                 # Updates nodes between node_id and terminal node 
-                for k in range( node_id_reach, ddp.problem.T+1, 1 ):
+                for k in range( node_id_reach, solver.problem.T+1, 1 ):
                     m[k].differential.costs.costs["translation"].active = True
                     m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
         # Update OCP for contact phase
         if(TASK_PHASE == 2):
             # If node id is valid
-            if(node_id_contact <= ddp.problem.T and node_id_contact >= 0):
+            if(node_id_contact <= solver.problem.T and node_id_contact >= 0):
                 # Updates nodes between node_id and terminal node 
-                for k in range( node_id_contact, ddp.problem.T+1, 1 ):
+                for k in range( node_id_contact, solver.problem.T+1, 1 ):
                     # wf = min(1.*(k + 1. - node_id_contact) , force_weight)  
                     m[k].differential.costs.costs["translation"].active = True
                     m[k].differential.costs.costs["translation"].cost.residual.reference = target_reach[k]
@@ -67,23 +72,23 @@ def solveOCP(q, v, ddp, nb_iter, node_id_reach, target_reach, node_id_contact, T
                     m[k].differential.costs.costs["velocity"].active = True
                     # activate contact and force cost
                     m[k].differential.contacts.changeContactStatus("contact", True)
-                    if(k < ddp.problem.T):
+                    if(k < solver.problem.T):
                         fref = pin.Force(np.array([0., 0., target_force[k], 0., 0., 0.]))
                         m[k].differential.costs.costs["force"].active = True
                         m[k].differential.costs.costs["force"].cost.residual.reference = fref
         # get predicted force from rigid model (careful : expressed in LOCAL !!!)
-        j_wrenchpred = ddp.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f
+        j_wrenchpred = solver.problem.runningDatas[0].differential.multibody.contacts.contacts['contact'].f
         fpred = jMc.actInv(j_wrenchpred).linear
         # print(fpred)
         problem_formulation_time = time.time()
         t_child_1 =  problem_formulation_time - t
         # Solve OCP 
-        ddp.solve(xs_init, us_init, maxiter=nb_iter, isFeasible=False)
+        solver.solve(xs_init, us_init, maxiter=nb_iter, isFeasible=False)
         # Send solution to parent process + riccati gains
         solve_time = time.time()
-        ddp_iter = ddp.iter
+        solver_iter = solver.iter
         t_child =  solve_time - problem_formulation_time
-        return ddp.us, ddp.xs, ddp.K, t_child, ddp_iter, t_child_1, fpred
+        return solver.us, solver.xs, solver.K, t_child, solver_iter, t_child_1, fpred
 
 
 
@@ -100,7 +105,11 @@ dt_simu = 1./float(config['simu_freq'])
 q0 = np.asarray(config['q0'])
 v0 = np.asarray(config['dq0'])
 x0 = np.concatenate([q0, v0])   
-env, robot_simulator, _ = simulator_utils.init_bullet_simulation('iiwa', dt=dt_simu, x0=x0)
+env             = BulletEnvWithGround(dt=dt_simu, server=p.DIRECT)
+robot_simulator = load_bullet_wrapper('iiwa_ft_sensor_shell') #, locked_joints=['A7'])
+env.add_robot(robot_simulator) 
+robot_simulator.reset_state(q0, v0)
+robot_simulator.forward_robot(q0, v0)
 robot = robot_simulator.pin_robot
 # Get dimensions & frame of interest
 nq, nv = robot.model.nq, robot.model.nv; nu = nq
@@ -124,9 +133,9 @@ simulator_utils.set_contact_stiffness_and_damping(contact_surface_bulletId, 1e6,
 
 # Init shooting problem and solver
 delta_f = np.zeros(1)
-ddp = OptimalControlProblemClassicalWithObserver(robot, config).initialize(x0, delta_f, pinRefFrame=pin.LOCAL_WORLD_ALIGNED, callbacks=False)
+ocp = OptimalControlProblemClassicalWithObserver(robot, config).initialize(x0) #, delta_f, pinRefFrame=pin.LOCAL_WORLD_ALIGNED, callbacks=False)
 # !!! Deactivate all costs & contact models initially !!!
-models = list(ddp.problem.runningModels) + [ddp.problem.terminalModel]
+models = list(ocp.runningModels) + [ocp.terminalModel]
 for k,m in enumerate(models):
     m.differential.costs.costs["translation"].active = False
     if(k < config['N_h']):
@@ -136,13 +145,19 @@ for k,m in enumerate(models):
 # Warmstart and solve
 xs_init = [x0 for i in range(config['N_h']+1)]
 us_init = [pin_utils.get_u_grav(q0, robot.model, np.zeros(nv)) for i in range(config['N_h'])] 
-ddp.solve(xs_init, us_init, maxiter=100, isFeasible=False)
+solver = mim_solvers.SolverSQP(ocp)
+solver.regMax                 = 1e6
+solver.reg_max                = 1e6
+solver.termination_tolerance  = 0.0001 
+solver.use_filter_line_search = True
+solver.filter_size            = config['maxiter']
+solver.solve(xs_init, us_init, maxiter=100, isFeasible=False)
 
 # Plot initial solution
 if(PLOT_INIT):
-  ddp_handler = DDPDataHandlerClassical(ddp)
-  ddp_data = ddp_handler.extract_data(frame_of_interest, frame_of_interest)
-  _, _ = ddp_handler.plot_ddp_results(ddp_data, markers=['.'], SHOW=True)
+  ocp_handler = OCPDataHandlerClassical(solver.problem)
+  ocp_data = ocp_handler.extract_data(frame_of_interest, frame_of_interest)
+  _, _ = ocp_handler.plot_ocp_results(ocp_data, markers=['.'], SHOW=True)
 
 
 
@@ -186,7 +201,7 @@ nb_ctrl = 0
 communicationModel = mpc_utils.CommunicationModel(config)
 actuationModel     = mpc_utils.ActuationModel(config, nu=nu, SEED=RANDOM_SEED)
 sensingModel       = mpc_utils.SensorModel(config, SEED=RANDOM_SEED)
-torqueController   = mpc_utils.LowLevelTorqueController(config, nu=nu)
+torqueController   = mpc_utils.LowLevelTorqueController(config, nu=nu, use=True)
 antiAliasingFilter = mpc_utils.AntiAliasingFilter()
 
 
@@ -214,7 +229,7 @@ logger.debug("OCP to PLAN time ratio = "+str(OCP_TO_MPC_CYCLES))
 
 
 # SIMULATE
-sim_data.tau_mea_SIMU[0,:] = ddp.us[0]
+sim_data.tau_mea_SIMU[0,:] = solver.us[0]
 err_fz = 0
 err_p = 0
 count=0
@@ -279,14 +294,14 @@ for i in range(sim_data.N_simu):
         v = x_filtered[nq:nq+nv]
 
         # Solve OCP 
-        for m in ddp.problem.runningModels:
+        for m in solver.problem.runningModels:
            m.differential.delta_f = delta_f
 
-        solveOCP(q, v, ddp, config['maxiter'], node_id_reach, target_position, node_id_contact, TASK_PHASE, target_force)
+        solveOCP(q, v, solver, config['maxiter'], node_id_reach, target_position, node_id_contact, TASK_PHASE, target_force)
         # Record MPC predictions, cost references and solver data 
-        sim_data.record_predictions(nb_plan, ddp)
-        sim_data.record_cost_references(nb_plan, ddp)
-        sim_data.record_solver_data(nb_plan, ddp)  
+        sim_data.record_predictions(nb_plan, solver)
+        sim_data.record_cost_references(nb_plan, solver)
+        sim_data.record_solver_data(nb_plan, solver)  
         # Model communication delay between computer & robot (buffered OCP solution)
         communicationModel.step(sim_data.x_pred, sim_data.u_curr)
         # Record interpolated desired state, control and force at MPC frequency
@@ -308,7 +323,7 @@ for i in range(sim_data.N_simu):
         # Optionally interpolate to the control frequency using Riccati gains
         if(config['RICCATI']):
           x_filtered = antiAliasingFilter.step(nb_ctrl, i, sim_data.ctrl_freq, sim_data.simu_freq, sim_data.state_mea_SIMU)
-          tau_des_CTRL += ddp.K[0].dot(ddp.problem.x0 - x_filtered)
+          tau_des_CTRL += solver.K[0].dot(solver.problem.x0 - x_filtered)
         # Compute the motor torque 
         tau_mot_CTRL = torqueController.step(tau_des_CTRL, tau_mea_CTRL, tau_mea_derivative_CTRL)
         # Increment control counter
@@ -316,7 +331,7 @@ for i in range(sim_data.N_simu):
 
 
     # Simulate actuation 
-    tau_mea_SIMU = actuationModel.step(i, tau_mot_CTRL, joint_vel=sim_data.state_mea_SIMU[i,nq:nq+nv])
+    tau_mea_SIMU = actuationModel.step(tau_mot_CTRL, joint_vel=sim_data.state_mea_SIMU[i,nq:nq+nv])
     # Step PyBullet simulator
     robot_simulator.send_joint_command(tau_mea_SIMU)
 
@@ -354,7 +369,7 @@ for i in range(sim_data.N_simu):
     if(i>0): a_mea_SIMU = (v_mea_SIMU - sim_data.state_mea_SIMU[i-1, nv:]) / env.dt
     else: a_mea_SIMU = np.zeros(nv)
     if(np.linalg.norm(f_mea_SIMU) > 1e-6):
-        F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, f_mea_SIMU[2:3], pinRefRame=sim_data.PIN_REF_FRAME) # + np.array([10,-10,20]))
+        F, delta_f = force_estimator.estimate(q_mea_SIMU, v_mea_SIMU, a_mea_SIMU, tau_mea_SIMU, delta_f, f_mea_SIMU[2:3]) #, pinRefRame=sim_data.PIN_REF_FRAME) # + np.array([10,-10,20]))
 
     sim_data.record_simu_cycle_estimates(i, np.array([0, 0, delta_f[0]]))
 

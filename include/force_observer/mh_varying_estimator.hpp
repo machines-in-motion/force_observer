@@ -132,7 +132,7 @@ class MHVaryingForceEstimator{
    * @param[in] df_prior Prior \f$\mathbf{u}\in\mathbb{R}^{nc}\f$
    * @param[in] F_mes    Measured force \f$\mathbf{u}\in\mathbb{R}^{nc}\f$
    */
-  void estimate(const boost::shared_ptr<MHVaryingForceEstimatorData>& data, 
+  void estimate(const std::shared_ptr<MHVaryingForceEstimatorData>& data, 
                 std::vector<Eigen::VectorXd> q_list,
                 std::vector<Eigen::VectorXd> v_list,
                 std::vector<Eigen::VectorXd> a_list,
@@ -145,7 +145,7 @@ class MHVaryingForceEstimator{
    *
    * @return Force estimator data
    */
-  boost::shared_ptr<MHVaryingForceEstimatorData> createData();
+  std::shared_ptr<MHVaryingForceEstimatorData> createData();
 
   // getters 
   pinocchio::Model& get_pinocchio() const;
@@ -195,7 +195,7 @@ class MHVaryingForceEstimator{
     VectorXd R_;                                    //!< Force weight
     MatrixXd H_;                                    //!< QP param         
 
-    boost::shared_ptr<dense::QP<double>> qp_;                          //!< QP solver
+    std::shared_ptr<dense::QP<double>> qp_;                          //!< QP solver
 };
 
 

@@ -46,7 +46,7 @@ ForceEstimator::ForceEstimator(
     H_.block(nv_, nv_, nc_, nc_) = R_.asDiagonal();
 
     // QP solver
-    qp_ = boost::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
+    qp_ = std::make_shared<dense::QP<double>>(dense::QP<double>(n_tot_, neq_, nin_));
 
     if(baumgarte_gains_[0] > 1e-6){
         std::cout << "Error: the proportional gain of Baugmarte should be 0 !" << std::endl;
@@ -57,7 +57,7 @@ ForceEstimator::ForceEstimator(
 ForceEstimator::~ForceEstimator(){}
 
 void ForceEstimator::estimate(
-                const boost::shared_ptr<ForceEstimatorData>& data, 
+                const std::shared_ptr<ForceEstimatorData>& data, 
                 const Eigen::Ref<const Eigen::VectorXd>& q,
                 const Eigen::Ref<const Eigen::VectorXd>& v,
                 const Eigen::Ref<const Eigen::VectorXd>& a,
@@ -213,9 +213,9 @@ void ForceEstimator::set_mask(const std::size_t mask) {
 }
 
 
-boost::shared_ptr<ForceEstimatorData> ForceEstimator::createData() {
+std::shared_ptr<ForceEstimatorData> ForceEstimator::createData() {
 //   return boost::allocate_shared<ForceEstimatorData>(Eigen::aligned_allocator<ForceEstimatorData>(), this);
-  return boost::make_shared<ForceEstimatorData>(this);
+  return std::make_shared<ForceEstimatorData>(this);
 }
 
 }  // namespace mim

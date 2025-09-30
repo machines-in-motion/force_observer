@@ -11,7 +11,7 @@ namespace bp = boost::python;
 
 void exposeEstimatorTau() {
   bp::register_ptr_to_python<
-      boost::shared_ptr<TorqueEstimator> >();
+      std::shared_ptr<TorqueEstimator> >();
 
   bp::class_<TorqueEstimator>(
       "TorqueEstimator",
@@ -29,7 +29,7 @@ void exposeEstimatorTau() {
           ":param baumgarte_gains: Baumgarte gains in contact model\n"
           ":param ref: Pinocchio reference frame of the contact model."))
 
-      .def<void (TorqueEstimator::*)(const boost::shared_ptr<TorqueEstimatorData>&,
+      .def<void (TorqueEstimator::*)(const std::shared_ptr<TorqueEstimatorData>&,
                                     const Eigen::Ref<const Eigen::VectorXd>&,
                                     const Eigen::Ref<const Eigen::VectorXd>&,
                                     const Eigen::Ref<const Eigen::VectorXd>&,
@@ -65,7 +65,7 @@ void exposeEstimatorTau() {
       .add_property("mask", bp::make_function(&TorqueEstimator::get_mask), bp::make_function(&TorqueEstimator::set_mask), "Contact model mask (for 1D only)");
 
   bp::register_ptr_to_python<
-      boost::shared_ptr<TorqueEstimatorData> >();
+      std::shared_ptr<TorqueEstimatorData> >();
 
   bp::class_<TorqueEstimatorData>(
       "TorqueEstimatorData", "Data for force estimation.\n\n",

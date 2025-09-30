@@ -11,7 +11,7 @@ namespace bp = boost::python;
 
 void exposeMHEstimator() {
   bp::register_ptr_to_python<
-      boost::shared_ptr<MHForceEstimator> >();
+      std::shared_ptr<MHForceEstimator> >();
 
   bp::class_<MHForceEstimator>(
       "MHForceEstimator",
@@ -31,7 +31,7 @@ void exposeMHEstimator() {
           ":param baumgarte_gains: Baumgarte gains in contact model\n"
           ":param ref: Pinocchio reference frame of the contact model."))
 
-      .def<void (MHForceEstimator::*)(const boost::shared_ptr<MHForceEstimatorData>&,
+      .def<void (MHForceEstimator::*)(const std::shared_ptr<MHForceEstimatorData>&,
                                     const Eigen::Ref<const Eigen::VectorXd>&,
                                     const Eigen::Ref<const Eigen::VectorXd>&,
                                     const Eigen::Ref<const Eigen::VectorXd>&,
@@ -68,7 +68,7 @@ void exposeMHEstimator() {
       .add_property("mask", bp::make_function(&MHForceEstimator::get_mask), bp::make_function(&MHForceEstimator::set_mask), "Contact model mask (for 1D only)");
 
   bp::register_ptr_to_python<
-      boost::shared_ptr<MHForceEstimatorData> >();
+      std::shared_ptr<MHForceEstimatorData> >();
 
   bp::class_<MHForceEstimatorData>(
       "MHForceEstimatorData", "Data for force estimation.\n\n",
