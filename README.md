@@ -1,5 +1,5 @@
 # Description
-Force-feedback MPC based on online estimation. This repo implements custom residual, action model and estimator in C++ (with Python bindings) based on the Crocoddyl library. This is meant to be used as a plugin to reproduce the work described in this publication      
+Force-feedback MPC based on online estimation. This repo implements custom residual, action model and estimator in C++ (with Python bindings) based on the Crocoddyl library. This is meant to be used as a plugin to reproduce the work described in [this publication](https://hal.science/hal-04564888v1/document).
 
 # Dependencies
 ## Core (C++/Python bindings)
@@ -40,3 +40,20 @@ In `demos` run the contact or sanding task script, e.g. `python sanding_mpc.py`.
 Run the unit test from the `build` folder by running `ctest -v`
 
 Import the python bindings of C++ classes with `import force_observer`
+
+# Citing this repo
+```
+@INPROCEEDINGS{10611156,
+  author={Jordana, Armand and Kleff, Sébastien and Carpentier, Justin and Mansard, Nicolas and Righetti, Ludovic},
+  booktitle={2024 IEEE International Conference on Robotics and Automation (ICRA)}, 
+  title={Force Feedback Model-Predictive Control via Online Estimation}, 
+  year={2024},
+  volume={},
+  number={},
+  pages={11503-11509},
+  keywords={Torque;Systematics;Force;Force feedback;Estimation;Robot sensing systems;Force sensors},
+  doi={10.1109/ICRA57147.2024.10611156}}
+```
+```
+A. Jordana, S. Kleff, J. Carpentier, N. Mansard and L. Righetti, "Force Feedback Model-Predictive Control via Online Estimation," 2024 IEEE International Conference on Robotics and Automation (ICRA), Yokohama, Japan, 2024, pp. 11503-11509, doi: 10.1109/ICRA57147.2024.10611156. keywords: {Torque;Systematics;Force;Force feedback;Estimation;Robot sensing systems;Force sensors},
+```
