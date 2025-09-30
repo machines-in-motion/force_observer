@@ -92,7 +92,9 @@ class OptimalControlProblemClassicalWithObserver(ocp.OptimalControlProblemClassi
   
   # Contact or not ?
     self.parse_contacts()
-
+  # Constraints or not ?
+    self.parse_constraints()
+    
   # Create IAMs
     runningModels = []
     for i in range(self.N_h):  

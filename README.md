@@ -14,7 +14,10 @@ MPC using force estimation for contact tasks
 
 `conda activate force_observer`
 
-`conda install -c conda-forge mim-solvers cmake proxsuite `
+`conda install -c conda-forge mim-solvers cmake proxsuite`
+`conda install conda-forge::pyyaml`
+`conda install matplotlib`
+`conda install conda-forge::pybullet`
 
 # Install the C++ code (with optional bindings)
 `git clone` this repo
